@@ -56,5 +56,15 @@ services:
       migrator:
         condition: service_completed_successfully
 
+  web:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api
+
 volumes:
   pg_data:
