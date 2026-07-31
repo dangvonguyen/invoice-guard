@@ -50,6 +50,10 @@ jobs:
 
       - name: Run tests
         run: uv run pytest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: invoice-guard-test
 
   frontend:
     name: Frontend
