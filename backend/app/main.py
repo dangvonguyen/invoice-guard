@@ -1,0 +1,28 @@
+"""Create and configure the FastAPI application."""
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.main import api_router
+from app.config.settings import get_settings
+
+# Set up CORS
+cors_list = [
+    origin.strip()
+    for origin in get_settings().CORS_ORIGINS.split(",")
+    if origin.strip()
+]
+
+app = FastAPI(title=get_settings().API_TITLE)
+
+# Register the API routes
+app.include_router(api_router, prefix=get_settings().API_ROOT)
+
+# Register CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
