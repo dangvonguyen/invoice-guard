@@ -17,6 +17,7 @@ services:
       retries: 5
 
   migrator:
+    image: ${DOCKER_BACKEND_IMAGE}:${TAG:-latest}
     build:
       context: ./backend
       target: dev
@@ -34,6 +35,7 @@ services:
         condition: service_healthy
 
   api:
+    image: ${DOCKER_BACKEND_IMAGE}:${TAG:-latest}
     build:
       context: ./backend
       target: dev
@@ -55,9 +57,17 @@ services:
         condition: service_healthy
       migrator:
         condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/live')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   web:
+    image: ${DOCKER_FRONTEND_IMAGE}:${TAG:-latest}
     build: ./frontend
+    env_file:
+      - ./frontend/.env
     ports:
       - "5173:5173"
     volumes:
