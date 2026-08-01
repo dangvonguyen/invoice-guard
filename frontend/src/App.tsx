@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 
-const apiUrl = (import.meta.env.VITE_API_URL as string) ?? ''
-
-console.log('API URL: ', apiUrl)
+const apiUrl = ((import.meta.env.VITE_API_URL as string) ?? '').replace(/\/+$/, '')
+const configuredApiRoot = ((import.meta.env.VITE_API_ROOT as string) ?? '/api').replace(
+  /^\/+|\/+$/g,
+  '',
+)
+const apiRoot = configuredApiRoot ? `/${configuredApiRoot}` : ''
 
 type CheckState = 'checking' | 'healthy' | 'unhealthy'
 
@@ -11,13 +14,13 @@ const checks = [
     key: 'live',
     name: 'API service',
     description: 'The application server is responding.',
-    endpoint: '/api/health/live',
+    endpoint: '/health/live',
   },
   {
     key: 'ready',
     name: 'Database',
     description: 'The database connection is ready.',
-    endpoint: '/api/health/ready',
+    endpoint: '/health/ready',
   },
 ] as const
 
@@ -48,7 +51,7 @@ export function App() {
     const entries = await Promise.all(
       checks.map(async ({ key, endpoint }) => {
         try {
-          const response = await fetch(`${apiUrl}${endpoint}`, { cache: 'no-store' })
+          const response = await fetch(`${apiUrl}${apiRoot}${endpoint}`, { cache: 'no-store' })
           return [key, response.ok ? 'healthy' : 'unhealthy']
         } catch {
           return [key, 'unhealthy']
