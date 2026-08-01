@@ -23,7 +23,7 @@ async def ready(session: SessionDep) -> dict[str, str]:
     """
     try:
         await session.execute(text("SELECT 1"))
-    except SQLAlchemyError as exc:
+    except (SQLAlchemyError, OSError) as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database is unavailable",
