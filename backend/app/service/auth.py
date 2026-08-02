@@ -25,10 +25,12 @@ class AuthService:
         """Authenticate a user and return an encoded access token.
 
         Raises:
-            InvalidCredentialError: If the email is unknown.
+            InvalidCredentialError: If the email is unknown or the password
+                does not match the stored password hash.
         """
         user = await self._users.get_by_email(email)
         if not user:
             raise InvalidCredentialsError()
-        await self._password_verifier.verify(password, user.hashed_password)
+        if not await self._password_verifier.verify(password, user.hashed_password):
+            raise InvalidCredentialsError()
         return self._access_token_encoder.encode(user.id)
