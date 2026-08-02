@@ -52,3 +52,25 @@ async def test_should_reject_login_when_user_does_not_exist() -> None:
         await service.login(email="unknown@example.com", password="whatever")
     password_verifier.assert_not_called()
     access_token_encoder.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_should_reject_login_when_password_is_wrong() -> None:
+    """Reject login and avoid issuing a token when the password is invalid."""
+    user = User(id="user-1", email="user@example.com", hashed_password="hashed")
+    users = AsyncMock()
+    users.get_by_email.return_value = user
+    password_verifier = AsyncMock()
+    password_verifier.verify.return_value = False
+    access_token_encoder = Mock()
+
+    service = AuthService(
+        users=users,
+        password_verifier=password_verifier,
+        access_token_encoder=access_token_encoder,
+    )
+
+    with pytest.raises(InvalidCredentialsError):
+        await service.login(email="user@example.com", password="wrong-password")
+    access_token_encoder.assert_not_called()
