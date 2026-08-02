@@ -22,7 +22,13 @@ class AuthService:
         self._access_token_encoder = access_token_encoder
 
     async def login(self, email: str, password: str) -> str:
-        """Authenticate a user and return an encoded access token."""
+        """Authenticate a user and return an encoded access token.
+
+        Raises:
+            InvalidCredentialError: If the email is unknown.
+        """
         user = await self._users.get_by_email(email)
+        if not user:
+            raise InvalidCredentialsError()
         await self._password_verifier.verify(password, user.hashed_password)
         return self._access_token_encoder.encode(user.id)
