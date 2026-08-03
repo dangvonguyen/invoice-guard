@@ -4,6 +4,7 @@ from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
+from fastapi import status
 from httpx import ASGITransport, AsyncClient
 from pwdlib.hashers.argon2 import Argon2Hasher
 
@@ -50,11 +51,36 @@ async def client(existing_user: User) -> AsyncGenerator[AsyncClient]:
 async def test_should_return_access_token_for_valid_credentials(
     client: AsyncClient, existing_user: User
 ) -> None:
+    """Return a bearer token when valid credentials are submitted."""
     response = await client.post(
         "/api/auth/login", json={"email": existing_user.email, "password": "secret123"}
     )
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     body = response.json()
     assert body["token_type"] == "bearer"
     assert isinstance(body["access_token"], str) and body["access_token"]
+
+
+@pytest.mark.asyncio
+async def test_should_reject_login_when_password_is_wrong(
+    client: AsyncClient, existing_user: User
+) -> None:
+    """Reject login attempts with incorrect passwords."""
+    response = await client.post(
+        "/api/auth/login",
+        json={"email": existing_user.email, "password": "wrong-password"},
+    )
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.asyncio
+async def test_should_reject_login_when_user_does_not_exist(
+    client: AsyncClient,
+) -> None:
+    """Reject login attempts for unknown users."""
+    response = await client.post(
+        "/api/auth/login",
+        json={"email": "unknown@example.com", "password": "whatever"},
+    )
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
