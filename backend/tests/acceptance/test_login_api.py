@@ -35,7 +35,7 @@ async def client(existing_user: User) -> AsyncGenerator[AsyncClient]:
     """Yield a test client configured with the in-memory user repository."""
     fake_repo = InMemoryUserRepository([existing_user])
 
-    app.dependency_overrides[get_user_repository] = fake_repo
+    app.dependency_overrides[get_user_repository] = lambda: fake_repo
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://testserver"
