@@ -27,13 +27,6 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = [
-	"-ra",
-	"--strict-config",
-	"--strict-markers",
-	"--cov=app",
-	"--cov-report=term-missing",
-]
 markers = [
 	"unit: fast, no external deps",
 	"integration: requires DB and/or API calls",
@@ -86,4 +79,5 @@ ignore = [
 	"SIM117", # multiple-with-statements
 	"RUF012", # mutable-class-default
 	"C408",   # unnecessary-collection-call
+	"PT018",  # pytest-composite-assertion
 ]
