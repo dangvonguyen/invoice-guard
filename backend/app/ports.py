@@ -23,7 +23,7 @@ class PasswordVerifier(Protocol):
         ...
 
 
-class AccessTokenEncoder(Protocol):
-    def encode(self, subject: str) -> str:
+class AccessTokenIssuer(Protocol):
+    def issue(self, subject: str) -> str:
         """Issue an access token identifying the supplied subject."""
         ...

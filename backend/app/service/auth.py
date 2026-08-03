@@ -1,6 +1,6 @@
 """Authentication service implementations."""
 
-from app.ports import AccessTokenEncoder, PasswordVerifier, UserRepository
+from app.ports import AccessTokenIssuer, PasswordVerifier, UserRepository
 
 
 class InvalidCredentialsError(Exception):
@@ -14,12 +14,12 @@ class AuthService:
         self,
         users: UserRepository,
         password_verifier: PasswordVerifier,
-        access_token_encoder: AccessTokenEncoder,
+        access_token_issuer: AccessTokenIssuer,
     ) -> None:
         """Initialize the service with required dependencies."""
         self._users = users
         self._password_verifier = password_verifier
-        self._access_token_encoder = access_token_encoder
+        self._access_token_issuer = access_token_issuer
 
     async def login(self, email: str, password: str) -> str:
         """Authenticate a user and return an encoded access token.
@@ -33,4 +33,4 @@ class AuthService:
             raise InvalidCredentialsError()
         if not await self._password_verifier.verify(password, user.hashed_password):
             raise InvalidCredentialsError()
-        return self._access_token_encoder.encode(user.id)
+        return self._access_token_issuer.issue(user.id)
