@@ -1,6 +1,7 @@
 """Acceptance tests for the login API endpoint."""
 
 from collections.abc import AsyncGenerator
+from typing import Any
 
 import pytest
 import pytest_asyncio
@@ -84,3 +85,35 @@ async def test_should_reject_login_when_user_does_not_exist(
         json={"email": "unknown@example.com", "password": "whatever"},
     )
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {
+            "email": "user@example.com",
+        },
+        {
+            "password": "secret123",
+        },
+        {
+            "email": "",
+            "password": "secret123",
+        },
+        {
+            "email": "user@example.com",
+            "password": "",
+        },
+    ],
+)
+@pytest.mark.asyncio
+async def test_login_with_missing_fields(
+    client: AsyncClient, payload: dict[str, Any]
+) -> None:
+    """Ensure rejecting requests with missing or empty fields."""
+    response = await client.post("/api/auth/login", json=payload)
+    assert response.status_code in (
+        status.HTTP_400_BAD_REQUEST,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    )
