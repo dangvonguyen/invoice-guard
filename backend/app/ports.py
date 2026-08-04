@@ -22,6 +22,10 @@ class PasswordVerifier(Protocol):
         """Return whether a plain-text password matches its stored hash."""
         ...
 
+    async def verify_dummy(self, plain_password: str) -> None:
+        """Perform password verification without a stored user hash."""
+        ...
+
 
 class AccessTokenIssuer(Protocol):
     def issue(self, subject: str) -> str:

@@ -30,6 +30,7 @@ class AuthService:
         """
         user = await self._users.get_by_email(email)
         if not user:
+            await self._password_verifier.verify_dummy(password)
             raise InvalidCredentialsError()
         if not await self._password_verifier.verify(password, user.hashed_password):
             raise InvalidCredentialsError()
