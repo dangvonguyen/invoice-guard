@@ -8,8 +8,10 @@ dependencies = [
 	"alembic>=1.18.5",
 	"asyncpg>=0.31.0",
 	"fastapi[standard]>=0.140.13",
+	"pwdlib[argon2]>=0.3.0",
 	"pydantic>=2.13.4",
 	"pydantic-settings>=2.14.2",
+	"pyjwt>=2.13.0",
 	"sqlalchemy[asyncio]>=2.0.51",
 ]
 
@@ -20,18 +22,12 @@ dev = [
 	"pytest-asyncio>=1.4.0",
 	"pytest-cov>=7.1.0",
 	"ruff>=0.16.0",
+	"testcontainers[postgres]>=4.15.0",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = [
-	"-ra",
-	"--strict-config",
-	"--strict-markers",
-	"--cov=app",
-	"--cov-report=term-missing",
-]
 markers = [
 	"unit: fast, no external deps",
 	"integration: requires DB and/or API calls",
@@ -84,4 +80,5 @@ ignore = [
 	"SIM117", # multiple-with-statements
 	"RUF012", # mutable-class-default
 	"C408",   # unnecessary-collection-call
+	"PT018",  # pytest-composite-assertion
 ]

@@ -33,6 +33,10 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: str = "*"
 
+    # Setup the JWT authentication
+    JWT_SECRET_KEY: SecretStr
+    JWT_ACCESS_TOKEN_MINUTES: int = 30
+
     # Setup the PostgreSQL database
     POSTGRES_USER: str
     POSTGRES_PASSWORD: SecretStr
@@ -49,6 +53,22 @@ class Settings(BaseSettings):
         """
         if value and value.endswith("/"):
             return value[:-1]
+        return value
+
+    @field_validator("JWT_SECRET_KEY")
+    @classmethod
+    def check_jwt_secret(cls: type[Settings], value: SecretStr) -> SecretStr:
+        """Require enough entropy for an HMAC signing key."""
+        if len(value.get_secret_value()) < 32:
+            raise ValueError("JWT_SECRET_KEY must be at least 32 characters")
+        return value
+
+    @field_validator("JWT_ACCESS_TOKEN_MINUTES")
+    @classmethod
+    def check_access_token_lifetime(cls: type[Settings], value: int) -> int:
+        """Require access tokens to have a positive lifetime."""
+        if value <= 0:
+            raise ValueError("JWT_ACCESS_TOKEN_MINUTES must be positive")
         return value
 
 
