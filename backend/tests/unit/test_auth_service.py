@@ -36,7 +36,7 @@ async def test_should_issue_access_token_for_valid_credentials() -> None:
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_should_reject_login_when_user_does_not_exist() -> None:
-    """Reject login without verifying a password when the user is unknown."""
+    """Reject login when the user is unknown."""
     users = AsyncMock(spec=UserRepository)
     users.get_by_email.return_value = None
     password_verifier = AsyncMock(spec=PasswordVerifier)
@@ -50,8 +50,30 @@ async def test_should_reject_login_when_user_does_not_exist() -> None:
 
     with pytest.raises(InvalidCredentialsError):
         await service.login(email="unknown@example.com", password="whatever")
-    password_verifier.assert_not_called()
+
     access_token_issuer.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_should_verify_dummy_hash_before_rejecting_unknown_user() -> None:
+    """Perform password verification before rejecting an unknown user."""
+    users = AsyncMock(spec=UserRepository)
+    users.get_by_email.return_value = None
+    password_verifier = AsyncMock(spec=PasswordVerifier)
+    access_token_issuer = Mock(spec=AccessTokenIssuer)
+
+    service = AuthService(
+        users=users,
+        password_verifier=password_verifier,
+        access_token_issuer=access_token_issuer,
+    )
+
+    with pytest.raises(InvalidCredentialsError):
+        await service.login(email="unknown@example.com", password="whatever")
+
+    password_verifier.verify_dummy.assert_awaited_once_with("whatever")
+    password_verifier.verify.assert_not_awaited()
 
 
 @pytest.mark.unit
