@@ -10,19 +10,16 @@ from app.adapters.password_hasher import PasswordHasher
 from app.config.settings import get_settings, unwrap_secret
 from app.database.db import get_session, get_session_manual
 from app.ports import UserRepository
+from app.repositories.user import UserRepository as DbUserRepository
 from app.service.auth import AuthService
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 SessionManualDep = Annotated[AsyncSession, Depends(get_session_manual)]
 
 
-def get_user_repository() -> UserRepository:
-    """Provide the user repository used by authentication routes.
-
-    Concrete implementations can replace this dependency at application setup
-    or in tests.
-    """
-    return NotImplementedError("UserRepository is not configured")
+def get_user_repository(session: SessionDep) -> UserRepository:
+    """Create a user repository configured with the database session."""
+    return DbUserRepository(session=session)
 
 
 def get_password_hasher() -> PasswordHasher:

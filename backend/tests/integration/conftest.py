@@ -9,6 +9,7 @@ from collections.abc import AsyncGenerator, Generator
 
 import pytest
 import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
     AsyncEngine,
@@ -19,7 +20,8 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import NullPool
 from testcontainers.community.postgres import PostgresContainer
 
-from app.database.db import Base
+from app.database.db import Base, get_session
+from app.main import app
 
 
 @pytest.fixture(scope="session")
@@ -82,3 +84,23 @@ async def test_db(
     """Yield an async database session and close it after the current test."""
     async with test_sessionmaker() as session:
         yield session
+
+
+@pytest_asyncio.fixture
+async def client(test_sessionmaker: async_sessionmaker[AsyncSession]) -> AsyncGenerator:
+    """Yield a test client for the app."""
+
+    async def get_session_override() -> AsyncGenerator[AsyncSession]:
+        """Return the database connection for testing."""
+        async with test_sessionmaker() as session, session.begin():
+            yield session
+
+    app.dependency_overrides[get_session] = get_session_override
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://testserver"
+    ) as ac:
+        try:
+            yield ac
+        finally:
+            app.dependency_overrides.clear()
