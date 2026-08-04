@@ -39,6 +39,11 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked --all-groups
 
+      - name: Create environment files
+        run: |
+          cp ../.env.example ../.env
+          cp .env.example .env
+
       - name: Run lint
         run: uv run ruff check . --output-format=github
 
@@ -50,10 +55,6 @@ jobs:
 
       - name: Run tests
         run: uv run pytest
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: invoice-guard-test
 
   frontend:
     name: Frontend
