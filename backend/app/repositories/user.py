@@ -1,0 +1,23 @@
+"""Database access operations for users."""
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.user import User as UserModel
+from app.ports import User
+
+
+class UserRepository:
+    """Repository for performing database operations related to users."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get_by_email(self, email: str) -> User | None:
+        """Return the user associated with an email address, if one exists."""
+        stmt = select(UserModel).where(UserModel.email == email)
+        result = await self._session.execute(stmt)
+        row = result.scalar_one_or_none()
+        if row is None:
+            return row
+        return User(id=row.id, email=row.email, hashed_password=row.hashed_password)
