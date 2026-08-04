@@ -87,7 +87,9 @@ async def test_db(
 
 
 @pytest_asyncio.fixture
-async def client(test_sessionmaker: async_sessionmaker[AsyncSession]) -> AsyncGenerator:
+async def client(
+    test_sessionmaker: async_sessionmaker[AsyncSession],
+) -> AsyncGenerator[AsyncClient]:
     """Yield a test client for the app."""
 
     async def get_session_override() -> AsyncGenerator[AsyncSession]:
