@@ -1,5 +1,7 @@
 """Verify passwords against securely stored hashes."""
 
+import asyncio
+
 from pwdlib.hashers.argon2 import Argon2Hasher
 from pwdlib.hashers.base import HasherProtocol
 
@@ -13,4 +15,6 @@ class PasswordHasher:
 
     async def verify(self, plain_password: str, hashed_password: str) -> bool:
         """Return whether a plain-text password matches a stored hash."""
-        return self._hasher.verify(plain_password, hashed_password)
+        return await asyncio.to_thread(
+            self._hasher.verify, plain_password, hashed_password
+        )
