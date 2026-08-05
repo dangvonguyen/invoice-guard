@@ -4,9 +4,12 @@ Concrete suites (in-memory, SQLAlchemy) inherit this class and supply
 only a repository fixture.
 """
 
+from datetime import UTC, datetime
+
 import pytest
 
-from app.ports import User, UserRepository
+from app.ports import UserRepository
+from app.schemas.user import User
 
 
 class UserRepositoryContract:
@@ -20,7 +23,14 @@ class UserRepositoryContract:
     @pytest.fixture
     def seeded_user(self) -> User:
         """Provide an existing user."""
-        return User(id="user-1", email="user@example.com", hashed_password="hashed")
+        timestamp = datetime(2000, 1, 1, tzinfo=UTC)
+        return User(
+            id="user-1",
+            email="user@example.com",
+            hashed_password="hashed",
+            created_at=timestamp,
+            updated_at=timestamp,
+        )
 
     @pytest.mark.asyncio
     async def test_should_return_user_when_email_exists(

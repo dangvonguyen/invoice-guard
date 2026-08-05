@@ -1,8 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.deps import CurrentUser
-from app.ports import User
-from app.schemas.user import CurrentUserResponse
+from app.schemas.user import CurrentUserResponse, User
 
 router = APIRouter(prefix="/users", tags=["Users"])
 

@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.ports import User
+from app.schemas.user import User
 from tests.contracts.user_repository import UserRepositoryContract
 from tests.fakes import InMemoryUserRepository
 

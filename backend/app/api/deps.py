@@ -10,8 +10,9 @@ from app.adapters.jwt_tokens import JwtAccessTokenCodec
 from app.adapters.password_hasher import PasswordHasher
 from app.config.settings import get_settings, unwrap_secret
 from app.database.db import get_session, get_session_manual
-from app.ports import User, UserRepository
+from app.ports import UserRepository
 from app.repositories.user import UserRepository as DbUserRepository
+from app.schemas.user import User
 from app.service.auth import AuthService
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]

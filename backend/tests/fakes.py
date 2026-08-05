@@ -1,6 +1,6 @@
 """Test doubles shared across cross backend test suite."""
 
-from app.ports import User
+from app.schemas.user import User
 
 
 class InMemoryUserRepository:
