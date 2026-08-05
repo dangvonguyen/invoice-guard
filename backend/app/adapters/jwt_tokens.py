@@ -26,3 +26,20 @@ class JwtAccessTokenCodec:
             "exp": int(expires_at.timestamp()),
         }
         return jwt.encode(payload, key=self._secret, algorithm=self._algorithm)
+
+    def decode(self, token: str) -> str:
+        """Validate an access token and return its subject."""
+        try:
+            payload = jwt.decode(
+                token,
+                key=self._secret,
+                algorithms=[self._algorithm],
+                options={"require": ["sub", "iat", "exp"]},
+            )
+        except jwt.PyJWTError as exc:
+            raise ValueError("Invalid access token") from exc
+
+        subject = payload.get("sub")
+        if not isinstance(subject, str) or not subject:
+            raise ValueError("Invalid access token")
+        return subject
