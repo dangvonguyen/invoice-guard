@@ -1,0 +1,10 @@
+[
+  {
+    "email": "employee@example.com",
+    "password": "replace-with-a-local-password"
+  },
+  {
+    "email": "finance.reviewer@example.com",
+    "password": "replace-with-a-local-password"
+  }
+]

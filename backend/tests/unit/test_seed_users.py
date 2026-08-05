@@ -2,12 +2,12 @@
 
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock, call
+from unittest.mock import AsyncMock, Mock, call
 
 import pytest
-from scripts.seed_users import SeedUser, load_users, seed_users
 
 from app.ports import User
+from scripts.seed_users import SeedUser, load_users, seed_users
 
 
 @pytest.fixture
@@ -40,12 +40,12 @@ async def test_seed_users_should_insert_loaded_user(users_file: Path) -> None:
     """Attempt every record and return the number of newly inserted users."""
     repository = AsyncMock()
     repository.create.side_effect = [True, True]
-    password_hasher = AsyncMock()
+    password_hasher = Mock()
     password_hasher.hash.side_effect = ["hash-1", "hash-2"]
 
     inserted_count = await seed_users(users_file, repository, password_hasher)
 
-    assert password_hasher.hash.await_args_list == [
+    assert password_hasher.hash.call_args_list == [
         call("password-1"),
         call("password-2"),
     ]
@@ -72,7 +72,7 @@ async def test_seed_users_should_ignore_existing_user(tmp_path: Path) -> None:
     )
     repository = AsyncMock()
     repository.create.return_value = False
-    password_hasher = AsyncMock()
+    password_hasher = Mock()
     password_hasher.hash.return_value = "hash-1"
 
     inserted_count = await seed_users(users_file, repository, password_hasher)
