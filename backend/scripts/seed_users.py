@@ -66,13 +66,7 @@ async def run(path: Path) -> int:
 def main() -> None:
     """Run the user seeder from the command line."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "path",
-        type=Path,
-        nargs="?",
-        default=Path(__file__).with_name("users.json"),
-        help="Path to a JSON users file (default: scripts/users.json)",
-    )
+    parser.add_argument("path", type=Path, help="Path to a JSON users file")
     args = parser.parse_args()
     inserted_count = asyncio.run(run(args.path))
     print(f"Inserted {inserted_count} user(s).")
