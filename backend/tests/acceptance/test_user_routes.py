@@ -60,3 +60,35 @@ async def test_should_return_safe_current_user_profile(
     assert body["id"] == existing_user.id
     assert body["email"] == existing_user.email
     assert "hashed_password" not in body
+
+
+@pytest.mark.asyncio
+async def test_should_reject_missing_access_token(client: AsyncClient) -> None:
+    """Require bearer authentication."""
+    response = await client.get("/api/users/me")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.asyncio
+async def test_should_reject_invalid_access_token(client: AsyncClient) -> None:
+    """Reject a malformed or incorrectly signed bearer token."""
+    response = await client.get(
+        "/api/users/me", headers={"Authorization": "Bearer invalid-token"}
+    )
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.asyncio
+async def test_should_reject_token_when_user_no_longer_exists(
+    client: AsyncClient, token_issuer: JwtAccessTokenCodec
+) -> None:
+    """Reload the token subject and reject deleted users."""
+    token = token_issuer.issue("deleted-user")
+
+    response = await client.get(
+        "/api/users/me", headers={"Authorization": f"Bearer {token}"}
+    )
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
