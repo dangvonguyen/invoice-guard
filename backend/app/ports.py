@@ -16,6 +16,10 @@ class UserRepository(Protocol):
         """Return the user associated with an email address, if one exists."""
         ...
 
+    async def get_by_id(self, user_id: str) -> User | None:
+        """Return the user associated with an ID, if one exists."""
+        ...
+
 
 class PasswordVerifier(Protocol):
     async def verify(self, plain_password: str, hashed_password: str) -> bool:
