@@ -6,9 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import UserModel
-from app.ports import User
 from app.repositories.user import UserRepository
-from app.schemas.user import UserCreate
+from app.schemas.user import User, UserCreate
 from tests.contracts.user_repository import UserRepositoryContract
 
 
@@ -26,13 +25,7 @@ class TestUserRepositoryContract(UserRepositoryContract):
         self, test_db: AsyncSession, seeded_user: User
     ) -> UserRepository:
         """Persist the contract's user and return a repository using that session."""
-        test_db.add(
-            UserModel(
-                id=seeded_user.id,
-                email=seeded_user.email,
-                hashed_password=seeded_user.hashed_password,
-            )
-        )
+        test_db.add(UserModel(**seeded_user.model_dump()))
         await test_db.flush()
         return UserRepository(session=test_db)
 

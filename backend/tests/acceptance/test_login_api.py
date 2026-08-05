@@ -1,6 +1,7 @@
 """Acceptance tests for the login API endpoint."""
 
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -11,7 +12,7 @@ from pwdlib.hashers.argon2 import Argon2Hasher
 
 from app.api.deps import get_user_repository
 from app.main import app
-from app.ports import User
+from app.schemas.user import User
 
 
 class InMemoryUserRepository:
@@ -29,7 +30,14 @@ def existing_user() -> User:
     """Create a user with a known password for login tests."""
     password = "secret123"
     hash = Argon2Hasher().hash(password)
-    return User(id="user-1", email="user@example.com", hashed_password=hash)
+    timestamp = datetime(2000, 1, 1, tzinfo=UTC)
+    return User(
+        id="user-1",
+        email="user@example.com",
+        hashed_password=hash,
+        created_at=timestamp,
+        updated_at=timestamp,
+    )
 
 
 @pytest_asyncio.fixture

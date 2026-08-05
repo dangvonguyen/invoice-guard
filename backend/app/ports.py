@@ -1,14 +1,8 @@
-"""Domain models and interfaces shared across application boundaries."""
+"""Interfaces shared across application boundaries."""
 
-from dataclasses import dataclass
 from typing import Protocol
 
-
-@dataclass(frozen=True)
-class User:
-    id: str
-    email: str
-    hashed_password: str
+from app.schemas.user import User
 
 
 class UserRepository(Protocol):

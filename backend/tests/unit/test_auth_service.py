@@ -1,18 +1,32 @@
 """Unit tests for the authentication service."""
 
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from app.ports import AccessTokenIssuer, PasswordVerifier, User, UserRepository
+from app.ports import AccessTokenIssuer, PasswordVerifier, UserRepository
+from app.schemas.user import User
 from app.service.auth import AuthService, InvalidCredentialsError
+
+
+@pytest.fixture
+def user() -> User:
+    """User fixture for authentication tests."""
+    timestamp = datetime(2000, 1, 1, tzinfo=UTC)
+    return User(
+        id="user-1",
+        email="user@example.com",
+        hashed_password="hashed",
+        created_at=timestamp,
+        updated_at=timestamp,
+    )
 
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_should_issue_access_token_for_valid_credentials() -> None:
+async def test_should_issue_access_token_for_valid_credentials(user: User) -> None:
     """Issue an access token when the supplied credentials are valid."""
-    user = User(id="user-1", email="user@example.com", hashed_password="hashed")
     users = AsyncMock(spec=UserRepository)
     users.get_by_email.return_value = user
     password_verifier = AsyncMock(spec=PasswordVerifier)
@@ -78,9 +92,8 @@ async def test_should_verify_dummy_hash_before_rejecting_unknown_user() -> None:
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_should_reject_login_when_password_is_wrong() -> None:
+async def test_should_reject_login_when_password_is_wrong(user: User) -> None:
     """Reject login and avoid issuing a token when the password is invalid."""
-    user = User(id="user-1", email="user@example.com", hashed_password="hashed")
     users = AsyncMock(spec=UserRepository)
     users.get_by_email.return_value = user
     password_verifier = AsyncMock(spec=PasswordVerifier)

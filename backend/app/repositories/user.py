@@ -5,8 +5,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import UserModel
-from app.ports import User
-from app.schemas.user import UserCreate
+from app.schemas.user import User, UserCreate
 
 
 class UserRepository:
@@ -32,11 +31,11 @@ class UserRepository:
         row = result.scalar_one_or_none()
         if row is None:
             return row
-        return User(id=row.id, email=row.email, hashed_password=row.hashed_password)
+        return User.model_validate(row)
 
     async def get_by_id(self, user_id: str) -> User | None:
         """Return the user associated with an ID, if one exists."""
         row = await self._session.get(UserModel, user_id)
         if row is None:
             return row
-        return User(id=row.id, email=row.email, hashed_password=row.hashed_password)
+        return User.model_validate(row)

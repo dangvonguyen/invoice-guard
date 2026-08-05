@@ -1,6 +1,7 @@
 """Acceptance tests for the current-user endpoint."""
 
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 
 import pytest
 import pytest_asyncio
@@ -10,14 +11,21 @@ from httpx import ASGITransport, AsyncClient
 from app.adapters.jwt_tokens import JwtAccessTokenCodec
 from app.api.deps import get_access_token_codec, get_user_repository
 from app.main import app
-from app.ports import User
+from app.schemas.user import User
 from tests.fakes import InMemoryUserRepository
 
 
 @pytest.fixture
 def existing_user() -> User:
     """Provide a persisted user profile."""
-    return User(id="user-1", email="user@example.com", hashed_password="secret-hash")
+    timestamp = datetime(2000, 1, 1, tzinfo=UTC)
+    return User(
+        id="user-1",
+        email="user@example.com",
+        hashed_password="secret-hash",
+        created_at=timestamp,
+        updated_at=timestamp,
+    )
 
 
 @pytest.fixture
