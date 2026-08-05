@@ -5,7 +5,7 @@ import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.user import User as UserModel
+from app.models.user import UserModel
 from app.ports import User
 from app.repositories.user import UserRepository
 from tests.contracts.user_repository import UserRepositoryContract

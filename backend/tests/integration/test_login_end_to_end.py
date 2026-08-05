@@ -5,7 +5,7 @@ from httpx import AsyncClient
 from pwdlib.hashers.argon2 import Argon2Hasher
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.user import User as UserModel
+from app.models.user import UserModel
 
 
 @pytest.mark.asyncio
