@@ -1,15 +1,16 @@
 """Define reusable dependencies for API routes."""
 
-from typing import Annotated
+from typing import Annotated, Never
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.jwt_tokens import JwtAccessTokenCodec
 from app.adapters.password_hasher import PasswordHasher
 from app.config.settings import get_settings, unwrap_secret
 from app.database.db import get_session, get_session_manual
-from app.ports import UserRepository
+from app.ports import User, UserRepository
 from app.repositories.user import UserRepository as DbUserRepository
 from app.service.auth import AuthService
 
@@ -56,3 +57,40 @@ def get_auth_service(
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+
+
+bearer_scheme = HTTPBearer(auto_error=False)
+BearerCredentialsDep = Annotated[
+    HTTPAuthorizationCredentials | None, Depends(bearer_scheme)
+]
+
+
+def raise_unauthorized() -> Never:
+    """Raise the generic authentication failure used by protected routes."""
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+async def get_current_user(
+    credentials: BearerCredentialsDep,
+    users: UserRepositoryDep,
+    access_token_codec: AccessTokenCodecDep,
+) -> User:
+    """Validate a bearer token and reload its user from the database."""
+    if credentials is None:
+        raise_unauthorized()
+    try:
+        user_id = access_token_codec.decode(credentials.credentials)
+    except ValueError:
+        raise_unauthorized()
+
+    user = await users.get_by_id(user_id)
+    if user is None:
+        raise_unauthorized()
+    return user
+
+
+CurrentUser = Annotated[User, Depends(get_current_user)]

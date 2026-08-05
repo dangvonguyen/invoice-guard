@@ -67,3 +67,23 @@ def test_should_expire_after_configured_lifetime(
     claims = decode_access_token(token)
 
     assert claims["exp"] - claims["iat"] == ACCESS_TOKEN_LIFETIME.seconds
+
+
+@pytest.mark.unit
+def test_should_decode_subject_from_valid_access_token(
+    token_issuer: JwtAccessTokenCodec,
+) -> None:
+    """Validate a token and return its subject."""
+    token = token_issuer.issue(subject=SUBJECT)
+
+    assert token_issuer.decode(token) == SUBJECT
+
+
+@pytest.mark.unit
+def test_should_reject_tampered_access_token(token_issuer: JwtAccessTokenCodec) -> None:
+    """Reject a token whose signature no longer matches its payload."""
+    token = token_issuer.issue(subject=SUBJECT)
+    tampered = f"{token[:1]}{'a' if token and token[-1] != 'a' else 'b'}"
+
+    with pytest.raises(ValueError, match="Invalid access token"):
+        token_issuer.decode(tampered)

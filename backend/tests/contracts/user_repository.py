@@ -43,3 +43,17 @@ class UserRepositoryContract:
         """Return a user record, not an ORM entity."""
         result = await repository.get_by_email(seeded_user.email)
         assert type(result) is User
+
+    @pytest.mark.asyncio
+    async def test_should_return_user_when_id_exists(
+        self, repository: UserRepository, seeded_user: User
+    ) -> None:
+        """Return the stored user for its unique ID."""
+        assert await repository.get_by_id(seeded_user.id) == seeded_user
+
+    @pytest.mark.asyncio
+    async def test_should_return_none_when_id_does_not_exist(
+        self, repository: UserRepository
+    ) -> None:
+        """Return `None` for an unknown user ID."""
+        assert await repository.get_by_id("unknown") is None

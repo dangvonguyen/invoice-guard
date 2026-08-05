@@ -21,3 +21,10 @@ class UserRepository:
         if row is None:
             return row
         return User(id=row.id, email=row.email, hashed_password=row.hashed_password)
+
+    async def get_by_id(self, user_id: str) -> User | None:
+        """Return the user associated with an ID, if one exists."""
+        row = await self._session.get(UserModel, user_id)
+        if row is None:
+            return row
+        return User(id=row.id, email=row.email, hashed_password=row.hashed_password)
