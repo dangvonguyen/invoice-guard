@@ -80,8 +80,17 @@ async def get_current_user(
     access_token_codec: AccessTokenCodecDep,
 ) -> User:
     """Validate a bearer token and reload its user from the database."""
-    user_id = access_token_codec.decode(credentials.credentials)
-    return await users.get_by_id(user_id)
+    if credentials is None:
+        raise_unauthorized()
+    try:
+        user_id = access_token_codec.decode(credentials.credentials)
+    except ValueError:
+        raise_unauthorized()
+
+    user = await users.get_by_id(user_id)
+    if user is None:
+        raise_unauthorized()
+    return user
 
 
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
