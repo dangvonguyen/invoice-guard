@@ -1,6 +1,6 @@
 """Define reusable dependencies for API routes."""
 
-from typing import Annotated
+from typing import Annotated, Never
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -65,7 +65,7 @@ BearerCredentialsDep = Annotated[
 ]
 
 
-def raise_unauthorized() -> None:
+def raise_unauthorized() -> Never:
     """Raise the generic authentication failure used by protected routes."""
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -93,4 +93,4 @@ async def get_current_user(
     return user
 
 
-CurrentUserDep = Annotated[User, Depends(get_current_user)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
