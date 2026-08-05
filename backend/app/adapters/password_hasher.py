@@ -15,6 +15,10 @@ class PasswordHasher:
         """Initialize with the given hasher or a default Argon2 hasher."""
         self._hasher = hasher or Argon2Hasher()
 
+    def hash(self, password: str) -> str:
+        """Return a secure hash of a plaintext password."""
+        return self._hasher.hash(password)
+
     async def verify(self, plain_password: str, hashed_password: str) -> bool:
         """Return whether a plain-text password matches a stored hash."""
         return await asyncio.to_thread(
