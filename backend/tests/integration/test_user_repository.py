@@ -1,12 +1,20 @@
 """Verify the SQL-backed user repository against its shared contract."""
 
+import pytest
 import pytest_asyncio
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User as UserModel
 from app.ports import User
 from app.repositories.user import UserRepository
 from tests.contracts.user_repository import UserRepositoryContract
+
+
+@pytest.fixture
+def repository(test_db: AsyncSession) -> UserRepository:
+    """Return a user repository using the test database session."""
+    return UserRepository(session=test_db)
 
 
 class TestUserRepositoryContract(UserRepositoryContract):
@@ -26,3 +34,47 @@ class TestUserRepositoryContract(UserRepositoryContract):
         )
         await test_db.flush()
         return UserRepository(session=test_db)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_create_should_insert_user(
+    test_db: AsyncSession, repository: UserRepository
+) -> None:
+    """Insert a user and persist all of its fields."""
+    user = User(id="user-1", email="user@example.com", hashed_password="hash-1")
+
+    assert await repository.create(user) is True
+
+    result = await test_db.scalars(
+        select(UserModel).where(UserModel.email == "user@example.com")
+    )
+    stored_users = list(result)
+
+    assert len(stored_users) == 1
+    assert stored_users[0].id == user.id
+    assert stored_users[0].email == user.email
+    assert stored_users[0].hashed_password == user.hashed_password
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_create_should_ignore_duplicate_email(
+    test_db: AsyncSession, repository: UserRepository
+) -> None:
+    """Report duplicate email creation as a no-op and preserve the first user."""
+    first = User(id="user-1", email="user@example.com", hashed_password="hash-1")
+    duplicate = User(id="user-2", email="user@example.com", hashed_password="hash-2")
+
+    assert await repository.create(first) is True
+    assert await repository.create(duplicate) is False
+
+    result = await test_db.scalars(
+        select(UserModel).where(UserModel.email == "user@example.com")
+    )
+    stored_users = list(result)
+
+    assert len(stored_users) == 1
+    assert stored_users[0].id == first.id
+    assert stored_users[0].email == first.email
+    assert stored_users[0].hashed_password == first.hashed_password
