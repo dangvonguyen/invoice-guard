@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import UserModel
 from app.ports import User
 from app.repositories.user import UserRepository
+from app.schemas.user import UserCreate
 from tests.contracts.user_repository import UserRepositoryContract
 
 
@@ -42,7 +43,7 @@ async def test_create_should_insert_user(
     test_db: AsyncSession, repository: UserRepository
 ) -> None:
     """Insert a user and persist all of its fields."""
-    user = User(id="user-1", email="user@example.com", hashed_password="hash-1")
+    user = UserCreate(id="user-1", email="user@example.com", hashed_password="hash-1")
 
     assert await repository.create(user) is True
 
@@ -63,8 +64,10 @@ async def test_create_should_ignore_duplicate_email(
     test_db: AsyncSession, repository: UserRepository
 ) -> None:
     """Report duplicate email creation as a no-op and preserve the first user."""
-    first = User(id="user-1", email="user@example.com", hashed_password="hash-1")
-    duplicate = User(id="user-2", email="user@example.com", hashed_password="hash-2")
+    first = UserCreate(id="user-1", email="user@example.com", hashed_password="hash-1")
+    duplicate = UserCreate(
+        id="user-2", email="user@example.com", hashed_password="hash-2"
+    )
 
     assert await repository.create(first) is True
     assert await repository.create(duplicate) is False

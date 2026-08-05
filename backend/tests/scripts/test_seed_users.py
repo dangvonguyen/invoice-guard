@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, Mock, call
 
 import pytest
 
-from app.ports import User
+from app.schemas.user import UserCreate
 from scripts.seed_users import SeedUser, load_users, seed_users
 
 
@@ -54,7 +54,7 @@ async def test_seed_users_should_insert_loaded_user(users_file: Path) -> None:
         ("first@example.com", "hash-1"),
         ("second@example.com", "hash-2"),
     ]
-    assert all(isinstance(user, User) and user.id for user in inserted_users)
+    assert all(isinstance(user, UserCreate) and user.id for user in inserted_users)
     assert inserted_count == 2
 
 
