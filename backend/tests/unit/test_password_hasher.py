@@ -1,4 +1,4 @@
-"""Unit tests for password hash verification."""
+"""Specify password hashing and verification behavior."""
 
 from unittest.mock import Mock
 
@@ -8,6 +8,8 @@ from pwdlib.hashers.base import HasherProtocol
 
 from app.adapters.password_hasher import PasswordHasher
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.fixture
 def hasher() -> Argon2Hasher:
@@ -15,8 +17,7 @@ def hasher() -> Argon2Hasher:
     return Argon2Hasher()
 
 
-@pytest.mark.unit
-def test_should_delegate_password_hashing() -> None:
+def should_delegate_password_hashing_to_configured_hasher() -> None:
     """Return the hash produced by the configured hashing implementation."""
     hasher = Mock(spec=HasherProtocol)
     hasher.hash.return_value = "hashed-password"
@@ -27,9 +28,8 @@ def test_should_delegate_password_hashing() -> None:
     assert result == "hashed-password"
 
 
-@pytest.mark.unit
 @pytest.mark.asyncio
-async def test_should_accept_matching_password(hasher: Argon2Hasher) -> None:
+async def should_accept_password_matching_stored_hash(hasher: Argon2Hasher) -> None:
     """Accept a password that matches its stored hash."""
     hashed = hasher.hash("correct-password")
     assert (
@@ -37,9 +37,10 @@ async def test_should_accept_matching_password(hasher: Argon2Hasher) -> None:
     )
 
 
-@pytest.mark.unit
 @pytest.mark.asyncio
-async def test_should_reject_non_matching_password(hasher: Argon2Hasher) -> None:
+async def should_reject_password_not_matching_stored_hash(
+    hasher: Argon2Hasher,
+) -> None:
     """Reject a password that does not match the stored hash."""
     hashed = hasher.hash("correct-password")
     assert await PasswordHasher(hasher=hasher).verify("wrong-password", hashed) is False

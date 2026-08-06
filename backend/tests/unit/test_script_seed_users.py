@@ -9,6 +9,8 @@ import pytest
 from app.schemas.user import UserCreate
 from scripts.seed_users import SeedUser, load_users, seed_users
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.fixture
 def users_file(tmp_path: Path) -> Path:
@@ -25,8 +27,7 @@ def users_file(tmp_path: Path) -> Path:
     return file
 
 
-@pytest.mark.unit
-def test_load_users_should_read_users_from_json(users_file: Path) -> None:
+def should_load_users_from_json_file(users_file: Path) -> None:
     """Load email and plaintext password from every JSON record."""
     assert load_users(users_file) == [
         SeedUser(email="first@example.com", password="password-1"),
@@ -34,9 +35,8 @@ def test_load_users_should_read_users_from_json(users_file: Path) -> None:
     ]
 
 
-@pytest.mark.unit
 @pytest.mark.asyncio
-async def test_seed_users_should_insert_loaded_user(users_file: Path) -> None:
+async def should_hash_and_insert_each_loaded_user(users_file: Path) -> None:
     """Attempt every record and return the number of newly inserted users."""
     repository = AsyncMock()
     repository.create.side_effect = [True, True]
@@ -58,9 +58,8 @@ async def test_seed_users_should_insert_loaded_user(users_file: Path) -> None:
     assert inserted_count == 2
 
 
-@pytest.mark.unit
 @pytest.mark.asyncio
-async def test_seed_users_should_ignore_existing_user(tmp_path: Path) -> None:
+async def should_exclude_existing_user_from_inserted_count(tmp_path: Path) -> None:
     """Count a user already present in the database as a no-op."""
     users_file = tmp_path / "users.json"
     users_file.write_text(

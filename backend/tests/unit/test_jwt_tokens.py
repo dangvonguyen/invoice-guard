@@ -1,4 +1,4 @@
-"""Unit tests for encoding and decoding JWT access tokens."""
+"""Specify JWT access-token encoding and validation behavior."""
 
 from datetime import UTC, datetime, timedelta
 from typing import Any, Final
@@ -8,6 +8,8 @@ import pytest
 
 from app.adapters.jwt_tokens import JwtAccessTokenCodec
 
+pytestmark = pytest.mark.unit
+
 SECRET_KEY: Final = "test-secret-key-that-is-long-enough-for-hs256"
 ALGORITHM: Final = "HS256"
 ACCESS_TOKEN_LIFETIME: Final = timedelta(minutes=30)
@@ -15,7 +17,7 @@ SUBJECT: Final = "user-id-1"
 
 
 @pytest.fixture
-def token_issuer() -> JwtAccessTokenCodec:
+def access_token_codec() -> JwtAccessTokenCodec:
     """Create a JWT access-token codec configured for unit tests."""
     return JwtAccessTokenCodec(
         secret=SECRET_KEY,
@@ -24,66 +26,65 @@ def token_issuer() -> JwtAccessTokenCodec:
     )
 
 
-def decode_access_token(token: str) -> dict[str, Any]:
+def decode_claims(token: str) -> dict[str, Any]:
     """Decode and validate a test access token using the shared key."""
     return jwt.decode(token, key=SECRET_KEY, algorithms=[ALGORITHM])
 
 
-@pytest.mark.unit
-def test_should_issue_signed_access_token_for_subject(
-    token_issuer: JwtAccessTokenCodec,
+def should_issue_signed_access_token_for_subject(
+    access_token_codec: JwtAccessTokenCodec,
 ) -> None:
     """Issue a signed access token containing the requested subject."""
-    token = token_issuer.issue(subject=SUBJECT)
+    token = access_token_codec.issue(subject=SUBJECT)
 
-    claims = decode_access_token(token)
+    claims = decode_claims(token)
 
     assert claims["sub"] == SUBJECT
 
 
-@pytest.mark.unit
-def test_should_include_required_claims(
-    token_issuer: JwtAccessTokenCodec,
+def should_include_required_access_token_claims(
+    access_token_codec: JwtAccessTokenCodec,
 ) -> None:
     """Include subject, issued-at, and expiration claims in access tokens."""
     before_issue = int(datetime.now(UTC).timestamp())
-    token = token_issuer.issue(subject=SUBJECT)
+    token = access_token_codec.issue(subject=SUBJECT)
     after_issue = int(datetime.now(UTC).timestamp())
 
-    claims = decode_access_token(token)
+    claims = decode_claims(token)
 
     assert claims["sub"] == SUBJECT
     assert before_issue <= claims["iat"] <= after_issue
     assert "exp" in claims
 
 
-@pytest.mark.unit
-def test_should_expire_after_configured_lifetime(
-    token_issuer: JwtAccessTokenCodec,
+def should_expire_access_token_after_configured_lifetime(
+    access_token_codec: JwtAccessTokenCodec,
 ) -> None:
     """Set token expiration according to the configured access-token lifetime."""
-    token = token_issuer.issue(subject=SUBJECT)
+    token = access_token_codec.issue(subject=SUBJECT)
 
-    claims = decode_access_token(token)
+    claims = decode_claims(token)
 
     assert claims["exp"] - claims["iat"] == ACCESS_TOKEN_LIFETIME.seconds
 
 
-@pytest.mark.unit
-def test_should_decode_subject_from_valid_access_token(
-    token_issuer: JwtAccessTokenCodec,
+def should_decode_subject_from_valid_access_token(
+    access_token_codec: JwtAccessTokenCodec,
 ) -> None:
     """Validate a token and return its subject."""
-    token = token_issuer.issue(subject=SUBJECT)
+    token = access_token_codec.issue(subject=SUBJECT)
 
-    assert token_issuer.decode(token) == SUBJECT
+    assert access_token_codec.decode(token) == SUBJECT
 
 
-@pytest.mark.unit
-def test_should_reject_tampered_access_token(token_issuer: JwtAccessTokenCodec) -> None:
+def should_reject_access_token_with_tampered_signature(
+    access_token_codec: JwtAccessTokenCodec,
+) -> None:
     """Reject a token whose signature no longer matches its payload."""
-    token = token_issuer.issue(subject=SUBJECT)
-    tampered = f"{token[:1]}{'a' if token and token[-1] != 'a' else 'b'}"
+    token = access_token_codec.issue(subject=SUBJECT)
+    header, payload, signature = token.split(".")
+    replacement = "a" if signature[0] != "a" else "b"
+    tampered_token = f"{header}.{payload}.{replacement}{signature[1:]}"
 
     with pytest.raises(ValueError, match="Invalid access token"):
-        token_issuer.decode(tampered)
+        access_token_codec.decode(tampered_token)
