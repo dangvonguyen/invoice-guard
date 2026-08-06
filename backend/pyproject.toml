@@ -28,9 +28,11 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+python_functions = ["test_*", "should_*"]
 markers = [
-	"unit: fast, no external deps",
-	"integration: requires DB and/or API calls",
+    "unit: fast, no external deps",
+    "integration: real DB, single adapter, no HTTP layer",
+    "acceptance: real DB, real app, business-facing scenario",
 ]
 
 [tool.mypy]
