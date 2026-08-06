@@ -9,7 +9,7 @@ from httpx import AsyncClient
 from pwdlib.hashers.argon2 import Argon2Hasher
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models.user import UserModel
+from app.database.models.user import User
 
 pytestmark = [
     pytest.mark.acceptance,
@@ -18,9 +18,9 @@ pytestmark = [
 
 
 @pytest_asyncio.fixture
-async def registered_user(test_db: AsyncSession) -> UserModel:
+async def registered_user(test_db: AsyncSession) -> User:
     """Persist an account with credentials known to the scenarios."""
-    user = UserModel(
+    user = User(
         id="user-1",
         email="user@example.com",
         hashed_password=Argon2Hasher().hash("secret123"),
@@ -31,7 +31,7 @@ async def registered_user(test_db: AsyncSession) -> UserModel:
 
 
 async def should_issue_access_token_when_registered_credentials_are_valid(
-    client: AsyncClient, registered_user: UserModel
+    client: AsyncClient, registered_user: User
 ) -> None:
     """Return a bearer token when valid credentials are submitted."""
     response = await client.post(
@@ -46,7 +46,7 @@ async def should_issue_access_token_when_registered_credentials_are_valid(
 
 
 async def should_reject_login_when_registered_users_password_is_wrong(
-    client: AsyncClient, registered_user: UserModel
+    client: AsyncClient, registered_user: User
 ) -> None:
     """Reject login attempts with incorrect passwords."""
     response = await client.post(

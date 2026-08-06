@@ -2,7 +2,7 @@
 
 from typing import Protocol
 
-from app.schemas.user import User
+from app.database.models.user import User
 
 
 class UserRepository(Protocol):

@@ -3,14 +3,17 @@
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.deps import AuthServiceDep
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.auth import TokenResponse
+from app.schemas.user import UserLoginRequest
 from app.services.auth import InvalidCredentialsError
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/login")
-async def login(payload: LoginRequest, auth_service: AuthServiceDep) -> TokenResponse:
+async def login(
+    payload: UserLoginRequest, auth_service: AuthServiceDep
+) -> TokenResponse:
     """Authenticate a user and return an access token."""
     try:
         access_token = await auth_service.login(

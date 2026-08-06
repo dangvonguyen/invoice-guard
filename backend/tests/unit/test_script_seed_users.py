@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, Mock, call
 
 import pytest
 
-from app.schemas.user import UserCreate
 from scripts.seed_users import SeedUser, load_users, seed_users
 
 pytestmark = pytest.mark.unit
@@ -50,11 +49,11 @@ async def should_hash_and_insert_each_loaded_user(users_file: Path) -> None:
         call("password-2"),
     ]
     inserted_users = [args.args[0] for args in repository.create.await_args_list]
-    assert [(user.email, user.hashed_password) for user in inserted_users] == [
+    assert [(user["email"], user["hashed_password"]) for user in inserted_users] == [
         ("first@example.com", "hash-1"),
         ("second@example.com", "hash-2"),
     ]
-    assert all(isinstance(user, UserCreate) and user.id for user in inserted_users)
+    assert all(isinstance(user, dict) and user["id"] for user in inserted_users)
     assert inserted_count == 2
 
 

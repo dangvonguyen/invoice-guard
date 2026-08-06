@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_access_token_codec
 from app.core.security import JwtAccessTokenCodec
-from app.database.models.user import UserModel
+from app.database.models.user import User
 
 pytestmark = [
     pytest.mark.acceptance,
@@ -17,9 +17,9 @@ pytestmark = [
 
 
 @pytest_asyncio.fixture
-async def registered_user(test_db: AsyncSession) -> UserModel:
+async def registered_user(test_db: AsyncSession) -> User:
     """Persist the profile returned to an authenticated account."""
-    user = UserModel(
+    user = User(
         id="user-1",
         email="user@example.com",
         hashed_password="secret-hash",
@@ -36,7 +36,7 @@ def token_issuer() -> JwtAccessTokenCodec:
 
 
 async def should_return_authenticated_users_profile_without_password_hash(
-    client: AsyncClient, registered_user: UserModel, token_issuer: JwtAccessTokenCodec
+    client: AsyncClient, registered_user: User, token_issuer: JwtAccessTokenCodec
 ) -> None:
     """Return identity fields without exposing the password hash."""
     token = token_issuer.issue(registered_user.id)

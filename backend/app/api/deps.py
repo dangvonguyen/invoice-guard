@@ -8,9 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings, unwrap_secret
 from app.core.security import JwtAccessTokenCodec, PasswordHasher
+from app.database.models.user import User
 from app.database.repositories.user import UserRepository as DbUserRepository
 from app.database.session import get_session, get_session_manual
-from app.schemas.user import User
 from app.services.auth import AuthService
 from app.services.interfaces import UserRepository
 

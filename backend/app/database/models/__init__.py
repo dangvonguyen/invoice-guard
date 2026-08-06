@@ -1,7 +1,7 @@
 """Database model definitions."""
 
-from .user import UserModel
+from .user import User
 
 __all__ = [
-    "UserModel",
+    "User",
 ]

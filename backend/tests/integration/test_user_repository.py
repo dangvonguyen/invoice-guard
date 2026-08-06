@@ -7,9 +7,8 @@ import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models.user import UserModel
+from app.database.models.user import User
 from app.database.repositories.user import UserRepository
-from app.schemas.user import User, UserCreate
 
 pytestmark = [
     pytest.mark.integration,
@@ -41,7 +40,7 @@ async def repository_with_existing_user(
     test_db: AsyncSession, existing_user: User
 ) -> UserRepository:
     """Return a repository containing the existing user."""
-    test_db.add(UserModel(**existing_user.model_dump()))
+    test_db.add(existing_user)
     await test_db.flush()
     return UserRepository(session=test_db)
 
@@ -83,39 +82,37 @@ async def should_persist_new_user(
     test_db: AsyncSession, repository: UserRepository
 ) -> None:
     """Insert a user and persist all of its fields."""
-    user = UserCreate(id="user-1", email="user@example.com", hashed_password="hash-1")
+    user = {"id": "user-1", "email": "user@example.com", "hashed_password": "hash-1"}
 
     assert await repository.create(user) is True
 
-    result = await test_db.scalars(
-        select(UserModel).where(UserModel.email == "user@example.com")
-    )
+    result = await test_db.scalars(select(User).where(User.email == "user@example.com"))
     stored_users = list(result)
 
     assert len(stored_users) == 1
-    assert stored_users[0].id == user.id
-    assert stored_users[0].email == user.email
-    assert stored_users[0].hashed_password == user.hashed_password
+    assert stored_users[0].id == user["id"]
+    assert stored_users[0].email == user["email"]
+    assert stored_users[0].hashed_password == user["hashed_password"]
 
 
 async def should_preserve_existing_user_when_email_is_duplicated(
     test_db: AsyncSession, repository: UserRepository
 ) -> None:
     """Report duplicate email creation as a no-op and preserve the first user."""
-    first = UserCreate(id="user-1", email="user@example.com", hashed_password="hash-1")
-    duplicate = UserCreate(
-        id="user-2", email="user@example.com", hashed_password="hash-2"
-    )
+    first = {"id": "user-1", "email": "user@example.com", "hashed_password": "hash-1"}
+    duplicate = {
+        "id": "user-2",
+        "email": "user@example.com",
+        "hashed_password": "hash-2",
+    }
 
     assert await repository.create(first) is True
     assert await repository.create(duplicate) is False
 
-    result = await test_db.scalars(
-        select(UserModel).where(UserModel.email == "user@example.com")
-    )
+    result = await test_db.scalars(select(User).where(User.email == "user@example.com"))
     stored_users = list(result)
 
     assert len(stored_users) == 1
-    assert stored_users[0].id == first.id
-    assert stored_users[0].email == first.email
-    assert stored_users[0].hashed_password == first.hashed_password
+    assert stored_users[0].id == first["id"]
+    assert stored_users[0].email == first["email"]
+    assert stored_users[0].hashed_password == first["hashed_password"]
