@@ -3,8 +3,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.main import api_router
-from app.config.settings import get_settings
+from app.api.router import api_router
+from app.core.config import get_settings
 
 # Set up CORS
 cors_list = [

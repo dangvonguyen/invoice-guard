@@ -1,6 +1,6 @@
 """Authentication service implementations."""
 
-from app.ports import AccessTokenIssuer, PasswordVerifier, UserRepository
+from app.services.interfaces import AccessTokenIssuer, PasswordVerifier, UserRepository
 
 
 class InvalidCredentialsError(Exception):

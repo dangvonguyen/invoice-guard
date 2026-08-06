@@ -1,7 +1,10 @@
+"""API endpoints for user account operations."""
+
 from fastapi import APIRouter
 
 from app.api.deps import CurrentUser
-from app.schemas.user import CurrentUserResponse, User
+from app.database.models.user import User
+from app.schemas.user import CurrentUserResponse
 
 router = APIRouter(prefix="/users", tags=["Users"])
 

@@ -8,10 +8,9 @@ from uuid import uuid4
 
 from pydantic import BaseModel
 
-from app.adapters.password_hasher import PasswordHasher
-from app.database.db import get_session_factory
-from app.repositories.user import UserRepository
-from app.schemas.user import UserCreate
+from app.core.security.passwords import PasswordHasher
+from app.database.repositories.user import UserRepository
+from app.database.session import get_session_factory
 
 
 class SeedUser(BaseModel):
@@ -43,11 +42,11 @@ async def seed_users(
     """Seed every user in a file and return the number newly inserted."""
     inserted_count = 0
     for seed_user in load_users(path):
-        user = UserCreate(
-            id=str(uuid4()),
-            email=seed_user.email,
-            hashed_password=password_hasher.hash(seed_user.password),
-        )
+        user = {
+            "id": str(uuid4()),
+            "email": seed_user.email,
+            "hashed_password": password_hasher.hash(seed_user.password),
+        }
         inserted_count += await repository.create(user)
     return inserted_count
 

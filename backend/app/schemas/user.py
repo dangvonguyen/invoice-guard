@@ -1,28 +1,13 @@
-from datetime import datetime
+"""Validation and transfer schemas for user API data."""
 
-from pydantic import BaseModel, ConfigDict
-
-
-class UserBase(BaseModel):
-    """Shared user attributes."""
-
-    model_config = ConfigDict(frozen=True, from_attributes=True)
-
-    email: str
+from pydantic import BaseModel, Field
 
 
-class UserCreate(UserBase):
-    """User attributes required when creating a user."""
+class UserLoginRequest(BaseModel):
+    """Email/password login payload."""
 
-    id: str
-    hashed_password: str
-
-
-class User(UserCreate):
-    """Fully populated user returned by persistence operations."""
-
-    created_at: datetime
-    updated_at: datetime
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=1, max_length=256)
 
 
 class CurrentUserResponse(BaseModel):

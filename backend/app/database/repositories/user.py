@@ -4,8 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.user import UserModel
-from app.schemas.user import User, UserCreate
+from app.database.models.user import User
 
 
 class UserRepository:
@@ -14,28 +13,22 @@ class UserRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def create(self, user: UserCreate) -> bool:
+    async def create(self, user: dict[str, str]) -> bool:
         """Insert a new user and return whether it was newly created."""
         stmt = (
-            insert(UserModel)
-            .values(**user.model_dump())
-            .on_conflict_do_nothing(index_elements=[UserModel.email])
-            .returning(UserModel.id)
+            insert(User)
+            .values(**user)
+            .on_conflict_do_nothing(index_elements=[User.email])
+            .returning(User.id)
         )
         return (await self._session.scalar(stmt)) is not None
 
     async def get_by_email(self, email: str) -> User | None:
         """Return the user associated with an email address, if one exists."""
-        stmt = select(UserModel).where(UserModel.email == email)
+        stmt = select(User).where(User.email == email)
         result = await self._session.execute(stmt)
-        row = result.scalar_one_or_none()
-        if row is None:
-            return row
-        return User.model_validate(row)
+        return result.scalar_one_or_none()
 
     async def get_by_id(self, user_id: str) -> User | None:
         """Return the user associated with an ID, if one exists."""
-        row = await self._session.get(UserModel, user_id)
-        if row is None:
-            return row
-        return User.model_validate(row)
+        return await self._session.get(User, user_id)

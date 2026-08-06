@@ -1,111 +1,122 @@
-"""Unit tests for the authentication service."""
+"""Specify how the authentication service coordinates login collaborators."""
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from app.ports import AccessTokenIssuer, PasswordVerifier, UserRepository
-from app.schemas.user import User
-from app.service.auth import AuthService, InvalidCredentialsError
+from app.database.models.user import User
+from app.services.auth import AuthService, InvalidCredentialsError
+from app.services.interfaces import AccessTokenIssuer, PasswordVerifier, UserRepository
+
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.asyncio,
+]
+
+KNOWN_EMAIL = "user@example.com"
+KNOWN_PASSWORD = "correct-password"
+PASSWORD_HASH = "stored-password-hash"
+ACCESS_TOKEN = "signed.jwt.token"
+
+
+@dataclass(frozen=True)
+class AuthenticationContext:
+    """Expose the service and collaborator roles used by each scenario."""
+
+    service: AuthService
+    users: AsyncMock
+    password_verifier: AsyncMock
+    access_token_issuer: Mock
 
 
 @pytest.fixture
-def user() -> User:
-    """User fixture for authentication tests."""
+def registered_user() -> User:
+    """Return the account associated with the known login email."""
     timestamp = datetime(2000, 1, 1, tzinfo=UTC)
     return User(
         id="user-1",
-        email="user@example.com",
-        hashed_password="hashed",
+        email=KNOWN_EMAIL,
+        hashed_password=PASSWORD_HASH,
         created_at=timestamp,
         updated_at=timestamp,
     )
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
-async def test_should_issue_access_token_for_valid_credentials(user: User) -> None:
+@pytest.fixture
+def auth() -> AuthenticationContext:
+    """Build the service with mocks for the roles it coordinates."""
+    users = AsyncMock(spec=UserRepository)
+    password_verifier = AsyncMock(spec=PasswordVerifier)
+    access_token_issuer = Mock(spec=AccessTokenIssuer)
+    service = AuthService(
+        users=users,
+        password_verifier=password_verifier,
+        access_token_issuer=access_token_issuer,
+    )
+    return AuthenticationContext(
+        service=service,
+        users=users,
+        password_verifier=password_verifier,
+        access_token_issuer=access_token_issuer,
+    )
+
+
+async def should_issue_access_token_for_valid_credentials(
+    auth: AuthenticationContext, registered_user: User
+) -> None:
     """Issue an access token when the supplied credentials are valid."""
-    users = AsyncMock(spec=UserRepository)
-    users.get_by_email.return_value = user
-    password_verifier = AsyncMock(spec=PasswordVerifier)
-    password_verifier.verify.return_value = True
-    access_token_issuer = Mock(spec=AccessTokenIssuer)
-    access_token_issuer.issue.return_value = "signed.jwt.token"
+    auth.users.get_by_email.return_value = registered_user
+    auth.password_verifier.verify.return_value = True
+    auth.access_token_issuer.issue.return_value = ACCESS_TOKEN
 
-    service = AuthService(
-        users=users,
-        password_verifier=password_verifier,
-        access_token_issuer=access_token_issuer,
+    token = await auth.service.login(KNOWN_EMAIL, KNOWN_PASSWORD)
+
+    assert token == ACCESS_TOKEN
+    auth.users.get_by_email.assert_awaited_once_with(KNOWN_EMAIL)
+    auth.password_verifier.verify.assert_awaited_once_with(
+        KNOWN_PASSWORD, PASSWORD_HASH
     )
-    token = await service.login(email="user@example.com", password="correct-password")
-
-    assert token == "signed.jwt.token"
-    users.get_by_email.assert_awaited_once_with("user@example.com")
-    password_verifier.verify.assert_awaited_once_with("correct-password", "hashed")
-    access_token_issuer.issue.assert_called_once_with("user-1")
+    auth.access_token_issuer.issue.assert_called_once_with(registered_user.id)
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
-async def test_should_reject_login_when_user_does_not_exist() -> None:
+async def should_reject_login_when_email_is_not_registered(
+    auth: AuthenticationContext,
+) -> None:
     """Reject login when the user is unknown."""
-    users = AsyncMock(spec=UserRepository)
-    users.get_by_email.return_value = None
-    password_verifier = AsyncMock(spec=PasswordVerifier)
-    access_token_issuer = Mock(spec=AccessTokenIssuer)
-
-    service = AuthService(
-        users=users,
-        password_verifier=password_verifier,
-        access_token_issuer=access_token_issuer,
-    )
+    auth.users.get_by_email.return_value = None
 
     with pytest.raises(InvalidCredentialsError):
-        await service.login(email="unknown@example.com", password="whatever")
+        await auth.service.login("unknown@example.com", "unknown-password")
 
-    access_token_issuer.assert_not_called()
+    auth.access_token_issuer.issue.assert_not_called()
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
-async def test_should_verify_dummy_hash_before_rejecting_unknown_user() -> None:
+async def should_verify_dummy_hash_when_email_is_not_registered(
+    auth: AuthenticationContext,
+) -> None:
     """Perform password verification before rejecting an unknown user."""
-    users = AsyncMock(spec=UserRepository)
-    users.get_by_email.return_value = None
-    password_verifier = AsyncMock(spec=PasswordVerifier)
-    access_token_issuer = Mock(spec=AccessTokenIssuer)
-
-    service = AuthService(
-        users=users,
-        password_verifier=password_verifier,
-        access_token_issuer=access_token_issuer,
-    )
+    auth.users.get_by_email.return_value = None
 
     with pytest.raises(InvalidCredentialsError):
-        await service.login(email="unknown@example.com", password="whatever")
+        await auth.service.login("unknown@example.com", "unknown-password")
 
-    password_verifier.verify_dummy.assert_awaited_once_with("whatever")
-    password_verifier.verify.assert_not_awaited()
+    auth.password_verifier.verify_dummy.assert_awaited_once_with("unknown-password")
+    auth.password_verifier.verify.assert_not_awaited()
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
-async def test_should_reject_login_when_password_is_wrong(user: User) -> None:
+async def should_reject_login_when_password_does_not_match(
+    auth: AuthenticationContext, registered_user: User
+) -> None:
     """Reject login and avoid issuing a token when the password is invalid."""
-    users = AsyncMock(spec=UserRepository)
-    users.get_by_email.return_value = user
-    password_verifier = AsyncMock(spec=PasswordVerifier)
-    password_verifier.verify.return_value = False
-    access_token_issuer = Mock(spec=AccessTokenIssuer)
-
-    service = AuthService(
-        users=users,
-        password_verifier=password_verifier,
-        access_token_issuer=access_token_issuer,
-    )
+    auth.users.get_by_email.return_value = registered_user
+    auth.password_verifier.verify.return_value = False
 
     with pytest.raises(InvalidCredentialsError):
-        await service.login(email="user@example.com", password="wrong-password")
-    access_token_issuer.assert_not_called()
+        await auth.service.login(KNOWN_EMAIL, "wrong-password")
+
+    auth.password_verifier.verify.assert_awaited_once_with(
+        "wrong-password", PASSWORD_HASH
+    )
+    auth.access_token_issuer.issue.assert_not_called()
