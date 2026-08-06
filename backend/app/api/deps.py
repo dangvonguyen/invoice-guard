@@ -6,14 +6,13 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters.jwt_tokens import JwtAccessTokenCodec
-from app.adapters.password_hasher import PasswordHasher
-from app.config.settings import get_settings, unwrap_secret
-from app.database.db import get_session, get_session_manual
-from app.ports import UserRepository
-from app.repositories.user import UserRepository as DbUserRepository
+from app.core.config import get_settings, unwrap_secret
+from app.core.security import JwtAccessTokenCodec, PasswordHasher
+from app.database.repositories.user import UserRepository as DbUserRepository
+from app.database.session import get_session, get_session_manual
 from app.schemas.user import User
-from app.service.auth import AuthService
+from app.services.auth import AuthService
+from app.services.interfaces import UserRepository
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 SessionManualDep = Annotated[AsyncSession, Depends(get_session_manual)]

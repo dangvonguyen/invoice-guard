@@ -8,9 +8,9 @@ from uuid import uuid4
 
 from pydantic import BaseModel
 
-from app.adapters.password_hasher import PasswordHasher
-from app.database.db import get_session_factory
-from app.repositories.user import UserRepository
+from app.core.security.passwords import PasswordHasher
+from app.database.repositories.user import UserRepository
+from app.database.session import get_session_factory
 from app.schemas.user import UserCreate
 
 

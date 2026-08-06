@@ -1,3 +1,5 @@
+"""Validation and transfer schemas for user data."""
+
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict

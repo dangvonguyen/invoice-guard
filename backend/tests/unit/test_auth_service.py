@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from app.ports import AccessTokenIssuer, PasswordVerifier, UserRepository
 from app.schemas.user import User
-from app.service.auth import AuthService, InvalidCredentialsError
+from app.services.auth import AuthService, InvalidCredentialsError
+from app.services.interfaces import AccessTokenIssuer, PasswordVerifier, UserRepository
 
 pytestmark = [
     pytest.mark.unit,

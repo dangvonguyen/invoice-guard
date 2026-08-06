@@ -6,7 +6,7 @@ import pytest
 from pwdlib.hashers.argon2 import Argon2Hasher
 from pwdlib.hashers.base import HasherProtocol
 
-from app.adapters.password_hasher import PasswordHasher
+from app.core.security.passwords import PasswordHasher
 
 pytestmark = pytest.mark.unit
 

@@ -4,9 +4,9 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.api.deps import AuthServiceDep
 from app.schemas.auth import LoginRequest, TokenResponse
-from app.service.auth import InvalidCredentialsError
+from app.services.auth import InvalidCredentialsError
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/login")

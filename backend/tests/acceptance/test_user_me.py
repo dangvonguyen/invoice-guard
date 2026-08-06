@@ -6,9 +6,9 @@ from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters.jwt_tokens import JwtAccessTokenCodec
 from app.api.deps import get_access_token_codec
-from app.models.user import UserModel
+from app.core.security import JwtAccessTokenCodec
+from app.database.models.user import UserModel
 
 pytestmark = [
     pytest.mark.acceptance,

@@ -4,17 +4,14 @@ from collections.abc import AsyncGenerator
 from functools import lru_cache
 
 from pydantic import PostgresDsn
-from sqlalchemy import MetaData
 from sqlalchemy.ext.asyncio import (
-    AsyncAttrs,
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import DeclarativeBase
 
-from app.config.settings import get_settings, unwrap_secret
+from app.core.config import get_settings, unwrap_secret
 
 
 def get_database_url() -> str:
@@ -28,23 +25,6 @@ def get_database_url() -> str:
         port=settings.POSTGRES_PORT,
         path=settings.POSTGRES_DB,
     ).encoded_string()
-
-
-class Base(AsyncAttrs, DeclarativeBase):
-    """Base class for SQLAlchemy models.
-
-    All other models should inherit from this class.
-    """
-
-    metadata = MetaData(
-        naming_convention={
-            "ix": "ix_%(column_0_label)s",
-            "uq": "uq_%(table_name)s_%(column_0_name)s",
-            "ck": "ck_%(table_name)s_%(constraint_name)s",
-            "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-            "pk": "pk_%(table_name)s",
-        }
-    )
 
 
 @lru_cache

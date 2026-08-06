@@ -6,7 +6,7 @@ from typing import Any, Final
 import jwt
 import pytest
 
-from app.adapters.jwt_tokens import JwtAccessTokenCodec
+from app.core.security.tokens import JwtAccessTokenCodec
 
 pytestmark = pytest.mark.unit
 

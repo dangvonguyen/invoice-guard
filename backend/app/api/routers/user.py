@@ -1,3 +1,5 @@
+"""API endpoints for user account operations."""
+
 from fastapi import APIRouter
 
 from app.api.deps import CurrentUser

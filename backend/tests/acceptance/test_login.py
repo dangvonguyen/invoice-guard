@@ -9,7 +9,7 @@ from httpx import AsyncClient
 from pwdlib.hashers.argon2 import Argon2Hasher
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.user import UserModel
+from app.database.models.user import UserModel
 
 pytestmark = [
     pytest.mark.acceptance,

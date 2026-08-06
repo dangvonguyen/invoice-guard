@@ -20,7 +20,8 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import NullPool
 from testcontainers.community.postgres import PostgresContainer
 
-from app.database.db import Base, get_session
+from app.database.base import Base
+from app.database.session import get_session
 from app.main import app
 
 
