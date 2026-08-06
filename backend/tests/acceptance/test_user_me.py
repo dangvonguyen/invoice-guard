@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_access_token_codec
 from app.core.security import JwtAccessTokenCodec
-from app.database.models.user import User
+from app.database.models.user import User, UserRole
 
 pytestmark = [
     pytest.mark.acceptance,
@@ -23,6 +23,8 @@ async def registered_user(test_db: AsyncSession) -> User:
         id="user-1",
         email="user@example.com",
         hashed_password="secret-hash",
+        name="Example User",
+        role=UserRole.FINANCE_REVIEWER,
     )
     test_db.add(user)
     await test_db.flush()
@@ -49,6 +51,8 @@ async def should_return_authenticated_users_profile_without_password_hash(
     body = response.json()
     assert body["id"] == registered_user.id
     assert body["email"] == registered_user.email
+    assert body["name"] == registered_user.name
+    assert body["role"] == registered_user.role
     assert "hashed_password" not in body
 
 

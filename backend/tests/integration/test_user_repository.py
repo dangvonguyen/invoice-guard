@@ -7,7 +7,7 @@ import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models.user import User
+from app.database.models.user import User, UserRole
 from app.database.repositories.user import UserRepository
 
 pytestmark = [
@@ -30,6 +30,8 @@ def existing_user() -> User:
         id="existing-user",
         email="existing@example.com",
         hashed_password="existing-password-hash",
+        name="Existing User",
+        role=UserRole.FINANCE_REVIEWER,
         created_at=timestamp,
         updated_at=timestamp,
     )
@@ -82,7 +84,13 @@ async def should_persist_new_user(
     test_db: AsyncSession, repository: UserRepository
 ) -> None:
     """Insert a user and persist all of its fields."""
-    user = {"id": "user-1", "email": "user@example.com", "hashed_password": "hash-1"}
+    user = {
+        "id": "user-1",
+        "email": "user@example.com",
+        "hashed_password": "hash-1",
+        "name": "Example User",
+        "role": UserRole.EMPLOYEE,
+    }
 
     assert await repository.create(user) is True
 
@@ -93,17 +101,27 @@ async def should_persist_new_user(
     assert stored_users[0].id == user["id"]
     assert stored_users[0].email == user["email"]
     assert stored_users[0].hashed_password == user["hashed_password"]
+    assert stored_users[0].name == user["name"]
+    assert stored_users[0].role == user["role"]
 
 
 async def should_preserve_existing_user_when_email_is_duplicated(
     test_db: AsyncSession, repository: UserRepository
 ) -> None:
     """Report duplicate email creation as a no-op and preserve the first user."""
-    first = {"id": "user-1", "email": "user@example.com", "hashed_password": "hash-1"}
+    first = {
+        "id": "user-1",
+        "email": "user@example.com",
+        "hashed_password": "hash-1",
+        "name": "First User",
+        "role": UserRole.EMPLOYEE,
+    }
     duplicate = {
         "id": "user-2",
         "email": "user@example.com",
         "hashed_password": "hash-2",
+        "name": "Duplicate User",
+        "role": UserRole.FINANCE_REVIEWER,
     }
 
     assert await repository.create(first) is True

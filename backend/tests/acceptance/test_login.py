@@ -22,6 +22,7 @@ async def registered_user(test_db: AsyncSession) -> User:
     """Persist an account with credentials known to the scenarios."""
     user = User(
         id="user-1",
+        name="Example User",
         email="user@example.com",
         hashed_password=Argon2Hasher().hash("secret123"),
     )

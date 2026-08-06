@@ -9,6 +9,7 @@ from uuid import uuid4
 from pydantic import BaseModel
 
 from app.core.security.passwords import PasswordHasher
+from app.database.models.user import UserRole
 from app.database.repositories.user import UserRepository
 from app.database.session import get_session_factory
 
@@ -18,6 +19,8 @@ class SeedUser(BaseModel):
 
     email: str
     password: str
+    name: str
+    role: UserRole = UserRole.EMPLOYEE
 
 
 def load_users(path: Path) -> list[SeedUser]:
@@ -46,6 +49,8 @@ async def seed_users(
             "id": str(uuid4()),
             "email": seed_user.email,
             "hashed_password": password_hasher.hash(seed_user.password),
+            "name": seed_user.name,
+            "role": seed_user.role,
         }
         inserted_count += await repository.create(user)
     return inserted_count

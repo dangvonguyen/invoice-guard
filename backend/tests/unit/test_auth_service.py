@@ -37,6 +37,7 @@ def registered_user() -> User:
     timestamp = datetime(2000, 1, 1, tzinfo=UTC)
     return User(
         id="user-1",
+        name="Example User",
         email=KNOWN_EMAIL,
         hashed_password=PASSWORD_HASH,
         created_at=timestamp,

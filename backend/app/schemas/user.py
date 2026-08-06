@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, Field
 
+from app.database.models.user import UserRole
+
 
 class UserLoginRequest(BaseModel):
     """Email/password login payload."""
@@ -15,3 +17,5 @@ class CurrentUserResponse(BaseModel):
 
     id: str
     email: str
+    name: str
+    role: UserRole
