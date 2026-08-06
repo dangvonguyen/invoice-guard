@@ -2,6 +2,18 @@
 
 The backend is a FastAPI application backed by PostgreSQL. It can be run either as part of the Docker Compose stack or directly on your machine for local development.
 
+## Stack
+
+- **FastAPI** as the API framework.
+- **Pydantic** for request, response, and settings validation.
+- **PostgreSQL** as the relational database.
+- **SQLAlchemy** with `asyncpg` for asynchronous ORM and database access.
+- **Alembic** for migrations, configured for async engines.
+- **Argon2** and **PyJWT** for password hashing and JWT bearer authentication.
+- **pytest**, **HTTPX**, and **Testcontainers** for automated testing with real PostgreSQL instances.
+- **Ruff** and **mypy** for formatting, linting, and strict type checking.
+- **uv** for dependency and virtual environment management.
+
 ## Prerequisites
 
 Before getting started, ensure you have the following installed:
@@ -68,10 +80,46 @@ uv run alembic upgrade head
 uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
 ```
 
+## Project structure
+
+```
+app/
+  api/                  # FastAPI routers + shared dependencies
+  core/
+    config.py           # Settings (env-driven)
+    security/           # Password hashing and JWT issuing/decoding
+  database/
+    migrations/         # Alembic env + versioned migrations
+    repositories/       # Data-access classes, one per aggregate
+    models/             # SQLAlchemy ORM models
+    base.py             # Declarative base model
+    session.py          # Engine, session factories
+  schemas/              # Pydantic request/response models
+  services/             # Application use cases and collaborator protocols
+scripts/                # Operational commands, including local user seeding
+tests/
+  unit/                 # No I/O, collaborators mocked
+  integration/          # Real Postgres, single adapter, no HTTP
+  acceptance/           # Real Postgres, real app, through HTTP
+```
+
 ## Tests
 
-From the `backend` directory, run:
+Tests are split into three tiers:
+
+- **Unit:** Verifies one object's behavior without I/O.
+- **Integration:** Verifies one real adapter against PostgreSQL.
+- **Acceptance:** Verifies user-visible behavior through the HTTP API.
+
+Integration and acceptance tests use Testcontainers to start a disposable PostgreSQL instance. Docker must therefore be running for those tiers and for the complete suite. Test data is isolated by a transaction that is rolled back after every test.
+
+From the `backend` directory:
 
 ```sh
-uv run pytest
+uv run pytest                   # Run all test tiers (requires Docker)
+uv run pytest -m unit           # Run the fast unit suite only
+uv run pytest -m integration    # Verify real infrastructure adapters
+uv run pytest -m acceptance     # Verify behavior through the HTTP boundary
 ```
+
+Tests use behavior-oriented names beginning with `should_`. Pytest is configured in `pyproject.toml` to collect both `should_*` and conventional `test_*` functions.
