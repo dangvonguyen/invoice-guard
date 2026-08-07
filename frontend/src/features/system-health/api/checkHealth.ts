@@ -1,13 +1,14 @@
-import { apiFetch } from '@/shared/api/httpClient'
+import { apiClient } from '@/shared/api/client'
+import { unwrap } from '@/shared/api/result'
 
 import type { CheckState } from '../model/healthCheck'
 
-export async function checkHealth(endpoint: string): Promise<CheckState> {
+type SystemHealthPath = '/health/live' | '/health/ready'
+
+export async function checkHealth(path: SystemHealthPath): Promise<CheckState> {
   try {
-    const response = await apiFetch(endpoint, {
-      headers: { 'Cache-Control': 'no-cache' },
-    })
-    return response.ok ? 'healthy' : 'unhealthy'
+    const result = await unwrap(apiClient.GET(path, { headers: { 'Cache-Control': 'no-cache' } }))
+    return result.ok ? 'healthy' : 'unhealthy'
   } catch {
     return 'unhealthy'
   }
