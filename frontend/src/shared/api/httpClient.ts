@@ -1,5 +1,5 @@
-import { env } from '@/shared/config/env'
-
 export function apiFetch(path: string, init?: RequestInit) {
-  return fetch(`${env.apiUrl}${env.apiRoot}${path}`, init)
+  const apiPath = path.startsWith('/') ? path : `/${path}`
+
+  return fetch(`/api${apiPath}`, init)
 }
