@@ -1,6 +1,7 @@
 """Interfaces shared across application boundaries."""
 
 from typing import Protocol
+from uuid import UUID
 
 from app.database.models.user import User
 
@@ -10,7 +11,7 @@ class UserRepository(Protocol):
         """Return the user associated with an email address, if one exists."""
         ...
 
-    async def get_by_id(self, user_id: str) -> User | None:
+    async def get_by_id(self, user_id: UUID) -> User | None:
         """Return the user associated with an ID, if one exists."""
         ...
 

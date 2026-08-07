@@ -34,4 +34,4 @@ class AuthService:
             raise InvalidCredentialsError()
         if not await self._password_verifier.verify(password, user.hashed_password):
             raise InvalidCredentialsError()
-        return self._access_token_issuer.issue(user.id)
+        return self._access_token_issuer.issue(str(user.id))

@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock
+from uuid import UUID
 
 import pytest
 
@@ -36,7 +37,7 @@ def registered_user() -> User:
     """Return the account associated with the known login email."""
     timestamp = datetime(2000, 1, 1, tzinfo=UTC)
     return User(
-        id="user-1",
+        id=UUID("00000000-0000-0000-0000-000000000001"),
         name="Example User",
         email=KNOWN_EMAIL,
         hashed_password=PASSWORD_HASH,
@@ -79,7 +80,7 @@ async def should_issue_access_token_for_valid_credentials(
     auth.password_verifier.verify.assert_awaited_once_with(
         KNOWN_PASSWORD, PASSWORD_HASH
     )
-    auth.access_token_issuer.issue.assert_called_once_with(registered_user.id)
+    auth.access_token_issuer.issue.assert_called_once_with(str(registered_user.id))
 
 
 async def should_reject_login_when_email_is_not_registered(

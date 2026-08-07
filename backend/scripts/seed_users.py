@@ -4,9 +4,8 @@ import argparse
 import asyncio
 import json
 from pathlib import Path
-from uuid import uuid4
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.security.passwords import PasswordHasher
 from app.database.models.user import UserRole
@@ -17,9 +16,9 @@ from app.database.session import get_session_factory
 class SeedUser(BaseModel):
     """Plaintext user information accepted by the seeding script."""
 
-    email: str
-    password: str
-    name: str
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=8, max_length=255)
+    name: str = Field(min_length=1, max_length=255)
     role: UserRole = UserRole.EMPLOYEE
 
 
@@ -46,7 +45,6 @@ async def seed_users(
     inserted_count = 0
     for seed_user in load_users(path):
         user = {
-            "id": str(uuid4()),
             "email": seed_user.email,
             "hashed_password": password_hasher.hash(seed_user.password),
             "name": seed_user.name,
