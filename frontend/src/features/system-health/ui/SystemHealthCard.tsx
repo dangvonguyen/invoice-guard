@@ -1,9 +1,11 @@
+import { useFetcher } from 'react-router'
+
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/shared/ui/card'
 
-import { healthChecks, type CheckState } from '../model/healthCheck'
-import { useSystemHealth } from '../model/useSystemHealth'
+import type { HealthCheckData } from '../api/checkHealth'
+import { type CheckState, healthChecks, initialHealthCheckResults } from '../model/healthCheck'
 
 const statusIconClasses: Record<CheckState, string> = {
   checking: 'animate-spin border-2 border-gray-300 border-t-green-600',
@@ -23,8 +25,15 @@ const statusLabels: Record<CheckState, string> = {
   unhealthy: 'Unavailable',
 }
 
-export function SystemHealthCard() {
-  const { results, lastChecked, isChecking, runChecks } = useSystemHealth()
+interface SystemHealthCardProps {
+  health: HealthCheckData
+}
+
+export function SystemHealthCard({ health }: SystemHealthCardProps) {
+  const fetcher = useFetcher<HealthCheckData>()
+  const isChecking = fetcher.state !== 'idle'
+  const currentHealth = fetcher.data ?? health
+  const results = isChecking ? initialHealthCheckResults : currentHealth.results
 
   return (
     <Card className="w-full max-w-2xl gap-0 shadow-xl">
@@ -61,19 +70,20 @@ export function SystemHealthCard() {
 
       <CardFooter className="flex flex-col items-start justify-between gap-4 border-t-0 bg-transparent px-5 py-5 sm:flex-row sm:items-center sm:px-8">
         <p className="text-xs text-gray-400">
-          {lastChecked
-            ? `Last checked at ${lastChecked.toLocaleTimeString()}`
-            : 'Preparing health check...'}
+          {isChecking
+            ? 'Checking system health...'
+            : `Last checked at ${new Date(currentHealth.lastChecked).toLocaleTimeString()}`}
         </p>
-        <Button
-          className="h-auto cursor-pointer border-gray-300 px-3 py-2 hover:border-gray-500 hover:bg-gray-50 disabled:cursor-wait"
-          variant="outline"
-          type="button"
-          onClick={() => void runChecks()}
-          disabled={isChecking}
-        >
-          <span aria-hidden="true">↻</span> Check again
-        </Button>
+        <fetcher.Form method="post">
+          <Button
+            className="h-auto cursor-pointer border-gray-300 px-3 py-2 hover:border-gray-500 hover:bg-gray-50 disabled:cursor-wait"
+            variant="outline"
+            type="submit"
+            disabled={isChecking}
+          >
+            <span aria-hidden="true">↻</span> Check again
+          </Button>
+        </fetcher.Form>
       </CardFooter>
     </Card>
   )
