@@ -1,10 +1,14 @@
 [
   {
     "email": "employee@example.com",
-    "password": "replace-with-a-local-password"
+    "password": "replace-with-a-local-password",
+    "name": "Example Employee",
+    "role": "employee"
   },
   {
     "email": "finance.reviewer@example.com",
-    "password": "replace-with-a-local-password"
+    "password": "replace-with-a-local-password",
+    "name": "Finance Reviewer",
+    "role": "finance_reviewer"
   }
 ]

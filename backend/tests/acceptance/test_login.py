@@ -1,6 +1,7 @@
 """Acceptance scenarios for issuing access tokens from login credentials."""
 
 from typing import Any
+from uuid import UUID
 
 import pytest
 import pytest_asyncio
@@ -21,7 +22,8 @@ pytestmark = [
 async def registered_user(test_db: AsyncSession) -> User:
     """Persist an account with credentials known to the scenarios."""
     user = User(
-        id="user-1",
+        id=UUID("00000000-0000-0000-0000-000000000001"),
+        name="Example User",
         email="user@example.com",
         hashed_password=Argon2Hasher().hash("secret123"),
     )

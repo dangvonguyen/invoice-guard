@@ -1,6 +1,7 @@
 """Define reusable dependencies for API routes."""
 
 from typing import Annotated, Never
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -83,7 +84,7 @@ async def get_current_user(
     if credentials is None:
         raise_unauthorized()
     try:
-        user_id = access_token_codec.decode(credentials.credentials)
+        user_id = UUID(access_token_codec.decode(credentials.credentials))
     except ValueError:
         raise_unauthorized()
 

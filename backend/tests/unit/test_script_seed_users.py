@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, Mock, call
 
 import pytest
 
+from app.database.models.user import UserRole
 from scripts.seed_users import SeedUser, load_users, seed_users
 
 pytestmark = pytest.mark.unit
@@ -18,8 +19,17 @@ def users_file(tmp_path: Path) -> Path:
     file.write_text(
         json.dumps(
             [
-                {"email": "first@example.com", "password": "password-1"},
-                {"email": "second@example.com", "password": "password-2"},
+                {
+                    "name": "First",
+                    "email": "first@example.com",
+                    "password": "password-1",
+                },
+                {
+                    "name": "Second",
+                    "email": "second@example.com",
+                    "password": "password-2",
+                    "role": "finance_reviewer",
+                },
             ]
         )
     )
@@ -29,8 +39,13 @@ def users_file(tmp_path: Path) -> Path:
 def should_load_users_from_json_file(users_file: Path) -> None:
     """Load email and plaintext password from every JSON record."""
     assert load_users(users_file) == [
-        SeedUser(email="first@example.com", password="password-1"),
-        SeedUser(email="second@example.com", password="password-2"),
+        SeedUser(name="First", email="first@example.com", password="password-1"),
+        SeedUser(
+            name="Second",
+            email="second@example.com",
+            password="password-2",
+            role=UserRole.FINANCE_REVIEWER,
+        ),
     ]
 
 
@@ -49,11 +64,23 @@ async def should_hash_and_insert_each_loaded_user(users_file: Path) -> None:
         call("password-2"),
     ]
     inserted_users = [args.args[0] for args in repository.create.await_args_list]
-    assert [(user["email"], user["hashed_password"]) for user in inserted_users] == [
-        ("first@example.com", "hash-1"),
-        ("second@example.com", "hash-2"),
+    assert [
+        (user["email"], user["hashed_password"], user["name"], user["role"])
+        for user in inserted_users
+    ] == [
+        (
+            "first@example.com",
+            "hash-1",
+            "First",
+            UserRole.EMPLOYEE,
+        ),
+        (
+            "second@example.com",
+            "hash-2",
+            "Second",
+            UserRole.FINANCE_REVIEWER,
+        ),
     ]
-    assert all(isinstance(user, dict) and user["id"] for user in inserted_users)
     assert inserted_count == 2
 
 
@@ -64,7 +91,11 @@ async def should_exclude_existing_user_from_inserted_count(tmp_path: Path) -> No
     users_file.write_text(
         json.dumps(
             [
-                {"email": "user@example.com", "password": "password-1"},
+                {
+                    "name": "Example User",
+                    "email": "user@example.com",
+                    "password": "password-1",
+                },
             ]
         )
     )

@@ -1,5 +1,7 @@
 """Acceptance scenarios for retrieving profiles with bearer authentication."""
 
+from uuid import UUID
+
 import pytest
 import pytest_asyncio
 from fastapi import status
@@ -8,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_access_token_codec
 from app.core.security import JwtAccessTokenCodec
-from app.database.models.user import User
+from app.database.models.user import User, UserRole
 
 pytestmark = [
     pytest.mark.acceptance,
@@ -20,9 +22,11 @@ pytestmark = [
 async def registered_user(test_db: AsyncSession) -> User:
     """Persist the profile returned to an authenticated account."""
     user = User(
-        id="user-1",
+        id=UUID("00000000-0000-0000-0000-000000000001"),
         email="user@example.com",
         hashed_password="secret-hash",
+        name="Example User",
+        role=UserRole.FINANCE_REVIEWER,
     )
     test_db.add(user)
     await test_db.flush()
@@ -39,7 +43,7 @@ async def should_return_authenticated_users_profile_without_password_hash(
     client: AsyncClient, registered_user: User, token_issuer: JwtAccessTokenCodec
 ) -> None:
     """Return identity fields without exposing the password hash."""
-    token = token_issuer.issue(registered_user.id)
+    token = token_issuer.issue(str(registered_user.id))
 
     response = await client.get(
         "/api/users/me", headers={"Authorization": f"Bearer {token}"}
@@ -47,8 +51,10 @@ async def should_return_authenticated_users_profile_without_password_hash(
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
-    assert body["id"] == registered_user.id
+    assert body["id"] == str(registered_user.id)
     assert body["email"] == registered_user.email
+    assert body["name"] == registered_user.name
+    assert body["role"] == registered_user.role
     assert "hashed_password" not in body
 
 
