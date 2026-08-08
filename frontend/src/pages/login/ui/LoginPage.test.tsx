@@ -1,3 +1,4 @@
+import { MemoryRouter, Route, Routes } from 'react-router'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
@@ -12,7 +13,14 @@ import { LoginPage } from './LoginPage'
 
 async function submitLogin(email: string, password: string): Promise<void> {
   const user = userEvent.setup()
-  render(<LoginPage />)
+  render(
+    <MemoryRouter initialEntries={['/login']}>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/" element={<p>Home</p>} />
+      </Routes>
+    </MemoryRouter>,
+  )
 
   await user.type(screen.getByLabelText(/email/i), email)
   await user.type(screen.getByLabelText(/password/i), password)
@@ -25,17 +33,17 @@ describe('LoginPage acceptance', () => {
     sessionStore.logout()
   })
 
-  it('should show authenticated state when credentials are valid', async () => {
+  it('should navigate home when credentials are valid', async () => {
     await submitLogin('user@example.com', 'secret123')
 
-    expect(await screen.findByText(/logged in/i)).toBeInTheDocument()
+    expect(await screen.findByText('Home')).toBeInTheDocument()
   })
 
   it('should show error and stay on login when credentials are invalid', async () => {
     await submitLogin('user@example.com', 'wrong-password')
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/invalid email or password/i)
-    expect(screen.queryByText(/logged in/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('Home')).not.toBeInTheDocument()
   })
 
   it('should show generic error when backend is unreachable', async () => {

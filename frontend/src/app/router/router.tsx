@@ -1,6 +1,6 @@
 import { createBrowserRouter } from 'react-router'
 
-import { paths } from '@/app/router/paths'
+import { paths } from '@/shared/shared/paths'
 
 export const router = createBrowserRouter([
   {
