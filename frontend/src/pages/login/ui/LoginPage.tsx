@@ -11,5 +11,9 @@ export function LoginPage() {
     return <Navigate to={paths.home} replace />
   }
 
-  return <LoginForm store={sessionStore} />
+  return (
+    <div className="grid h-full place-items-center p-5">
+      <LoginForm store={sessionStore} />
+    </div>
+  )
 }

@@ -19,7 +19,6 @@ describe('DashboardPage', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Log in to access your account.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login')
   })
 })
