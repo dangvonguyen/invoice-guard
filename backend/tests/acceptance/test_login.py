@@ -37,7 +37,7 @@ async def should_issue_access_token_when_registered_credentials_are_valid(
 ) -> None:
     """Return a bearer token when valid credentials are submitted."""
     response = await client.post(
-        "/api/auth/login",
+        "/auth/login",
         json={"email": registered_user.email, "password": "secret123"},
     )
 
@@ -52,7 +52,7 @@ async def should_reject_login_when_registered_users_password_is_wrong(
 ) -> None:
     """Reject login attempts with incorrect passwords."""
     response = await client.post(
-        "/api/auth/login",
+        "/auth/login",
         json={"email": registered_user.email, "password": "wrong-password"},
     )
 
@@ -64,7 +64,7 @@ async def should_reject_login_when_email_is_not_registered(
 ) -> None:
     """Reject login attempts for unknown users."""
     response = await client.post(
-        "/api/auth/login",
+        "/auth/login",
         json={"email": "unknown@example.com", "password": "whatever"},
     )
 
@@ -95,7 +95,7 @@ async def should_reject_login_when_required_credentials_are_missing_or_empty(
     client: AsyncClient, payload: dict[str, Any]
 ) -> None:
     """Ensure rejecting requests with missing or empty fields."""
-    response = await client.post("/api/auth/login", json=payload)
+    response = await client.post("/auth/login", json=payload)
 
     assert response.status_code in (
         status.HTTP_400_BAD_REQUEST,

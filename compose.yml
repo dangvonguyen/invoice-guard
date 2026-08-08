@@ -58,7 +58,13 @@ services:
       migrator:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/live')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')",
+        ]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -68,6 +74,8 @@ services:
     build: ./frontend
     env_file:
       - ./frontend/.env
+    environment:
+      VITE_API_URL: http://api:8000
     ports:
       - "5173:5173"
     volumes:
@@ -75,6 +83,17 @@ services:
       - /app/node_modules
     depends_on:
       - api
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:5173').then(response => { if (!response.ok) process.exit(1) }).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
 volumes:
   pg_data:

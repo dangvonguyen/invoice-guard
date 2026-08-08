@@ -46,7 +46,7 @@ async def should_return_authenticated_users_profile_without_password_hash(
     token = token_issuer.issue(str(registered_user.id))
 
     response = await client.get(
-        "/api/users/me", headers={"Authorization": f"Bearer {token}"}
+        "/users/me", headers={"Authorization": f"Bearer {token}"}
     )
 
     assert response.status_code == status.HTTP_200_OK
@@ -62,7 +62,7 @@ async def should_require_access_token_to_read_current_profile(
     client: AsyncClient,
 ) -> None:
     """Require bearer authentication."""
-    response = await client.get("/api/users/me")
+    response = await client.get("/users/me")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -72,7 +72,7 @@ async def should_reject_current_profile_request_with_invalid_access_token(
 ) -> None:
     """Reject a malformed or incorrectly signed bearer token."""
     response = await client.get(
-        "/api/users/me", headers={"Authorization": "Bearer invalid-token"}
+        "/users/me", headers={"Authorization": "Bearer invalid-token"}
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -85,7 +85,7 @@ async def should_reject_valid_token_when_its_user_no_longer_exists(
     token = token_issuer.issue("deleted-user")
 
     response = await client.get(
-        "/api/users/me", headers={"Authorization": f"Bearer {token}"}
+        "/users/me", headers={"Authorization": f"Bearer {token}"}
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED

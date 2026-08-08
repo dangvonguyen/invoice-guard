@@ -1,0 +1,24 @@
+import { createBrowserRouter } from 'react-router'
+
+import { AppLayout } from '@/app/layout/AppLayout'
+import { paths } from '@/shared/shared/paths'
+
+export const router = createBrowserRouter([
+  {
+    element: <AppLayout />,
+    children: [
+      {
+        path: paths.home,
+        lazy: () => import('@/pages/dashboard'),
+      },
+      {
+        path: paths.login,
+        lazy: () => import('@/pages/login'),
+      },
+      {
+        path: '*',
+        lazy: () => import('@/pages/not-found'),
+      },
+    ],
+  },
+])

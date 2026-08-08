@@ -1,0 +1,19 @@
+import { Navigate } from 'react-router'
+
+import { sessionStore, useSession } from '@/entities/session'
+import { LoginForm } from '@/features/login'
+import { paths } from '@/shared/shared/paths'
+
+export function LoginPage() {
+  const { isAuthenticated } = useSession(sessionStore)
+
+  if (isAuthenticated) {
+    return <Navigate to={paths.home} replace />
+  }
+
+  return (
+    <div className="grid h-full place-items-center p-5">
+      <LoginForm store={sessionStore} />
+    </div>
+  )
+}

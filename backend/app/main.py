@@ -13,10 +13,13 @@ cors_list = [
     if origin.strip()
 ]
 
-app = FastAPI(title=get_settings().API_TITLE)
+app = FastAPI(
+    title=get_settings().API_TITLE,
+    root_path=get_settings().API_ROOT,
+)
 
 # Register the API routes
-app.include_router(api_router, prefix=get_settings().API_ROOT)
+app.include_router(api_router)
 
 # Register CORS middleware
 app.add_middleware(
