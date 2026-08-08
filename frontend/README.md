@@ -20,6 +20,8 @@ cp frontend/.env.example frontend/.env
 
 The default `VITE_API_URL=http://localhost:8000` connects the frontend to the locally exposed backend API.
 
+The Compose value uses `api`, the backend service name on the Compose network. Do not put that value in `frontend/.env`: the hostname `api` is not available when Vite runs directly on your machine.
+
 ## Run with Docker Compose
 
 From the repository root, start the full development stack:
