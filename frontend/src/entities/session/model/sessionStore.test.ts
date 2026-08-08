@@ -89,4 +89,48 @@ describe('SessionStore', () => {
 
     expect(listener).toHaveBeenCalledTimes(2)
   })
+
+  it('should apply only the most recently initiated attempts result when an earlier attempt resolves later', async () => {
+    // Simulates: user submits with a wrong password (attempt 1, slow), then
+    // immediately retries with the correct password (attempt 2, fast) before
+    // attempt 1's response arrives. Attempt 1's 401 must not overwrite
+    // attempt 2's successful login when it finally resolves.
+    let resolveFirstAttempt!: () => void
+    const firstAttemptGate = new Promise<void>((resolve) => {
+      resolveFirstAttempt = resolve
+    })
+
+    server.use(
+      http.post(LOGIN_URL, async ({ request }) => {
+        const body = (await request.json()) as { password?: string }
+        if (body.password === 'wrong-password') {
+          await firstAttemptGate // held open until the test releases it
+          return HttpResponse.json({ detail: 'Invalid' }, { status: 401 })
+        }
+        return HttpResponse.json(
+          { access_token: 'correct.jwt.token', token_type: 'bearer' },
+          { status: 200 },
+        )
+      }),
+    )
+
+    const store = new SessionStore()
+
+    const firstAttempt = store.loginWithCredentials('user@example.com', 'wrong-password')
+    const secondAttempt = store.loginWithCredentials('user@example.com', 'correct-password')
+
+    await secondAttempt // second attempt resolves first (nothing gates it)
+    expect(store.isAuthenticated()).toBe(true)
+    expect(store.getAccessToken()).toBe('correct.jwt.token')
+
+    resolveFirstAttempt() // now let the stale first attempt finish
+    const firstResult = await firstAttempt
+
+    // The store must still reflect attempt 2, unaffected by attempt 1
+    // resolving afterward.
+    expect(firstResult.kind).toBe('invalid_credentials')
+    expect(store.isAuthenticated()).toBe(true)
+    expect(store.getAccessToken()).toBe('correct.jwt.token')
+    expect(store.getLastLoginError()).toBeNull()
+  })
 })

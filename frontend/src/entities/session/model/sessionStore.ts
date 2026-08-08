@@ -10,10 +10,14 @@ export type LoginErrorKind = 'invalid_credentials' | 'network_error'
 export class SessionStore {
   private accessToken: string | null = null
   private lastLoginError: LoginErrorKind | null = null
+  private latestAttempt = 0
   private readonly listeners = new Set<Listener>()
 
   async loginWithCredentials(email: string, password: string): Promise<LoginResult> {
+    const attempt = ++this.latestAttempt
     const result = await login(email, password)
+
+    if (attempt !== this.latestAttempt) return result
 
     if (result.kind === 'ok') {
       this.accessToken = result.accessToken
@@ -27,6 +31,7 @@ export class SessionStore {
   }
 
   logout(): void {
+    this.latestAttempt++
     this.accessToken = null
     this.lastLoginError = null
     this.notify()
