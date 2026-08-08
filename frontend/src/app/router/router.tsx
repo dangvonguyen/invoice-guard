@@ -8,6 +8,10 @@ export const router = createBrowserRouter([
     lazy: () => import('@/pages/dashboard'),
   },
   {
+    path: paths.login,
+    lazy: () => import('@/pages/login'),
+  },
+  {
     path: '*',
     lazy: () => import('@/pages/not-found'),
   },

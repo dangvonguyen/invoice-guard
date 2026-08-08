@@ -1,11 +1,14 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+
+import { sessionStore } from '@/entities/session'
+import { API_BASE_URL } from '@/shared/config/env'
 
 import { server } from '../../../../tests/mocks/server'
 
-const BASE_URL = 'http://localhost:8000/api'
+import { LoginPage } from './LoginPage'
 
 async function submitLogin(email: string, password: string): Promise<void> {
   const user = userEvent.setup()
@@ -17,6 +20,11 @@ async function submitLogin(email: string, password: string): Promise<void> {
 }
 
 describe('LoginPage acceptance', () => {
+  afterEach(() => {
+    // Reset the session explicitly to avoid its state persisting across tests
+    sessionStore.logout()
+  })
+
   it('should show authenticated state when credentials are valid', async () => {
     await submitLogin('user@example.com', 'secret123')
 
@@ -31,7 +39,7 @@ describe('LoginPage acceptance', () => {
   })
 
   it('should show generic error when backend is unreachable', async () => {
-    server.use(http.post(`${BASE_URL}/auth/login`, () => HttpResponse.error()))
+    server.use(http.post(`${API_BASE_URL}/auth/login`, () => HttpResponse.error()))
 
     await submitLogin('user@example.com', 'secret123')
 
@@ -42,7 +50,7 @@ describe('LoginPage acceptance', () => {
 
   it('should show generic error when backend returns server error', async () => {
     server.use(
-      http.post(`${BASE_URL}/auth/login`, () =>
+      http.post(`${API_BASE_URL}/auth/login`, () =>
         HttpResponse.json({ detail: 'internal error' }, { status: 500 }),
       ),
     )
