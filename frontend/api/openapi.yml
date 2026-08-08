@@ -6,7 +6,7 @@ paths:
   /auth/login:
     post:
       tags:
-      - Authentication
+        - Authentication
       summary: Login
       description: Authenticate a user and return an access token.
       operationId: login_auth_login_post
@@ -32,7 +32,7 @@ paths:
   /users/me:
     get:
       tags:
-      - Users
+        - Users
       summary: Get User Me
       description: Get the current user's data.
       operationId: get_user_me_users_me_get
@@ -44,11 +44,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/CurrentUserResponse'
       security:
-      - HTTPBearer: []
+        - HTTPBearer: []
   /health/live:
     get:
       tags:
-      - Health
+        - Health
       summary: Live
       description: Return a minimal response to show the service is up.
       operationId: live_health_live_get
@@ -65,7 +65,7 @@ paths:
   /health/ready:
     get:
       tags:
-      - Health
+        - Health
       summary: Ready
       description: 'Return a minimal response to show the service is ready.
 
@@ -94,8 +94,8 @@ components:
           title: Email
       type: object
       required:
-      - id
-      - email
+        - id
+        - email
       title: CurrentUserResponse
       description: Response for users getting their own user data.
     HTTPValidationError:
@@ -118,7 +118,7 @@ components:
           default: bearer
       type: object
       required:
-      - access_token
+        - access_token
       title: TokenResponse
       description: Response body for a successful login.
     UserLoginRequest:
@@ -135,8 +135,8 @@ components:
           title: Password
       type: object
       required:
-      - email
-      - password
+        - email
+        - password
       title: UserLoginRequest
       description: Email/password login payload.
     ValidationError:
@@ -144,8 +144,8 @@ components:
         loc:
           items:
             anyOf:
-            - type: string
-            - type: integer
+              - type: string
+              - type: integer
           type: array
           title: Location
         msg:
@@ -161,13 +161,13 @@ components:
           title: Context
       type: object
       required:
-      - loc
-      - msg
-      - type
+        - loc
+        - msg
+        - type
       title: ValidationError
   securitySchemes:
     HTTPBearer:
       type: http
       scheme: bearer
 servers:
-- url: /api
+  - url: /api
