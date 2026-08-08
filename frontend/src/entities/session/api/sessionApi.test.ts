@@ -44,4 +44,14 @@ describe('login', () => {
 
     expect(result).toEqual({ kind: 'network_error' })
   })
+
+  it('should return network error result on 5xx server error', async () => {
+    server.use(
+      http.post(LOGIN_URL, () => HttpResponse.json({ detail: 'internal error' }, { status: 500 })),
+    )
+
+    const result = await login('user@example.com', 'secret123')
+
+    expect(result).toEqual({ kind: 'network_error' })
+  })
 })
