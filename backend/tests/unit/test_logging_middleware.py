@@ -55,10 +55,14 @@ def captured_http_logs() -> Iterator[ListHandler]:
         logger.propagate = original_propagate
 
 
-def client(endpoint: Callable[[Request], Awaitable[Response]]) -> AsyncClient:
+def client(
+    endpoint: Callable[[Request], Awaitable[Response]],
+    *,
+    exclude_paths: list[str] | None = None,
+) -> AsyncClient:
     """Build an in-process client around one middleware-wrapped endpoint."""
     app = Starlette(routes=[Route("/x", endpoint, methods=["POST"])])
-    app.add_middleware(RequestLoggingMiddleware)
+    app.add_middleware(RequestLoggingMiddleware, exclude_paths=exclude_paths)
     return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 
 
@@ -98,6 +102,23 @@ async def should_set_request_id_response_header_and_bind_it_downstream() -> None
         response = await c.post("/x")
 
     assert response.headers["X-Request-Id"] == seen["request_id"]
+
+
+@pytest.mark.asyncio
+async def should_bypass_logging_for_excluded_paths(
+    captured_http_logs: ListHandler,
+) -> None:
+    """Leave excluded requests untouched and emit no access log."""
+
+    async def endpoint(_: Request) -> Response:
+        return JSONResponse({"ok": True})
+
+    async with client(endpoint, exclude_paths=["/x"]) as c:
+        response = await c.post("/x")
+
+    assert response.status_code == 200
+    assert "X-Request-Id" not in response.headers
+    assert captured_http_logs.records == []
 
 
 @pytest.mark.asyncio

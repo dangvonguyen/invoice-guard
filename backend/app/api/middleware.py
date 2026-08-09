@@ -26,12 +26,13 @@ class RequestLoggingMiddleware:
     gap: success timing, and 5xx that no handler-level event already covered.
     """
 
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(self, app: ASGIApp, exclude_paths: list[str] | None = None) -> None:
         self._app = app
+        self._exclude_paths = frozenset(exclude_paths or ())
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Bind the request ID, run the request, and log its outcome."""
-        if scope["type"] != "http":
+        if scope["type"] != "http" or scope.get("path") in self._exclude_paths:
             await self._app(scope, receive, send)
             return
 
