@@ -117,6 +117,31 @@ def should_leave_non_sensitive_keys_unchanged(formatter: JsonFormatter) -> None:
     assert payload["context"] == {"duration_ms": "12.3", "status_code": 429}
 
 
+def should_redact_sensitive_keys_in_nested_collections(
+    formatter: JsonFormatter,
+) -> None:
+    """Prevent credentials from leaking through nested structured context."""
+    record = make_record(
+        context={
+            "request": {"headers": {"Authorization": "Bearer secret"}},
+            "attempts": [
+                {"access_token": "token-1"},
+                ({"password": "password-1"},),
+            ],
+        }
+    )
+
+    payload = json.loads(formatter.format(record))
+
+    assert payload["context"] == {
+        "request": {"headers": {"Authorization": "[REDACTED]"}},
+        "attempts": [
+            {"access_token": "[REDACTED]"},
+            [{"password": "[REDACTED]"}],
+        ],
+    }
+
+
 def should_not_mutate_the_input_dict(formatter: JsonFormatter) -> None:
     """Return a new dict rather than mutating the caller's context."""
     original = {"password": "secret"}

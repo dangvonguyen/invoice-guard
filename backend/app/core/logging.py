@@ -2,6 +2,7 @@
 
 import json
 import logging
+from collections.abc import Mapping
 from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import Any
@@ -74,12 +75,26 @@ class JsonFormatter(logging.Formatter):
         return any(marker in key.lower() for marker in cls.DENYLIST_SUBSTRING)
 
     @classmethod
-    def _redact(cls, context: dict[str, Any]) -> dict[str, Any]:
-        """Return a copy of context with sensitive-looking keys masked."""
-        return {
-            key: cls.REDACTED_VALUE if cls._should_redact(key) else value
-            for key, value in context.items()
-        }
+    def _redact(cls, value: Any) -> Any:
+        """Recursively copy a value, masking data under sensitive-looking keys."""
+        if isinstance(value, Mapping):
+            return {
+                key: (
+                    cls.REDACTED_VALUE
+                    if isinstance(key, str) and cls._should_redact(key)
+                    else cls._redact(item)
+                )
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [cls._redact(item) for item in value]
+        if isinstance(value, tuple):
+            return tuple(cls._redact(item) for item in value)
+        if isinstance(value, set):
+            return {cls._redact(item) for item in value}
+        if isinstance(value, frozenset):
+            return frozenset(cls._redact(item) for item in value)
+        return value
 
 
 class ContextVarLogFilter(logging.Filter):
