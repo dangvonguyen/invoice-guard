@@ -18,9 +18,7 @@ cors_list = [
     if origin.strip()
 ]
 log_exclude_paths = [
-    path.strip()
-    for path in get_settings().LOG_EXCLUDE_PATHS.split(",")
-    if path.strip()
+    path.strip() for path in get_settings().LOG_EXCLUDE_PATHS.split(",") if path.strip()
 ]
 
 

@@ -18,6 +18,8 @@ dependencies = [
 [dependency-groups]
 dev = [
 	"mypy>=2.3.0",
+	"poethepoet>=0.48.0",
+	"prek>=0.4.12",
 	"pytest>=9.1.1",
 	"pytest-asyncio>=1.4.0",
 	"pytest-cov>=7.1.0",
@@ -30,10 +32,33 @@ testpaths = ["tests"]
 pythonpath = ["."]
 python_functions = ["test_*", "should_*"]
 markers = [
-    "unit: fast, no external deps",
-    "integration: real DB, single adapter, no HTTP layer",
-    "acceptance: real DB, real app, business-facing scenario",
+	"unit: fast, no external deps",
+	"integration: real DB, single adapter, no HTTP layer",
+	"acceptance: real DB, real app, business-facing scenario",
 ]
+
+[tool.poe.tasks]
+# Setup PoeThePoet tasks
+prek.help = "Run pre commit checks using prek"
+prek.cmd = "prek run --all-files"
+mypy.help = "Run mypy checks"
+mypy.cmd = "mypy . --strict"
+format.help = "Format code with Ruff"
+format.cmd = "ruff format ."
+ruff.help = "Run Ruff checks"
+ruff.cmd = "ruff check --output-format=concise ."
+
+# Testing tasks
+test.help = "Run all tests using Pytest"
+test.cmd = "pytest"
+"test:u".help = "Run only Unit tests using Pytest"
+"test:u".cmd = "pytest -m unit"
+"test:i".help = "Run only Integration tests using Pytest"
+"test:i".cmd = "pytest -m integration"
+"test:a".help = "Run only Acceptance tests using Pytest"
+"test:a".cmd = "pytest -m acceptance"
+"test:skipped".help = "Show skipped tests without running all tests"
+"test:skipped".cmd = "pytest --quiet --collect-only -m skip --no-cov"
 
 [tool.mypy]
 python_version = "3.13"
