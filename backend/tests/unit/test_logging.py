@@ -3,6 +3,7 @@
 import json
 import logging
 import sys
+from typing import Any
 
 import pytest
 
@@ -20,7 +21,7 @@ def formatter() -> JsonFormatter:
 def make_record(
     message: str = "test",
     level: int = logging.INFO,
-    exc_info: tuple | None = None,
+    exc_info: Any | None = None,
     **extra: object,
 ) -> logging.LogRecord:
     """Build a bare LogRecord for formatter tests without a live logger."""
@@ -44,7 +45,6 @@ def should_include_required_fields(formatter: JsonFormatter) -> None:
 
     assert set(payload) == {
         "timestamp",
-        "schema_version",
         "level",
         "event",
         "message",
