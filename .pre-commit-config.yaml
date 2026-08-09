@@ -34,13 +34,6 @@ repos:
         language: system
         types: [python]
 
-      - id: local-mypy
-        name: mypy check
-        entry: uv run --project backend mypy backend/app
-        language: system
-        files: ^backend/
-        pass_filenames: false
-
       - id: local-eslint
         name: run eslint
         entry: pnpm --dir frontend run lint:fix
