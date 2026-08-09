@@ -11,6 +11,7 @@ from typing import cast
 from uuid import uuid4
 
 from starlette.datastructures import MutableHeaders
+from starlette.responses import PlainTextResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.core.logging import bind_request_id, bind_user_id
@@ -64,9 +65,19 @@ class RequestLoggingMiddleware:
                     },
                 },
             )
-            bind_request_id(None)
-            bind_user_id(None)
-            raise
+            if "status_code" in response_state:
+                bind_request_id(None)
+                bind_user_id(None)
+                raise
+
+            response_state["status_code"] = 500
+            response = PlainTextResponse("Internal Server Error", status_code=500)
+            try:
+                await response(scope, receive, send_wrapper)
+            finally:
+                bind_request_id(None)
+                bind_user_id(None)
+            return
 
         duration_ms = round((time.perf_counter() - start) * 1000, 2)
         status_code = response_state.get("status_code", 500)

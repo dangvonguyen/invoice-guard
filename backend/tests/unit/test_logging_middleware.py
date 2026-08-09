@@ -7,6 +7,7 @@ from typing import Any, cast
 import pytest
 from httpx import ASGITransport, AsyncClient
 from starlette.applications import Starlette
+from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
@@ -21,6 +22,7 @@ class StructuredLogRecord(logging.LogRecord):
     """Log record fields added by the structured logging stack."""
 
     event: str
+    request_id: str
     user_id: str | None
     context: dict[str, Any]
 
@@ -138,17 +140,53 @@ async def should_log_rejected_event_for_4xx_status(
 
 
 @pytest.mark.asyncio
-async def should_log_and_reraise_unhandled_exception(
+async def should_return_request_id_on_unhandled_exception(
     captured_http_logs: ListHandler,
 ) -> None:
-    """Log an unhandled error at ERROR level without swallowing the exception."""
+    """Log an unhandled error and return a correlated 500 response."""
 
     async def endpoint(_: Request) -> Response:
         raise RuntimeError("boom")
 
     async with client(endpoint) as c:
-        with pytest.raises(RuntimeError, match="boom"):
-            await c.post("/x")
+        response = await c.post("/x")
 
     record = record_for(captured_http_logs, "http.request.error")
+
     assert record.levelname == "ERROR"
+    assert response.status_code == 500
+    assert response.headers["X-Request-Id"] == record.request_id
+    assert [item.event for item in captured_http_logs.records] == ["http.request.error"]
+
+
+@pytest.mark.asyncio
+async def should_assign_request_id_and_log_cors_preflight(
+    captured_http_logs: ListHandler,
+) -> None:
+    """Wrap CORS so its short-circuited preflight response is also observed."""
+
+    async def endpoint(_: Request) -> Response:
+        return JSONResponse({"ok": True})
+
+    app = Starlette(routes=[Route("/x", endpoint, methods=["POST"])])
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["https://example.com"],
+        allow_methods=["POST"],
+    )
+    app.add_middleware(RequestLoggingMiddleware)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as c:
+        response = await c.options(
+            "/x",
+            headers={
+                "Origin": "https://example.com",
+                "Access-Control-Request-Method": "POST",
+            },
+        )
+
+    record = record_for(captured_http_logs, "http.request.completed")
+    assert response.status_code == 200
+    assert response.headers["X-Request-Id"] == record.request_id
