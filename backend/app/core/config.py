@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -36,6 +37,10 @@ class Settings(BaseSettings):
     # Setup the JWT authentication
     JWT_SECRET_KEY: SecretStr
     JWT_ACCESS_TOKEN_MINUTES: int = 30
+
+    # Log configuration
+    LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+    LOG_EXCLUDE_PATHS: str = "/health/live,/health/ready"
 
     # Setup the PostgreSQL database
     POSTGRES_USER: str

@@ -1,10 +1,15 @@
 """Create and configure the FastAPI application."""
 
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.middleware import RequestLoggingMiddleware
 from app.api.router import api_router
 from app.core.config import get_settings
+from app.core.logging import configure_logging
 
 # Set up CORS
 cors_list = [
@@ -12,10 +17,23 @@ cors_list = [
     for origin in get_settings().CORS_ORIGINS.split(",")
     if origin.strip()
 ]
+log_exclude_paths = [
+    path.strip() for path in get_settings().LOG_EXCLUDE_PATHS.split(",") if path.strip()
+]
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+    """Lifespan function Replaces the previous startup/shutdown functions"""
+    configure_logging(get_settings().LOG_LEVEL)
+
+    yield
+
 
 app = FastAPI(
     title=get_settings().API_TITLE,
     root_path=get_settings().API_ROOT,
+    lifespan=lifespan,
 )
 
 # Register the API routes
@@ -29,3 +47,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add logging middleware last so it wraps CORS responses, including preflights
+app.add_middleware(RequestLoggingMiddleware, exclude_paths=log_exclude_paths)

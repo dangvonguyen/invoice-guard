@@ -8,6 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings, unwrap_secret
+from app.core.logging import bind_user_id
 from app.core.security import JwtAccessTokenCodec, PasswordHasher
 from app.database.models.user import User
 from app.database.repositories.user import UserRepository as DbUserRepository
@@ -91,6 +92,8 @@ async def get_current_user(
     user = await users.get_by_id(user_id)
     if user is None:
         raise_unauthorized()
+
+    bind_user_id(str(user.id))
     return user
 
 
