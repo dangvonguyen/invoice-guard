@@ -13,6 +13,7 @@ pytestmark = pytest.mark.unit
 
 @pytest.fixture(autouse=True)
 def formatter() -> JsonFormatter:
+    """Provide a default JSON formatter for each test."""
     return JsonFormatter()
 
 
@@ -90,3 +91,37 @@ def should_include_exception_traceback_under_context_when_present(
     payload = json.loads(formatter.format(record))
 
     assert "RuntimeError: boom" in payload["context"]["exception"]
+
+
+@pytest.mark.parametrize(
+    "key",
+    ["password", "hashed_password", "access_token", "Authorization", "JWT_SECRET_KEY"],
+)
+def should_redact_known_sensitive_keys_case_insensitively(
+    formatter: JsonFormatter, key: str
+) -> None:
+    """Replace the value of any denylisted key regardless of casing."""
+    record = make_record(context={key: "sensitive-data"})
+
+    payload = json.loads(formatter.format(record))
+
+    assert payload["context"] == {key: "[REDACTED]"}
+
+
+def should_leave_non_sensitive_keys_unchanged(formatter: JsonFormatter) -> None:
+    """Pass through keys not on the denylist without modification."""
+    record = make_record(context={"duration_ms": "12.3", "status_code": 429})
+
+    payload = json.loads(formatter.format(record))
+
+    assert payload["context"] == {"duration_ms": "12.3", "status_code": 429}
+
+
+def should_not_mutate_the_input_dict(formatter: JsonFormatter) -> None:
+    """Return a new dict rather than mutating the caller's context."""
+    original = {"password": "secret"}
+    record = make_record(context=original)
+
+    formatter.format(record)
+
+    assert original == {"password": "secret"}
