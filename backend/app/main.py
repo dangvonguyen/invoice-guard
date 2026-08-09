@@ -39,9 +39,6 @@ app = FastAPI(
 # Register the API routes
 app.include_router(api_router)
 
-# Add logging middleware
-app.add_middleware(RequestLoggingMiddleware, exclude_paths=log_exclude_paths)
-
 # Register CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -50,3 +47,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add logging middleware last so it wraps CORS responses, including preflights
+app.add_middleware(RequestLoggingMiddleware, exclude_paths=log_exclude_paths)
