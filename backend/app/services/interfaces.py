@@ -30,3 +30,43 @@ class AccessTokenIssuer(Protocol):
     def issue(self, subject: str) -> str:
         """Issue an access token identifying the supplied subject."""
         ...
+
+
+class InvoiceValidator(Protocol):
+    def validate(
+        self,
+        *,
+        filename: str,
+        content_type: str,
+        size: int,
+    ) -> None:
+        """Validate uploaded invoice metadata and content."""
+        ...
+
+
+class RateLimiter(Protocol):
+    async def allow(self, owner_id: UUID) -> bool:
+        """Return whether the owner may perform another upload."""
+        ...
+
+
+class InvoiceRepository(Protocol):
+    async def create(
+        self,
+        *,
+        owner_id: UUID,
+        storage_key: UUID,
+        original_filename: str,
+    ) -> UUID:
+        """Reserve a pending invoice and return its identity."""
+        ...
+
+
+class StorageClient(Protocol):
+    def generate_key(self) -> UUID:
+        """Generate an opaque key for invoice storage."""
+        ...
+
+    async def save(self, *, key: UUID, content: bytes) -> None:
+        """Persist invoice content under its opaque key."""
+        ...
