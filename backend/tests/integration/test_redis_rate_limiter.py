@@ -1,30 +1,44 @@
 """Behavior specifications for Redis-backed invoice upload limiting."""
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 
-import fakeredis
 import pytest
 import pytest_asyncio
-from fakeredis.aioredis import FakeRedis
+from redis.asyncio import Redis
+from testcontainers.community.redis import RedisContainer
 
 from app.core.rate_limit import RedisRateLimiter
 
 pytestmark = [
-    pytest.mark.unit,
+    pytest.mark.integration,
     pytest.mark.asyncio,
 ]
 
 
+@pytest.fixture(scope="module")
+def redis_container() -> Generator[RedisContainer]:
+    """Run Redis for this module's rate-limiter specifications."""
+    with RedisContainer("redis:7-alpine") as container:
+        yield container
+
+
 @pytest_asyncio.fixture
-async def redis() -> AsyncGenerator[FakeRedis]:
-    """Provide an isolated in-memory Redis double per test."""
-    client = FakeRedis()
-    yield client
-    await client.aclose()
+async def redis(redis_container: RedisContainer) -> AsyncGenerator[Redis]:
+    """Provide an isolated async client backed by the Redis container."""
+    client = Redis(
+        host=redis_container.get_container_host_ip(),
+        port=redis_container.get_exposed_port(redis_container.port),
+        password=redis_container.password,
+    )
+    await client.flushdb()
+    try:
+        yield client
+    finally:
+        await client.aclose()
 
 
 async def should_allow_requests_under_the_threshold(
-    redis: fakeredis.aioredis.FakeRedis,
+    redis: Redis,
 ) -> None:
     """Allow every request while the window's count stays under the limit."""
     limiter = RedisRateLimiter(redis=redis, limit=3, window_seconds=60)
@@ -35,7 +49,7 @@ async def should_allow_requests_under_the_threshold(
 
 
 async def should_return_false_once_the_bucket_is_exhausted_within_the_window(
-    redis: fakeredis.aioredis.FakeRedis,
+    redis: Redis,
 ) -> None:
     """Reject a request once the per-window cap has been reached."""
     limiter = RedisRateLimiter(redis=redis, limit=2, window_seconds=60)
@@ -46,7 +60,7 @@ async def should_return_false_once_the_bucket_is_exhausted_within_the_window(
 
 
 async def should_track_each_key_independently(
-    redis: fakeredis.aioredis.FakeRedis,
+    redis: Redis,
 ) -> None:
     """Isolate one user's exhausted limit from another's fresh one."""
     limiter = RedisRateLimiter(redis=redis, limit=1, window_seconds=60)
