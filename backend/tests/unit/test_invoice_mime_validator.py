@@ -6,6 +6,7 @@ from app.services.invoice_mime_validator import (
     InvoiceMimeValidator,
     PayloadTooLargeError,
     UnreadableUploadError,
+    UnsupportedMediaTypeError,
 )
 
 pytestmark = pytest.mark.unit
@@ -45,4 +46,26 @@ def should_reject_when_size_cannot_be_determined(
     with pytest.raises(UnreadableUploadError):
         validator.validate(
             filename="invoice.pdf", content_type="application/pdf", size=None
+        )
+
+
+def should_reject_image_with_a_not_yet_supported_reason(
+    validator: InvoiceMimeValidator,
+) -> None:
+    """Reject a disallowed MIME type, naming PDF as the current format."""
+    with pytest.raises(UnsupportedMediaTypeError, match="PDF"):
+        validator.validate(filename="receipt.jpg", content_type="image/jpeg", size=100)
+
+
+def should_reject_extension_that_disagrees_with_declared_content_type(
+    validator: InvoiceMimeValidator,
+) -> None:
+    """Reject when the filename extension doesn't match the declared type.
+
+    The Content-Type header is client-supplied and spoofable; trusting it
+    alone would let a mislabeled file pass.
+    """
+    with pytest.raises(UnsupportedMediaTypeError):
+        validator.validate(
+            filename="invoice.jpg", content_type="application/pdf", size=100
         )

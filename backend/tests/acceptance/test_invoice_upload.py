@@ -96,3 +96,17 @@ async def should_reject_oversized_file_without_creating_a_row(
 
     assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE
     assert (await test_db.scalars(select(Invoice))).first() is None
+
+
+async def should_reject_disallowed_mime_type_without_creating_a_row(
+    client: AsyncClient, test_db: AsyncSession, auth_headers: dict[str, str]
+) -> None:
+    """Reject an unsupported media type without persisting an invoice record."""
+    response = await client.post(
+        "/invoices",
+        headers=auth_headers,
+        files={"file": ("receipt.jpg", b"\xff\xd8\xff\xe0fake-jpeg", "image/jpeg")},
+    )
+
+    assert response.status_code == status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
+    assert (await test_db.scalars(select(Invoice))).first() is None
