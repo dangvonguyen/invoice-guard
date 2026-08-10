@@ -55,7 +55,7 @@ class InvoiceRepository(Protocol):
         self,
         *,
         owner_id: UUID,
-        storage_key: UUID,
+        storage_key: str,
         original_filename: str,
     ) -> UUID:
         """Reserve a pending invoice and return its identity."""
@@ -63,10 +63,10 @@ class InvoiceRepository(Protocol):
 
 
 class StorageClient(Protocol):
-    def generate_key(self) -> UUID:
+    def generate_key(self) -> str:
         """Generate an opaque key for invoice storage."""
         ...
 
-    async def save(self, *, key: UUID, content: bytes) -> None:
+    async def save(self, *, key: str, content: bytes) -> None:
         """Persist invoice content under its opaque key."""
         ...
