@@ -6,6 +6,10 @@ from typing import Protocol
 from uuid import uuid4
 
 
+class StorageWriteError(Exception):
+    """Raised when a storage backend fails to persist file content."""
+
+
 class StorageClient(Protocol):
     """Persist uploaded file content under an opaque key."""
 
@@ -31,7 +35,13 @@ class LocalStorageClient:
     async def save(self, key: str, content: bytes) -> None:
         """Write `content` to `base_path / key`, creating directories as needed."""
         target = (self._base_path / key).resolve()
-        await asyncio.to_thread(self._write, target, content)
+        if self._base_path not in target.parents and target != self._base_path:
+            raise StorageWriteError(f"storage key escapes base path: {key!r}")
+
+        try:
+            await asyncio.to_thread(self._write, target, content)
+        except OSError as exc:
+            raise StorageWriteError(f"failed to write storage key {key!r}") from exc
 
     @staticmethod
     def _write(target: Path, content: bytes) -> None:
