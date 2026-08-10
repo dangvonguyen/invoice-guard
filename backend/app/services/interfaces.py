@@ -3,7 +3,7 @@
 from typing import Protocol
 from uuid import UUID
 
-from app.database.models.user import User
+from app.database.models import Invoice, User
 
 
 class UserRepository(Protocol):
@@ -51,13 +51,13 @@ class RateLimiter(Protocol):
 
 
 class InvoiceRepository(Protocol):
-    async def create(
+    async def create_pending(
         self,
         *,
         owner_id: UUID,
         storage_key: str,
         original_filename: str,
-    ) -> UUID:
+    ) -> Invoice:
         """Reserve a pending invoice and return its identity."""
         ...
 

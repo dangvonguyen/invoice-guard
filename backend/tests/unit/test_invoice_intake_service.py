@@ -1,11 +1,13 @@
 """Specify how invoice intake coordinates upload collaborators."""
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock
 from uuid import UUID
 
 import pytest
 
+from app.database.models.invoice import Invoice, InvoiceStatus
 from app.services.interfaces import (
     InvoiceRepository,
     InvoiceValidator,
@@ -39,6 +41,20 @@ class IntakeContext:
 
 
 @pytest.fixture
+def stored_invoice() -> Invoice:
+    """Return the invoice the repository hands back on a successful create."""
+    timestamp = datetime(2000, 1, 1, tzinfo=UTC)
+    return Invoice(
+        id=INVOICE_ID,
+        owner_id=OWNER_ID,
+        status=InvoiceStatus.PENDING,
+        storage_key=STORAGE_KEY,
+        original_filename=FILENAME,
+        created_at=timestamp,
+    )
+
+
+@pytest.fixture
 def context() -> IntakeContext:
     """Build invoice intake with mocks for the roles it coordinates."""
     validator = Mock(spec=InvoiceValidator)
@@ -61,28 +77,27 @@ def context() -> IntakeContext:
 
 
 async def should_accept_valid_pdf_as_pending_invoice(
-    context: IntakeContext,
+    context: IntakeContext, stored_invoice: Invoice
 ) -> None:
     """Validate, reserve, and store an authenticated employee's PDF."""
     context.rate_limiter.allow.return_value = True
     context.storage.generate_key.return_value = STORAGE_KEY
-    context.invoices.create.return_value = INVOICE_ID
+    context.invoices.create_pending.return_value = stored_invoice
 
-    accepted = await context.service.upload(
+    result = await context.service.upload(
         owner_id=OWNER_ID,
         filename=FILENAME,
         content_type=CONTENT_TYPE,
         content=PDF_CONTENT,
     )
 
+    assert result is stored_invoice
     context.validator.validate.assert_called_once_with(
         filename=FILENAME, content_type=CONTENT_TYPE, size=len(PDF_CONTENT)
     )
     context.rate_limiter.allow.assert_awaited_once_with(OWNER_ID)
     context.storage.generate_key.assert_called_once_with()
-    context.invoices.create.assert_awaited_once_with(
+    context.invoices.create_pending.assert_awaited_once_with(
         owner_id=OWNER_ID, storage_key=STORAGE_KEY, original_filename=FILENAME
     )
     context.storage.save.assert_awaited_once_with(key=STORAGE_KEY, content=PDF_CONTENT)
-    assert accepted.invoice_id == INVOICE_ID
-    assert accepted.status == "pending"
