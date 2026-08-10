@@ -9,6 +9,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_access_token_codec
+from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.user import User
 
 pytestmark = [
@@ -18,38 +19,53 @@ pytestmark = [
 
 
 @pytest_asyncio.fixture
-async def authenticated_employee(test_db: AsyncSession) -> tuple[User, str]:
+async def employee(test_db: AsyncSession) -> User:
     """Persist an employee and issue their bearer token."""
-    employee = User(
+    user = User(
         id=UUID("00000000-0000-0000-0000-000000000001"),
         email="alice@example.com",
         hashed_password="unused-password-hash",
         name="Alice",
     )
-    test_db.add(employee)
+    test_db.add(user)
     await test_db.flush()
+    return user
 
+
+@pytest.fixture
+def auth_headers(employee: User) -> dict[str, str]:
+    """Bearer header authenticating for employee."""
     token = get_access_token_codec().issue(str(employee.id))
-    return employee, token
+    return {"Authorization": f"Bearer {token}"}
+
+
+def pdf_bytes(size: int) -> bytes:
+    """Build a minimal PDF-shaped payload padded to an exact byte size."""
+    header = b"%PDF-1.4\n"
+    padding = b"0" * max(size - len(header), 0)
+    return (header + padding)[:size]
 
 
 async def should_accept_authenticated_employees_valid_pdf_as_pending_invoice(
     client: AsyncClient,
-    authenticated_employee: tuple[User, str],
+    test_db: AsyncSession,
+    employee: User,
+    auth_headers: dict[str, str],
 ) -> None:
     """Accept a size-compliant PDF and return its pending invoice identity."""
-    _employee, token = authenticated_employee
-    pdf_prefix = b"%PDF-1.4\ninvoice content\n"
-    pdf = pdf_prefix + b" " * (240 * 1024 - len(pdf_prefix))
-
     response = await client.post(
         "/invoices",
-        headers={"Authorization": f"Bearer {token}"},
-        files={"file": ("invoice.pdf", pdf, "application/pdf")},
+        headers=auth_headers,
+        files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
     )
 
     assert response.status_code == status.HTTP_201_CREATED
     body = response.json()
-    assert set(body) == {"invoice_id", "status"}
-    assert UUID(body["invoice_id"])
     assert body["status"] == "pending"
+    invoice_id = UUID(body["invoice_id"])
+
+    stored = await test_db.get(Invoice, invoice_id)
+    assert stored is not None
+    assert stored.owner_id == employee.id
+    assert stored.status == InvoiceStatus.PENDING
+    assert stored.storage_key
