@@ -2,7 +2,20 @@
 
 import asyncio
 from pathlib import Path
+from typing import Protocol
 from uuid import uuid4
+
+
+class StorageClient(Protocol):
+    """Persist uploaded file content under an opaque key."""
+
+    def generate_key(self) -> str:
+        """Generate an opaque key for invoice storage."""
+        ...
+
+    async def save(self, *, key: str, content: bytes) -> None:
+        """Persist invoice content under its opaque key."""
+        ...
 
 
 class LocalStorageClient:

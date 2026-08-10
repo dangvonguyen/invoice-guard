@@ -3,10 +3,18 @@
 Implementation note: this is a *fixed-window* counter (INCR + EXPIRE NX),
 """
 
-from typing import cast
+from typing import Protocol, cast
 from uuid import UUID
 
 from redis.asyncio import Redis
+
+
+class RateLimiter(Protocol):
+    """Decide whether a keyed action is currently allowed."""
+
+    async def allow(self, owner_id: UUID) -> bool:
+        """Return whether the owner may perform another upload."""
+        ...
 
 
 class RedisRateLimiter:

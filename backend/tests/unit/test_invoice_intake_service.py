@@ -7,14 +7,12 @@ from uuid import UUID
 
 import pytest
 
+from app.core.rate_limit import RateLimiter
+from app.core.storage import StorageClient
 from app.database.models.invoice import Invoice, InvoiceStatus
-from app.services.interfaces import (
-    InvoiceRepository,
-    InvoiceValidator,
-    RateLimiter,
-    StorageClient,
-)
+from app.services.interfaces import InvoiceRepository
 from app.services.invoice_intake import InvoiceIntakeService
+from app.services.invoice_validator import InvoiceMimeValidator
 
 pytestmark = [
     pytest.mark.unit,
@@ -57,7 +55,7 @@ def stored_invoice() -> Invoice:
 @pytest.fixture
 def context() -> IntakeContext:
     """Build invoice intake with mocks for the roles it coordinates."""
-    validator = Mock(spec=InvoiceValidator)
+    validator = Mock(spec=InvoiceMimeValidator)
     rate_limiter = AsyncMock(spec=RateLimiter)
     invoices = AsyncMock(spec=InvoiceRepository)
     storage = AsyncMock(spec=StorageClient)

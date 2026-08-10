@@ -11,10 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings, unwrap_secret
 from app.core.logging import bind_user_id
-from app.core.rate_limit import RedisRateLimiter
+from app.core.rate_limit import RateLimiter, RedisRateLimiter
 from app.core.redis import get_redis
 from app.core.security import JwtAccessTokenCodec, PasswordHasher
-from app.core.storage import LocalStorageClient
+from app.core.storage import LocalStorageClient, StorageClient
 from app.database.models.user import User
 from app.database.repositories.invoice import InvoiceRepository as DbInvoiceRepository
 from app.database.repositories.user import UserRepository as DbUserRepository
@@ -22,8 +22,6 @@ from app.database.session import get_session, get_session_manual
 from app.services.auth import AuthService
 from app.services.interfaces import (
     InvoiceRepository,
-    RateLimiter,
-    StorageClient,
     UserRepository,
 )
 from app.services.invoice_intake import InvoiceIntakeService

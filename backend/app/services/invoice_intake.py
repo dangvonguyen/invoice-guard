@@ -2,13 +2,11 @@
 
 from uuid import UUID
 
+from app.core.rate_limit import RateLimiter
+from app.core.storage import StorageClient
 from app.database.models import Invoice
-from app.services.interfaces import (
-    InvoiceRepository,
-    InvoiceValidator,
-    RateLimiter,
-    StorageClient,
-)
+from app.services.interfaces import InvoiceRepository
+from app.services.invoice_validator import InvoiceMimeValidator
 
 
 class InvoiceIntakeService:
@@ -16,7 +14,7 @@ class InvoiceIntakeService:
 
     def __init__(
         self,
-        validator: InvoiceValidator,
+        validator: InvoiceMimeValidator,
         rate_limiter: RateLimiter,
         invoices: InvoiceRepository,
         storage: StorageClient,
