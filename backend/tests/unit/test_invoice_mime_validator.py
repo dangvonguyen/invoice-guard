@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.services.invoice_validator import InvoiceMimeValidator
+from app.services.invoice_mime_validator import InvoiceMimeValidator
 
 pytestmark = pytest.mark.unit
 

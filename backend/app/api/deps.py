@@ -25,7 +25,7 @@ from app.services.interfaces import (
     UserRepository,
 )
 from app.services.invoice_intake import InvoiceIntakeService
-from app.services.invoice_validator import InvoiceMimeValidator
+from app.services.invoice_mime_validator import InvoiceMimeValidator
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 SessionManualDep = Annotated[AsyncSession, Depends(get_session_manual)]

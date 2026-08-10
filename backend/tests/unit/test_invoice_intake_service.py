@@ -12,7 +12,7 @@ from app.core.storage import StorageClient
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.services.interfaces import InvoiceRepository
 from app.services.invoice_intake import InvoiceIntakeService
-from app.services.invoice_validator import InvoiceMimeValidator
+from app.services.invoice_mime_validator import InvoiceMimeValidator
 
 pytestmark = [
     pytest.mark.unit,
@@ -86,6 +86,7 @@ async def should_accept_valid_pdf_as_pending_invoice(
         owner_id=OWNER_ID,
         filename=FILENAME,
         content_type=CONTENT_TYPE,
+        size=len(PDF_CONTENT),
         content=PDF_CONTENT,
     )
 
@@ -93,7 +94,9 @@ async def should_accept_valid_pdf_as_pending_invoice(
     context.validator.validate.assert_called_once_with(
         filename=FILENAME, content_type=CONTENT_TYPE, size=len(PDF_CONTENT)
     )
-    context.rate_limiter.allow.assert_awaited_once_with(OWNER_ID)
+    context.rate_limiter.allow.assert_awaited_once_with(
+        key=OWNER_ID, scope="invoice-upload"
+    )
     context.storage.generate_key.assert_called_once_with()
     context.invoices.create_pending.assert_awaited_once_with(
         owner_id=OWNER_ID, storage_key=STORAGE_KEY, original_filename=FILENAME

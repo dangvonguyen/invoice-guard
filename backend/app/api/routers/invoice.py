@@ -22,6 +22,7 @@ async def upload_invoice(
         owner_id=current_user.id,
         filename=file.filename,
         content_type=file.content_type,
+        size=file.size,
         content=content,
     )
     return InvoiceUploadResponse(invoice_id=invoice.id, status=invoice.status)
