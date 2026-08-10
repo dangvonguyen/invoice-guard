@@ -9,6 +9,10 @@ from app.services.interfaces import InvoiceRepository
 from app.services.invoice_mime_validator import InvoiceMimeValidator
 
 
+class UploadRateLimitExceededError(Exception):
+    """Raised when a caller has exceeded their upload rate limit."""
+
+
 class InvoiceIntakeService:
     """Coordinate validation, reservation, and storage of invoice uploads."""
 
@@ -35,13 +39,20 @@ class InvoiceIntakeService:
         content: bytes,
     ) -> Invoice:
         """Accept an invoice upload, return the persisted pending state."""
+        if not await self._rate_limiter.allow(
+            key=owner_id, scope=self._rate_limit_key_prefix
+        ):
+            raise UploadRateLimitExceededError(
+                f"upload rate limit exceeded for {owner_id}"
+            )
+
         self._validator.validate(
             filename=filename, content_type=content_type, size=size
         )
-        await self._rate_limiter.allow(key=owner_id, scope=self._rate_limit_key_prefix)
+
         storage_key = self._storage.generate_key()
         invoice = await self._invoices.create_pending(
-            owner_id=owner_id, storage_key=storage_key, original_filename=filename
+            owner_id=owner_id, storage_key=storage_key, original_filename=filename or ""
         )
         await self._storage.save(key=storage_key, content=content)
         return invoice

@@ -19,6 +19,7 @@ pytestmark = [
 ]
 
 MAX_BYTES = 10 * 1024 * 1024
+RATE_LIMIT = 20
 
 
 @pytest_asyncio.fixture
@@ -110,3 +111,26 @@ async def should_reject_disallowed_mime_type_without_creating_a_row(
 
     assert response.status_code == status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
     assert (await test_db.scalars(select(Invoice))).first() is None
+
+
+async def should_reject_upload_once_rate_limit_is_exhausted(
+    client: AsyncClient, test_db: AsyncSession, auth_headers: dict[str, str]
+) -> None:
+    """Reject uploads beyond the rate limit."""
+    for _ in range(RATE_LIMIT):
+        ok_response = await client.post(
+            "/invoices",
+            headers=auth_headers,
+            files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
+        )
+        assert ok_response.status_code == status.HTTP_201_CREATED
+
+    response = await client.post(
+        "/invoices",
+        headers=auth_headers,
+        files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
+    )
+
+    assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+    stored_count = len((await test_db.scalars(select(Invoice))).all())
+    assert stored_count == RATE_LIMIT

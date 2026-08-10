@@ -6,6 +6,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from app.api.deps import CurrentUser, InvoiceIntakeServiceDep
 from app.schemas.invoice import InvoiceUploadResponse
+from app.services.invoice_intake import UploadRateLimitExceededError
 from app.services.invoice_mime_validator import (
     InvoiceValidationError,
     PayloadTooLargeError,
@@ -32,6 +33,11 @@ async def upload_invoice(
             size=file.size,
             content=content,
         )
+    except UploadRateLimitExceededError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Upload rate limit exceeded. Try again shortly.",
+        ) from exc
     except PayloadTooLargeError as exc:
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
