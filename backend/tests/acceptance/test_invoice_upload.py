@@ -33,10 +33,6 @@ async def authenticated_employee(test_db: AsyncSession) -> tuple[User, str]:
     return employee, token
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Invoice upload HTTP wiring is not implemented yet.",
-)
 async def should_accept_authenticated_employees_valid_pdf_as_pending_invoice(
     client: AsyncClient,
     authenticated_employee: tuple[User, str],

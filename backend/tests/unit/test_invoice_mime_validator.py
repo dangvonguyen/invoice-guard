@@ -14,7 +14,7 @@ def should_accept_pdf_with_supported_metadata_and_size() -> None:
     validator = InvoiceMimeValidator()
 
     validator.validate(
-        original_filename="acme-invoice.pdf",
+        filename="acme-invoice.pdf",
         content_type="application/pdf",
         size=CAP_BYTES,
     )

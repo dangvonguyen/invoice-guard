@@ -1,13 +1,14 @@
 """Validation and transfer schemas for invoice API data."""
 
-from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.database.models.invoice import InvoiceStatus
 
-class InvoiceAccepted(BaseModel):
-    """Represent a successful invoice upload."""
+
+class InvoiceUploadResponse(BaseModel):
+    """Response a successful invoice upload."""
 
     invoice_id: UUID
-    status: Literal["pending"]
+    status: InvoiceStatus

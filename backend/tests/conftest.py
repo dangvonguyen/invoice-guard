@@ -10,6 +10,7 @@ from collections.abc import AsyncGenerator, Generator
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
     AsyncEngine,
@@ -19,9 +20,11 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 from testcontainers.community.postgres import PostgresContainer
+from testcontainers.community.redis import RedisContainer
 
+from app.core.redis import get_redis
 from app.database.base import Base
-from app.database.session import get_session
+from app.database.session import get_session, get_session_manual
 from app.main import app
 
 
@@ -30,6 +33,28 @@ def postgres_container() -> Generator[PostgresContainer]:
     """Start a session-scoped PostgreSQL container and stop it after the suite."""
     with PostgresContainer("postgres:16-alpine", driver="asyncpg") as postgres:
         yield postgres
+
+
+@pytest.fixture(scope="session")
+def redis_container() -> Generator[RedisContainer]:
+    """Start a session-scoped Redis container and stop it after the suite."""
+    with RedisContainer("redis:7-alpine") as redis:
+        yield redis
+
+
+@pytest_asyncio.fixture
+async def redis(redis_container: RedisContainer) -> AsyncGenerator[Redis]:
+    """Provide an isolated async Redis client for each test."""
+    client = Redis(
+        host=redis_container.get_container_host_ip(),
+        port=redis_container.get_exposed_port(redis_container.port),
+        password=redis_container.password,
+    )
+    await client.flushdb()
+    try:
+        yield client
+    finally:
+        await client.aclose()
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
@@ -90,6 +115,7 @@ async def test_db(
 @pytest_asyncio.fixture
 async def client(
     test_sessionmaker: async_sessionmaker[AsyncSession],
+    redis: Redis,
 ) -> AsyncGenerator[AsyncClient]:
     """Yield a test client for the app."""
 
@@ -98,7 +124,18 @@ async def client(
         async with test_sessionmaker() as session, session.begin():
             yield session
 
+    async def get_session_manual_override() -> AsyncGenerator[AsyncSession]:
+        """Return a test session whose transaction is controlled by application code."""
+        async with test_sessionmaker() as session:
+            try:
+                yield session
+            except Exception:
+                await session.rollback()
+                raise
+
     app.dependency_overrides[get_session] = get_session_override
+    app.dependency_overrides[get_session_manual] = get_session_manual_override
+    app.dependency_overrides[get_redis] = lambda: redis
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://testserver"

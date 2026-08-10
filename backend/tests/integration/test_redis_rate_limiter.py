@@ -1,11 +1,7 @@
 """Behavior specifications for Redis-backed invoice upload limiting."""
 
-from collections.abc import AsyncGenerator, Generator
-
 import pytest
-import pytest_asyncio
 from redis.asyncio import Redis
-from testcontainers.community.redis import RedisContainer
 
 from app.core.rate_limit import RedisRateLimiter
 
@@ -13,28 +9,6 @@ pytestmark = [
     pytest.mark.integration,
     pytest.mark.asyncio,
 ]
-
-
-@pytest.fixture(scope="module")
-def redis_container() -> Generator[RedisContainer]:
-    """Run Redis for this module's rate-limiter specifications."""
-    with RedisContainer("redis:7-alpine") as container:
-        yield container
-
-
-@pytest_asyncio.fixture
-async def redis(redis_container: RedisContainer) -> AsyncGenerator[Redis]:
-    """Provide an isolated async client backed by the Redis container."""
-    client = Redis(
-        host=redis_container.get_container_host_ip(),
-        port=redis_container.get_exposed_port(redis_container.port),
-        password=redis_container.password,
-    )
-    await client.flushdb()
-    try:
-        yield client
-    finally:
-        await client.aclose()
 
 
 async def should_allow_requests_under_the_threshold(
