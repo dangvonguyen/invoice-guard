@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from app.api.deps import CurrentUser, InvoiceIntakeServiceDep
+from app.core.config import get_settings
 from app.schemas.invoice import InvoiceUploadResponse
 from app.services.invoice_intake import (
     InvoiceStorageUnavailableError,
@@ -27,7 +28,8 @@ async def upload_invoice(
     file: Annotated[UploadFile, File()],
 ) -> InvoiceUploadResponse:
     """Accept an invoice document and enqueue it for processing."""
-    content = await file.read()
+    settings = get_settings()
+    content = await file.read(settings.UPLOAD_MAX_BYTES + 1)
     try:
         invoice = await invoice_intake.upload(
             owner_id=current_user.id,
