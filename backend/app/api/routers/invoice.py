@@ -1,6 +1,7 @@
 """Routes for invoice document intake."""
 
-from typing import Annotated
+import logging
+from typing import Annotated, NoReturn
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
@@ -19,6 +20,26 @@ from app.services.invoice_mime_validator import (
 )
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
+logger = logging.getLogger(__name__)
+
+
+def _reject_upload(
+    exc: Exception,
+    *,
+    status_code: int,
+    reason: str,
+    detail: str | None = None,
+    **context: object,
+) -> NoReturn:
+    logger.warning(
+        "Invoice upload rejected",
+        extra={
+            "event": "invoice.upload.rejected",
+            "context": {"reason": reason, "status_code": status_code, **context},
+        },
+    )
+
+    raise HTTPException(status_code=status_code, detail=detail or str(exc)) from exc
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -35,31 +56,49 @@ async def upload_invoice(
             owner_id=current_user.id,
             filename=file.filename,
             content_type=file.content_type,
-            size=file.size,
+            size=len(content),
             content=content,
         )
     except UploadRateLimitExceededError as exc:
-        raise HTTPException(
+        _reject_upload(
+            exc,
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            reason="rate_limited",
             detail="Upload rate limit exceeded. Try again shortly.",
-        ) from exc
+            limit=settings.UPLOAD_RATE_LIMIT,
+            window_seconds=settings.UPLOAD_RATE_LIMIT_WINDOW_SECONDS,
+        )
     except PayloadTooLargeError as exc:
-        raise HTTPException(
+        _reject_upload(
+            exc,
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail=str(exc),
-        ) from exc
+            reason="payload_too_large",
+        )
     except UnsupportedMediaTypeError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=str(exc)
-        ) from exc
+        _reject_upload(
+            exc,
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            reason="unsupported_media_type",
+        )
     except (UnreadableUploadError, InvoiceValidationError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
+        _reject_upload(
+            exc,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            reason="invalid_upload",
+        )
     except InvoiceStorageUnavailableError as exc:
-        raise HTTPException(
+        _reject_upload(
+            exc,
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Invoice storage is temporarily unavailable.",
-        ) from exc
+            reason="storage_unavailable",
+            detail="Invoice storage is temporarily unavailable. Try again shortly.",
+        )
 
+    logger.info(
+        "Invoice upload accepted",
+        extra={
+            "event": "invoice.upload.accepted",
+            "context": {"status_code": status.HTTP_201_CREATED},
+        },
+    )
     return InvoiceUploadResponse(invoice_id=invoice.id, status=invoice.status)
