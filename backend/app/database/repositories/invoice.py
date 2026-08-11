@@ -7,6 +7,7 @@ This deliberately favors a detectable missing object over an orphaned object
 with no database record.
 """
 
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import update
@@ -39,11 +40,29 @@ class InvoiceRepository:
         await self._session.refresh(invoice)
         return invoice
 
+    async def get_by_id(self, invoice_id: UUID) -> Invoice | None:
+        """Return the invoice associated with an ID, if one exists."""
+        return await self._session.get(Invoice, invoice_id)
+
     async def mark_upload_failed(self, *, invoice_id: UUID) -> None:
         """Durably record that storage failed for a reserved invoice."""
         await self._session.execute(
             update(Invoice)
             .where(Invoice.id == invoice_id)
             .values(status=InvoiceStatus.UPLOAD_FAILED)
+        )
+        await self._session.commit()
+
+    async def mark_extracted(
+        self, *, invoice_id: UUID, extraction_result: dict[str, Any]
+    ) -> None:
+        """Durably persist extracted fields and mark the invoice as extracted."""
+        await self._session.execute(
+            update(Invoice)
+            .where(Invoice.id == invoice_id)
+            .values(
+                status=InvoiceStatus.EXTRACTED,
+                extraction_result=extraction_result,
+            )
         )
         await self._session.commit()

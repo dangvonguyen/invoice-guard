@@ -86,3 +86,31 @@ async def should_durably_mark_a_failed_upload(
     await test_db.refresh(invoice)
 
     assert invoice.status == InvoiceStatus.UPLOAD_FAILED
+
+
+async def should_durably_mark_an_invoice_as_extracted(
+    test_db: AsyncSession, repository: InvoiceRepository, owner: User
+) -> None:
+    """Persist extracted fields and transition the invoice to extracted."""
+    invoice = await repository.create_pending(
+        owner_id=owner.id,
+        storage_key="extracted-key",
+        original_filename="invoice.pdf",
+    )
+    extraction_result = {
+        "invoice_number": "INV-001",
+        "total_amount": "125.50",
+        "currency": "USD",
+    }
+
+    await repository.mark_extracted(
+        invoice_id=invoice.id,
+        extraction_result=extraction_result,
+    )
+    await test_db.refresh(invoice)
+
+    assert invoice.status == InvoiceStatus.EXTRACTED
+    assert invoice.extraction_result is not None
+    assert invoice.extraction_result["invoice_number"] == "INV-001"
+    assert invoice.extraction_result["total_amount"] == "125.50"
+    assert invoice.extraction_result["currency"] == "USD"
