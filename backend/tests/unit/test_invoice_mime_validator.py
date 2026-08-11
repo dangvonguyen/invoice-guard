@@ -3,6 +3,7 @@
 import pytest
 
 from app.services.invoice_mime_validator import (
+    InvalidFilenameError,
     InvoiceMimeValidator,
     PayloadTooLargeError,
     UnreadableUploadError,
@@ -81,6 +82,31 @@ def should_reject_extension_that_disagrees_with_declared_content_type(
             filename="invoice.jpg",
             content_type="application/pdf",
             size=100,
+            content=b"%PDF-",
+        )
+
+
+def should_accept_filename_at_database_column_limit(
+    validator: InvoiceMimeValidator,
+) -> None:
+    """Accept a filename that exactly fits the persistence column."""
+    validator.validate(
+        filename=f"{'a' * 251}.pdf",
+        content_type="application/pdf",
+        size=5,
+        content=b"%PDF-",
+    )
+
+
+def should_reject_filename_exceeding_database_column_limit(
+    validator: InvoiceMimeValidator,
+) -> None:
+    """Reject an otherwise-valid filename before persistence and rate limiting."""
+    with pytest.raises(InvalidFilenameError, match="255-character limit"):
+        validator.validate(
+            filename=f"{'a' * 252}.pdf",
+            content_type="application/pdf",
+            size=5,
             content=b"%PDF-",
         )
 

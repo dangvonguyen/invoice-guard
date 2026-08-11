@@ -15,6 +15,10 @@ class UnreadableUploadError(InvoiceValidationError):
     """Raised when required upload metadata is missing."""
 
 
+class InvalidFilenameError(InvoiceValidationError):
+    """Raised when the upload filename cannot be safely persisted."""
+
+
 class UnsupportedMediaTypeError(InvoiceValidationError):
     """Raised when the declared type or extension isn't (yet) accepted."""
 
@@ -22,6 +26,7 @@ class UnsupportedMediaTypeError(InvoiceValidationError):
 _DEFAULT_ALLOWED_TYPES: Mapping[str, tuple[str, ...]] = {
     "application/pdf": (".pdf",),
 }
+_MAX_FILENAME_LENGTH = 255
 
 
 class InvoiceMimeValidator:
@@ -49,6 +54,7 @@ class InvoiceMimeValidator:
             UnsupportedMediaTypeError: declared type isn't allowed, or the
                 filename extension disagrees with the declared type.
             UnreadableUploadError: size could not be determined.
+            InvalidFilenameError: filename exceeds the persistence limit.
             PayloadTooLargeError: size exceeds the configured cap.
         """
         allowed_extensions = self._allowed_types.get(content_type or "")
@@ -60,6 +66,10 @@ class InvoiceMimeValidator:
         if filename is None or not filename.lower().endswith(allowed_extensions):
             raise UnsupportedMediaTypeError(
                 "file extension does not match its declared content type"
+            )
+        if len(filename) > _MAX_FILENAME_LENGTH:
+            raise InvalidFilenameError(
+                f"filename exceeds the {_MAX_FILENAME_LENGTH}-character limit"
             )
         if size is None:
             raise UnreadableUploadError("upload size could not be determined")
