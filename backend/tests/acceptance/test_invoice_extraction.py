@@ -1,6 +1,6 @@
 """Acceptance scenarios for invoice field extraction.
 
-The extraction job has no HTTP entry point , so the acceptance boundary
+The extraction job has no HTTP entry point, so the acceptance boundary
 for this feature is: invoke `extract_invoice` directly against real,
 fully-wired collaborators (repository, storage, text extractor, grounding
 checker), then observe the result over HTTP via `GET /invoices/{id}`.
@@ -24,8 +24,7 @@ from app.core.storage import LocalStorageClient
 from app.database.models.invoice import Invoice
 from app.database.models.user import User
 from app.database.repositories.invoice import InvoiceRepository
-from app.services.extraction import ExtractionService
-from app.services.pdf_text_extractor import PdfTextExtractor
+from app.services.interfaces import ExtractionService, PdfTextExtractor
 from app.services.span_grounding import SpanGroundingChecker
 from app.workers.extract_invoice import extract_invoice
 
@@ -35,10 +34,22 @@ pytestmark = [
 ]
 
 VENDOR_NAME = "Acme Supplies"
-INVOICE_DATE = date(2000, 1, 1)
+INVOICE_NUMBER = "INV-2026-00142"
+INVOICE_DATE = date(2026, 8, 3)
+SUBTOTAL = Decimal("450.00")
 TOTAL_AMOUNT = Decimal("482.10")
 TAX_AMOUNT = Decimal("32.10")
 CURRENCY = "USD"
+EXTRACTION_RESULT = {
+    "vendor_name": VENDOR_NAME,
+    "invoice_number": INVOICE_NUMBER,
+    "invoice_date": INVOICE_DATE.isoformat(),
+    "currency": CURRENCY,
+    "subtotal": str(SUBTOTAL),
+    "tax_amount": str(TAX_AMOUNT),
+    "total_amount": str(TOTAL_AMOUNT),
+    "line_items": [],
+}
 
 
 def text_native_pdf_bytes() -> bytes:
@@ -51,7 +62,9 @@ def text_native_pdf_bytes() -> bytes:
         10,
         text=(
             f"Vendor: {VENDOR_NAME}\n"
+            f"Invoice Number: {INVOICE_NUMBER}\n"
             f"Invoice Date: {INVOICE_DATE.isoformat()}\n"
+            f"Subtotal: {SUBTOTAL} {CURRENCY}\n"
             f"Tax: {TAX_AMOUNT} {CURRENCY}\n"
             f"Total: {TOTAL_AMOUNT} {CURRENCY}\n"
         ),
@@ -64,14 +77,7 @@ class FakeExtractionModelClient:
 
     async def extract(self, *, document_text: str) -> dict:
         assert VENDOR_NAME in document_text  # sanity: real text was passed in
-        return {
-            "vendor_name": VENDOR_NAME,
-            "invoice_date": INVOICE_DATE.isoformat(),
-            "total_amount": str(TOTAL_AMOUNT),
-            "currency": CURRENCY,
-            "tax_amount": str(TAX_AMOUNT),
-            "line_items": [],
-        }
+        return EXTRACTION_RESULT
 
 
 @pytest_asyncio.fixture
@@ -138,7 +144,4 @@ async def should_extract_fields_from_a_text_native_pdf_on_first_valid_response(
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
     assert body["status"] == "extracted"
-    assert body["extracted_fields"]["vendor_name"] == VENDOR_NAME
-    assert body["extracted_fields"]["total_amount"] == str(TOTAL_AMOUNT)
-    assert body["extracted_fields"]["currency"] == CURRENCY
-    assert body["confidence"] == "high"
+    assert body["extraction_result"] == EXTRACTION_RESULT

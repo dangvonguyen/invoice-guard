@@ -24,16 +24,14 @@ STORAGE_KEY = "20000000-0000-0000-0000-000000000001"
 PDF_CONTENT = b"%PDF-1.4\ninvoice content\n"
 DOCUMENT_TEXT = "Vendor: Acme Supplies\nTotal: 482.10 USD"
 EXTRACTION_RESULT = {
-    "extracted_fields": {
-        "vendor_name": "Acme Supplies",
-        "invoice_date": "2026-08-03",
-        "total_amount": "482.10",
-        "currency": "USD",
-        "tax_amount": "32.10",
-    },
+    "vendor_name": "Acme Supplies",
+    "invoice_number": "INV-2026-00142",
+    "invoice_date": "2026-08-03",
+    "currency": "USD",
+    "subtotal": "450.00",
+    "tax_amount": "32.10",
+    "total_amount": "482.10",
     "line_items": [],
-    "confidence": "high",
-    "confidence_reason": None,
 }
 
 
@@ -94,12 +92,8 @@ async def should_persist_extracted_fields_on_first_successful_attempt(
     )
     context.invoices.mark_extracted.assert_awaited_once_with(
         invoice_id=INVOICE_ID,
-        extracted_fields=EXTRACTION_RESULT["extracted_fields"],
-        line_items=EXTRACTION_RESULT["line_items"],
-        confidence="high",
-        confidence_reason=None,
+        extraction_result=EXTRACTION_RESULT,
     )
-    context.invoices.mark_extraction_failed.assert_not_awaited()
 
 
 async def should_reject_an_unknown_invoice_before_reading_storage(

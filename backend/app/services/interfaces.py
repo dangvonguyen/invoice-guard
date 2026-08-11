@@ -1,6 +1,6 @@
 """Interfaces shared across application boundaries."""
 
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import UUID
 
 from app.database.models import Invoice, User
@@ -43,6 +43,32 @@ class InvoiceRepository(Protocol):
         """Reserve a pending invoice and return its identity."""
         ...
 
+    async def get_by_id(self, invoice_id: UUID) -> Invoice | None:
+        """Return an invoice by ID, if it exists."""
+        ...
+
     async def mark_upload_failed(self, *, invoice_id: UUID) -> None:
         """Durably mark a reserved invoice whose storage write failed."""
+        ...
+
+    async def mark_extracted(
+        self, *, invoice_id: UUID, extraction_result: dict[str, Any]
+    ) -> None:
+        """Durably persist successfully extracted invoice data."""
+        ...
+
+
+class PdfTextExtractor(Protocol):
+    """Extract an embedded text layer from an invoice document."""
+
+    def extract_text(self, *, content: bytes) -> str:
+        """Return the document's embedded text."""
+        ...
+
+
+class ExtractionService(Protocol):
+    """Convert invoice text into schema-validated structured fields."""
+
+    async def extract(self, *, document_text: str) -> dict[str, Any]:
+        """Return structured invoice fields extracted from document text."""
         ...

@@ -31,10 +31,4 @@ async def extract_invoice(
     document_text = text_extractor.extract_text(content=pdf_content)
     result = await extraction_service.extract(document_text=document_text)
 
-    await invoices.mark_extracted(
-        invoice_id=invoice_id,
-        extracted_fields=result["extracted_fields"],
-        line_items=result["line_items"],
-        confidence=result["confidence"],
-        confidence_reason=result["confidence_reason"],
-    )
+    await invoices.mark_extracted(invoice_id=invoice_id, extraction_result=result)
