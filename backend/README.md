@@ -90,7 +90,7 @@ Upload behavior is configured in `backend/.env`:
 
 | Setting                            | Default           | Purpose                                                 |
 | ---------------------------------- | ----------------- | ------------------------------------------------------- |
-| `UPLOAD_MAX_BYTES`                 | `10485760`        | Maximum bytes read and accepted per upload              |
+| `UPLOAD_MAX_BYTES`                 | `10485760`        | Maximum file bytes accepted per upload                  |
 | `UPLOAD_RATE_LIMIT`                | `20`              | Valid uploads allowed per authenticated user per window |
 | `UPLOAD_RATE_LIMIT_WINDOW_SECONDS` | `60`              | Fixed rate-limit window duration                        |
 | `STORAGE_LOCAL_PATH`               | `./data/invoices` | Local directory used to store accepted files            |
@@ -105,6 +105,8 @@ The endpoint can return:
 - `415` when the declared type, filename extension, or content is not a PDF
 - `429` when the authenticated user exhausts the upload limit
 - `503` when storage is temporarily unavailable
+
+The raw `POST /invoices` request body is capped before multipart parsing at `UPLOAD_MAX_BYTES` plus 64 KiB for the multipart envelope. This bounds temporary disk and memory use even for unauthenticated or chunked requests.
 
 ## Project structure
 

@@ -87,6 +87,24 @@ async def should_reject_unauthenticated_upload(client: AsyncClient) -> None:
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
+async def should_reject_oversized_body_before_authentication(
+    client: AsyncClient,
+) -> None:
+    """Bound unauthenticated multipart bodies before dependencies and parsing."""
+    response = await client.post(
+        "/invoices",
+        files={
+            "file": (
+                "huge-scan.pdf",
+                pdf_bytes(MAX_BYTES + 64 * 1024),
+                "application/pdf",
+            )
+        },
+    )
+
+    assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE
+
+
 async def should_reject_oversized_file_without_creating_a_row(
     client: AsyncClient, test_db: AsyncSession, auth_headers: dict[str, str]
 ) -> None:
