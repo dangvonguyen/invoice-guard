@@ -6,7 +6,7 @@ from app.core.storage import StorageClient
 from app.services.interfaces import (
     ExtractionService,
     InvoiceRepository,
-    PdfTextExtractor,
+    TextExtractor,
 )
 
 
@@ -19,7 +19,7 @@ async def extract_invoice(
     *,
     invoices: InvoiceRepository,
     storage: StorageClient,
-    text_extractor: PdfTextExtractor,
+    text_extractor: TextExtractor,
     extraction_service: ExtractionService,
 ) -> None:
     """Extract and persist structured fields for one stored invoice."""

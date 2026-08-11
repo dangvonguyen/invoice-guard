@@ -24,7 +24,7 @@ from app.core.storage import LocalStorageClient
 from app.database.models.invoice import Invoice
 from app.database.models.user import User
 from app.database.repositories.invoice import InvoiceRepository
-from app.services.interfaces import ExtractionService, PdfTextExtractor
+from app.services.interfaces import ExtractionService, TextExtractor
 from app.services.span_grounding import SpanGroundingChecker
 from app.workers.extract_invoice import extract_invoice
 
@@ -134,7 +134,7 @@ async def should_extract_fields_from_a_text_native_pdf_on_first_valid_response(
         invoice.id,
         invoices=InvoiceRepository(session=test_db),
         storage=storage,
-        text_extractor=PdfTextExtractor(),
+        text_extractor=TextExtractor(),
         extraction_service=extraction_service,
     )
     await test_db.commit()

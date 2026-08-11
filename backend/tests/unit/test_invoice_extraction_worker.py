@@ -10,7 +10,7 @@ from app.core.storage import StorageClient
 from app.services.interfaces import (
     ExtractionService,
     InvoiceRepository,
-    PdfTextExtractor,
+    TextExtractor,
 )
 from app.workers.extract_invoice import InvoiceNotFoundError, extract_invoice
 
@@ -65,7 +65,7 @@ def context() -> ExtractionWorkerContext:
     storage = AsyncMock(spec=StorageClient)
     storage.read.return_value = PDF_CONTENT
 
-    text_extractor = Mock(spec=PdfTextExtractor)
+    text_extractor = Mock(spec=TextExtractor)
     text_extractor.extract_text.return_value = DOCUMENT_TEXT
 
     return ExtractionWorkerContext(
