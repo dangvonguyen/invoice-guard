@@ -136,7 +136,7 @@ async def should_write_storage_only_after_the_row_is_created(
 async def should_reject_upload_when_rate_limit_denies_it(
     context: IntakeContext,
 ) -> None:
-    """Reject before touching validation, persistence, or storage."""
+    """Validate, then reject before touching persistence or storage."""
     context.rate_limiter.allow.return_value = False
 
     with pytest.raises(UploadRateLimitExceededError):
@@ -148,7 +148,7 @@ async def should_reject_upload_when_rate_limit_denies_it(
             content=PDF_CONTENT,
         )
 
-    context.validator.validate.assert_not_called()
+    context.validator.validate.assert_called_once()
     context.invoices.create_pending.assert_not_awaited()
     context.storage.save.assert_not_awaited()
 
@@ -157,7 +157,6 @@ async def should_reject_upload_when_validation_fails_without_persisting(
     context: IntakeContext,
 ) -> None:
     """Propagate validation errors and never create a row or write storage."""
-    context.rate_limiter.allow.return_value = True
     context.validator.validate.side_effect = UnsupportedMediaTypeError()
 
     with pytest.raises(UnsupportedMediaTypeError):
@@ -171,6 +170,7 @@ async def should_reject_upload_when_validation_fails_without_persisting(
 
     context.invoices.create_pending.assert_not_awaited()
     context.storage.save.assert_not_awaited()
+    context.rate_limiter.allow.assert_not_awaited()
 
 
 async def should_generate_a_storage_key_never_derived_from_the_filename(

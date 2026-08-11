@@ -115,6 +115,27 @@ async def should_reject_disallowed_mime_type_without_creating_a_row(
     assert (await test_db.scalars(select(Invoice))).first() is None
 
 
+async def should_not_charge_invalid_uploads_against_rate_limit(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    """Leave the full quota available after malformed requests."""
+    for _ in range(RATE_LIMIT + 1):
+        rejected = await client.post(
+            "/invoices",
+            headers=auth_headers,
+            files={"file": ("receipt.jpg", b"invalid", "image/jpeg")},
+        )
+        assert rejected.status_code == status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
+
+    accepted = await client.post(
+        "/invoices",
+        headers=auth_headers,
+        files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
+    )
+
+    assert accepted.status_code == status.HTTP_201_CREATED
+
+
 async def should_reject_upload_once_rate_limit_is_exhausted(
     client: AsyncClient, test_db: AsyncSession, auth_headers: dict[str, str]
 ) -> None:
