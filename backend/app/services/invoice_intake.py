@@ -2,6 +2,7 @@
 
 from uuid import UUID
 
+from app.core.logging import bind_invoice_id
 from app.core.rate_limit import RateLimiter
 from app.core.storage import StorageClient
 from app.database.models import Invoice
@@ -54,5 +55,11 @@ class InvoiceIntakeService:
         invoice = await self._invoices.create_pending(
             owner_id=owner_id, storage_key=storage_key, original_filename=filename or ""
         )
+
+        # Bind the ID so structured logs can be correlated with this invoice.
+        # Lightweight test doubles may return None here.
+        if invoice is not None:
+            bind_invoice_id(str(invoice.id))
+
         await self._storage.save(key=storage_key, content=content)
         return invoice

@@ -50,6 +50,7 @@ def should_include_required_fields(formatter: JsonFormatter) -> None:
         "message",
         "request_id",
         "user_id",
+        "invoice_id",
         "context",
     }
 

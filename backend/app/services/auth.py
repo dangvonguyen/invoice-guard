@@ -1,5 +1,6 @@
 """Authentication service implementations."""
 
+from app.core.logging import bind_user_id
 from app.services.interfaces import AccessTokenIssuer, PasswordVerifier, UserRepository
 
 
@@ -34,4 +35,8 @@ class AuthService:
             raise InvalidCredentialsError()
         if not await self._password_verifier.verify(password, user.hashed_password):
             raise InvalidCredentialsError()
+
+        # Associate logs with an account after its credentials are verified
+        bind_user_id(str(user.id))
+
         return self._access_token_issuer.issue(str(user.id))

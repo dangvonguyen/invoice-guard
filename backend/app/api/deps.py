@@ -105,7 +105,9 @@ async def get_current_user(
     if user is None:
         raise_unauthorized()
 
+    # Bind the ID so structured logs can be correlated with this user
     bind_user_id(str(user.id))
+
     return user
 
 
@@ -130,7 +132,8 @@ InvoiceRepositoryDep = Annotated[InvoiceRepository, Depends(get_invoice_reposito
 
 def get_invoice_mime_validator() -> InvoiceMimeValidator:
     """Create the invoice upload validator from configured limits."""
-    return InvoiceMimeValidator()
+    settings = get_settings()
+    return InvoiceMimeValidator(max_bytes=settings.UPLOAD_MAX_BYTES)
 
 
 InvoiceMimeValidatorDep = Annotated[
