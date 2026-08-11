@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.middleware import RequestLoggingMiddleware
+from app.api.middleware import RequestBodyLimitMiddleware, RequestLoggingMiddleware
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -46,6 +46,14 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Allow a bounded multipart envelope beyond the file-size limit.
+# This guard runs before FastAPI constructs and spools an UploadFile.
+app.add_middleware(
+    RequestBodyLimitMiddleware,
+    max_body_bytes=get_settings().UPLOAD_MAX_BYTES + 64 * 1024,
+    paths={"/invoices"},
 )
 
 # Add logging middleware last so it wraps CORS responses, including preflights

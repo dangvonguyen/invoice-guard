@@ -1,0 +1,104 @@
+"""Routes for invoice document intake."""
+
+import logging
+from typing import Annotated, NoReturn
+
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
+
+from app.api.deps import CurrentUser, InvoiceIntakeServiceDep
+from app.core.config import get_settings
+from app.schemas.invoice import InvoiceUploadResponse
+from app.services.invoice_intake import (
+    InvoiceStorageUnavailableError,
+    UploadRateLimitExceededError,
+)
+from app.services.invoice_mime_validator import (
+    InvoiceValidationError,
+    PayloadTooLargeError,
+    UnreadableUploadError,
+    UnsupportedMediaTypeError,
+)
+
+router = APIRouter(prefix="/invoices", tags=["Invoices"])
+logger = logging.getLogger(__name__)
+
+
+def _reject_upload(
+    exc: Exception,
+    *,
+    status_code: int,
+    reason: str,
+    detail: str | None = None,
+    **context: object,
+) -> NoReturn:
+    logger.warning(
+        "Invoice upload rejected",
+        extra={
+            "event": "invoice.upload.rejected",
+            "context": {"reason": reason, "status_code": status_code, **context},
+        },
+    )
+
+    raise HTTPException(status_code=status_code, detail=detail or str(exc)) from exc
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+async def upload_invoice(
+    current_user: CurrentUser,
+    invoice_intake: InvoiceIntakeServiceDep,
+    file: Annotated[UploadFile, File()],
+) -> InvoiceUploadResponse:
+    """Accept an invoice document and enqueue it for processing."""
+    settings = get_settings()
+    content = await file.read(settings.UPLOAD_MAX_BYTES + 1)
+    try:
+        invoice = await invoice_intake.upload(
+            owner_id=current_user.id,
+            filename=file.filename,
+            content_type=file.content_type,
+            size=len(content),
+            content=content,
+        )
+    except UploadRateLimitExceededError as exc:
+        _reject_upload(
+            exc,
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            reason="rate_limited",
+            detail="Upload rate limit exceeded. Try again shortly.",
+            limit=settings.UPLOAD_RATE_LIMIT,
+            window_seconds=settings.UPLOAD_RATE_LIMIT_WINDOW_SECONDS,
+        )
+    except PayloadTooLargeError as exc:
+        _reject_upload(
+            exc,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            reason="payload_too_large",
+        )
+    except UnsupportedMediaTypeError as exc:
+        _reject_upload(
+            exc,
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            reason="unsupported_media_type",
+        )
+    except (UnreadableUploadError, InvoiceValidationError) as exc:
+        _reject_upload(
+            exc,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            reason="invalid_upload",
+        )
+    except InvoiceStorageUnavailableError as exc:
+        _reject_upload(
+            exc,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            reason="storage_unavailable",
+            detail="Invoice storage is temporarily unavailable. Try again shortly.",
+        )
+
+    logger.info(
+        "Invoice upload accepted",
+        extra={
+            "event": "invoice.upload.accepted",
+            "context": {"status_code": status.HTTP_201_CREATED},
+        },
+    )
+    return InvoiceUploadResponse(invoice_id=invoice.id, status=invoice.status)

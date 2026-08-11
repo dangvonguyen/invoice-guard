@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+PositiveInt = Annotated[int, Field(gt=0)]
 
 
 def unwrap_secret(value: SecretStr | str) -> str:
@@ -36,7 +38,7 @@ class Settings(BaseSettings):
 
     # Setup the JWT authentication
     JWT_SECRET_KEY: SecretStr
-    JWT_ACCESS_TOKEN_MINUTES: int = 30
+    JWT_ACCESS_TOKEN_MINUTES: PositiveInt = 30
 
     # Log configuration
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
@@ -48,6 +50,19 @@ class Settings(BaseSettings):
     POSTGRES_DB: str
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
+
+    # Redis - rate limiting
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+
+    # Invoice upload constraints
+    UPLOAD_MAX_BYTES: PositiveInt = 10 * 1024 * 1024
+    UPLOAD_RATE_LIMIT: PositiveInt = 20
+    UPLOAD_RATE_LIMIT_WINDOW_SECONDS: PositiveInt = 60
+
+    # Local-disk object storage. Dev/CI only - swap for an S3-compatible
+    # adapter behind the same StorageClient protocol before deploying.
+    STORAGE_LOCAL_PATH: str = "./data/invoices"
 
     @field_validator("API_ROOT")
     @classmethod
@@ -66,14 +81,6 @@ class Settings(BaseSettings):
         """Require enough entropy for an HMAC signing key."""
         if len(value.get_secret_value()) < 32:
             raise ValueError("JWT_SECRET_KEY must be at least 32 characters")
-        return value
-
-    @field_validator("JWT_ACCESS_TOKEN_MINUTES")
-    @classmethod
-    def check_access_token_lifetime(cls: type[Settings], value: int) -> int:
-        """Require access tokens to have a positive lifetime."""
-        if value <= 0:
-            raise ValueError("JWT_ACCESS_TOKEN_MINUTES must be positive")
         return value
 
 

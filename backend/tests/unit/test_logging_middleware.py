@@ -13,7 +13,12 @@ from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
 from app.api.middleware import RequestLoggingMiddleware
-from app.core.logging import ContextVarLogFilter, bind_user_id, get_request_id
+from app.core.logging import (
+    ContextVarLogFilter,
+    bind_invoice_id,
+    bind_user_id,
+    get_request_id,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -24,6 +29,7 @@ class StructuredLogRecord(logging.LogRecord):
     event: str
     request_id: str
     user_id: str | None
+    invoice_id: str | None
     context: dict[str, Any]
 
 
@@ -89,6 +95,23 @@ async def should_surface_user_id_bound_in_handler_on_completion_log(
 
     record = record_for(captured_http_logs, "http.request.completed")
     assert record.user_id == "u-482"
+
+
+@pytest.mark.asyncio
+async def should_surface_invoice_id_bound_in_handler_on_completion_log(
+    captured_http_logs: ListHandler,
+) -> None:
+    """Include the created invoice ID bound by the downstream handler."""
+
+    async def endpoint(_: Request) -> Response:
+        bind_invoice_id("inv-482")
+        return JSONResponse({"ok": True}, status_code=201)
+
+    async with client(endpoint) as c:
+        await c.post("/x")
+
+    record = record_for(captured_http_logs, "http.request.completed")
+    assert record.invoice_id == "inv-482"
 
 
 @pytest.mark.asyncio

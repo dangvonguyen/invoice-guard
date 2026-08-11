@@ -2,7 +2,8 @@
 
 import json
 import logging
-from collections.abc import Mapping
+from collections.abc import Generator, Mapping
+from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import Any
@@ -14,6 +15,7 @@ _DISABLED_LOGGERS = (
 )
 _REQUEST_ID: ContextVar[str] = ContextVar("request_id", default="-")
 _USER_ID: ContextVar[str | None] = ContextVar("user_id", default=None)
+_INVOICE_ID: ContextVar[str | None] = ContextVar("invoice_id", default=None)
 
 
 def get_request_id() -> str:
@@ -21,22 +23,38 @@ def get_request_id() -> str:
     return _REQUEST_ID.get()
 
 
-def bind_request_id(request_id: str | None) -> None:
-    """Bind (or clear) the request ID for the current execution context."""
-    if request_id is None:
-        _REQUEST_ID.set("-")
-    else:
-        _REQUEST_ID.set(request_id)
+def bind_request_id(request_id: str) -> None:
+    """Bind the request ID for the current execution context."""
+    _REQUEST_ID.set(request_id)
 
 
-def get_user_id() -> str | None:
-    """Return the user ID bound to the current execution context, if any."""
-    return _USER_ID.get()
-
-
-def bind_user_id(user_id: str | None) -> None:
-    """Bind (or clear) the user ID for the current execution context."""
+def bind_user_id(user_id: str) -> None:
+    """Bind the user ID for the current execution context."""
     _USER_ID.set(user_id)
+
+
+def bind_invoice_id(invoice_id: str) -> None:
+    """Bind the invoice ID for the current execution context."""
+    _INVOICE_ID.set(invoice_id)
+
+
+@contextmanager
+def log_context(
+    *,
+    request_id: str | None = None,
+    user_id: str | None = None,
+    invoice_id: str | None = None,
+) -> Generator[None]:
+    """Temporarily bind all logging correlation values as one scope."""
+    request_token = _REQUEST_ID.set(request_id or "-")
+    user_token = _USER_ID.set(user_id)
+    invoice_token = _INVOICE_ID.set(invoice_id)
+    try:
+        yield
+    finally:
+        _REQUEST_ID.reset(request_token)
+        _USER_ID.reset(user_token)
+        _INVOICE_ID.reset(invoice_token)
 
 
 class JsonFormatter(logging.Formatter):
@@ -65,6 +83,7 @@ class JsonFormatter(logging.Formatter):
             "message": record.getMessage(),
             "request_id": getattr(record, "request_id", "-"),
             "user_id": getattr(record, "user_id", None),
+            "invoice_id": getattr(record, "invoice_id", None),
             "context": self._redact(context),
         }
         return json.dumps(payload, default=str)
@@ -101,8 +120,9 @@ class ContextVarLogFilter(logging.Filter):
     """Attach request_id/user_id from the current context."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        record.request_id = get_request_id()
-        record.user_id = get_user_id()
+        record.request_id = _REQUEST_ID.get()
+        record.user_id = _USER_ID.get()
+        record.invoice_id = _INVOICE_ID.get()
         return True
 
 

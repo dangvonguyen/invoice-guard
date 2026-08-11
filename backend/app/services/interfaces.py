@@ -3,7 +3,7 @@
 from typing import Protocol
 from uuid import UUID
 
-from app.database.models.user import User
+from app.database.models import Invoice, User
 
 
 class UserRepository(Protocol):
@@ -29,4 +29,20 @@ class PasswordVerifier(Protocol):
 class AccessTokenIssuer(Protocol):
     def issue(self, subject: str) -> str:
         """Issue an access token identifying the supplied subject."""
+        ...
+
+
+class InvoiceRepository(Protocol):
+    async def create_pending(
+        self,
+        *,
+        owner_id: UUID,
+        storage_key: str,
+        original_filename: str,
+    ) -> Invoice:
+        """Reserve a pending invoice and return its identity."""
+        ...
+
+    async def mark_upload_failed(self, *, invoice_id: UUID) -> None:
+        """Durably mark a reserved invoice whose storage write failed."""
         ...

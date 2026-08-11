@@ -14,9 +14,74 @@ from starlette.datastructures import MutableHeaders
 from starlette.responses import PlainTextResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from app.core.logging import bind_request_id, bind_user_id
+from app.core.logging import log_context
 
 logger = logging.getLogger(__name__)
+
+
+class _RequestBodyTooLarge(Exception):
+    """Stop downstream request parsing when the raw body crosses its limit."""
+
+
+class RequestBodyLimitMiddleware:
+    """Bound request bodies before FastAPI parses multipart form data."""
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        *,
+        max_body_bytes: int,
+        paths: set[str],
+    ) -> None:
+        self._app = app
+        self._max_body_bytes = max_body_bytes
+        self._paths = frozenset(paths)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Reject declared or streamed oversized request bodies."""
+        if (
+            scope["type"] != "http"
+            or scope.get("method") != "POST"
+            or scope.get("path") not in self._paths
+        ):
+            await self._app(scope, receive, send)
+            return
+
+        if self._content_length(scope) > self._max_body_bytes:
+            await self._reject(scope, receive, send)
+            return
+
+        received = 0
+
+        async def limited_receive() -> Message:
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > self._max_body_bytes:
+                    raise _RequestBodyTooLarge
+            return message
+
+        try:
+            await self._app(scope, limited_receive, send)
+        except _RequestBodyTooLarge:
+            await self._reject(scope, receive, send)
+
+    @staticmethod
+    def _content_length(scope: Scope) -> int:
+        headers = cast(list[tuple[bytes, bytes]], scope.get("headers", []))
+        values = [value for name, value in headers if name == b"content-length"]
+        if len(values) != 1:
+            return 0
+        try:
+            return int(values[0])
+        except ValueError:
+            return 0
+
+    @staticmethod
+    async def _reject(scope: Scope, receive: Receive, send: Send) -> None:
+        response = PlainTextResponse("Request body too large", status_code=413)
+        await response(scope, receive, send)
 
 
 class RequestLoggingMiddleware:
@@ -38,9 +103,13 @@ class RequestLoggingMiddleware:
             return
 
         request_id = self._incoming_request_id(scope) or str(uuid4())
-        bind_request_id(request_id)
-        bind_user_id(None)
+        with log_context(request_id=request_id):
+            await self._run_request(scope, receive, send, request_id)
 
+    async def _run_request(
+        self, scope: Scope, receive: Receive, send: Send, request_id: str
+    ) -> None:
+        """Run and log one HTTP request inside an already-bound context."""
         start = time.perf_counter()
 
         response_state: dict[str, int] = {}
@@ -66,17 +135,11 @@ class RequestLoggingMiddleware:
                 },
             )
             if "status_code" in response_state:
-                bind_request_id(None)
-                bind_user_id(None)
                 raise
 
             response_state["status_code"] = 500
             response = PlainTextResponse("Internal Server Error", status_code=500)
-            try:
-                await response(scope, receive, send_wrapper)
-            finally:
-                bind_request_id(None)
-                bind_user_id(None)
+            await response(scope, receive, send_wrapper)
             return
 
         duration_ms = round((time.perf_counter() - start) * 1000, 2)
@@ -101,8 +164,6 @@ class RequestLoggingMiddleware:
                 },
             },
         )
-        bind_request_id(None)
-        bind_user_id(None)
 
     @staticmethod
     def _incoming_request_id(scope: Scope) -> str | None:
