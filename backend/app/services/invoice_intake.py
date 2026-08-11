@@ -45,7 +45,10 @@ class InvoiceIntakeService:
     ) -> Invoice:
         """Accept an invoice upload, return the persisted pending state."""
         self._validator.validate(
-            filename=filename, content_type=content_type, size=size
+            filename=filename,
+            content_type=content_type,
+            size=size,
+            content=content,
         )
 
         if not await self._rate_limiter.allow(

@@ -36,7 +36,12 @@ class InvoiceMimeValidator:
         self._allowed_types = dict(allowed_types or _DEFAULT_ALLOWED_TYPES)
 
     def validate(
-        self, *, filename: str | None, content_type: str | None, size: int | None
+        self,
+        *,
+        filename: str | None,
+        content_type: str | None,
+        size: int | None,
+        content: bytes,
     ) -> None:
         """Raise if the upload doesn't satisfy the validation requirements.
 
@@ -62,3 +67,7 @@ class InvoiceMimeValidator:
             raise PayloadTooLargeError(
                 f"file exceeds the {self._max_bytes}-byte size cap"
             )
+        if not content:
+            raise UnreadableUploadError("upload is empty")
+        if content_type == "application/pdf" and not content.startswith(b"%PDF-"):
+            raise UnsupportedMediaTypeError("file content is not a PDF document")

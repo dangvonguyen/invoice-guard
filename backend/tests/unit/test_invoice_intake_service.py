@@ -99,7 +99,10 @@ async def should_accept_valid_pdf_as_pending_invoice(
 
     assert result is stored_invoice
     context.validator.validate.assert_called_once_with(
-        filename=FILENAME, content_type=CONTENT_TYPE, size=len(PDF_CONTENT)
+        filename=FILENAME,
+        content_type=CONTENT_TYPE,
+        size=len(PDF_CONTENT),
+        content=PDF_CONTENT,
     )
     context.rate_limiter.allow.assert_awaited_once_with(
         key=OWNER_ID, scope="invoice-upload"

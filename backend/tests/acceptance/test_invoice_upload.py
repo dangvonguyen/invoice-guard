@@ -115,6 +115,27 @@ async def should_reject_disallowed_mime_type_without_creating_a_row(
     assert (await test_db.scalars(select(Invoice))).first() is None
 
 
+@pytest.mark.parametrize("content", [b"", b"MZ\x90\x00fake executable"])
+async def should_reject_pdf_metadata_with_invalid_content(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    auth_headers: dict[str, str],
+    content: bytes,
+) -> None:
+    """Require actual non-empty PDF-shaped content, not spoofable metadata."""
+    response = await client.post(
+        "/invoices",
+        headers=auth_headers,
+        files={"file": ("invoice.pdf", content, "application/pdf")},
+    )
+
+    assert response.status_code in {
+        status.HTTP_400_BAD_REQUEST,
+        status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+    }
+    assert (await test_db.scalars(select(Invoice))).first() is None
+
+
 async def should_not_charge_invalid_uploads_against_rate_limit(
     client: AsyncClient, auth_headers: dict[str, str]
 ) -> None:
