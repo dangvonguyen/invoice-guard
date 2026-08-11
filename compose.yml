@@ -16,6 +16,19 @@ services:
       timeout: 3s
       retries: 5
 
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   migrator:
     image: ${DOCKER_BACKEND_IMAGE}:${TAG:-latest}
     build:
@@ -47,6 +60,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "8000:8000"
     volumes:
@@ -54,6 +69,8 @@ services:
       - /app/.venv
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       migrator:
         condition: service_completed_successfully
@@ -97,3 +114,4 @@ services:
 
 volumes:
   pg_data:
+  redis_data:
