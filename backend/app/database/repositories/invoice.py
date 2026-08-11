@@ -9,9 +9,10 @@ with no database record.
 
 from uuid import UUID
 
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models.invoice import Invoice
+from app.database.models.invoice import Invoice, InvoiceStatus
 
 
 class InvoiceRepository:
@@ -37,3 +38,12 @@ class InvoiceRepository:
         await self._session.commit()
         await self._session.refresh(invoice)
         return invoice
+
+    async def mark_upload_failed(self, *, invoice_id: UUID) -> None:
+        """Durably record that storage failed for a reserved invoice."""
+        await self._session.execute(
+            update(Invoice)
+            .where(Invoice.id == invoice_id)
+            .values(status=InvoiceStatus.UPLOAD_FAILED)
+        )
+        await self._session.commit()

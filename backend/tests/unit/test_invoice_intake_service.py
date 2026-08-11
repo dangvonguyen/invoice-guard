@@ -8,11 +8,12 @@ from uuid import UUID
 import pytest
 
 from app.core.rate_limit import RateLimiter
-from app.core.storage import StorageClient
+from app.core.storage import StorageClient, StorageWriteError
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.services.interfaces import InvoiceRepository
 from app.services.invoice_intake import (
     InvoiceIntakeService,
+    InvoiceStorageUnavailableError,
     UploadRateLimitExceededError,
 )
 from app.services.invoice_mime_validator import (
@@ -188,3 +189,24 @@ async def should_generate_a_storage_key_never_derived_from_the_filename(
     _, kwargs = context.invoices.create_pending.await_args
     assert kwargs["storage_key"] != "invoice.pdf"
     assert kwargs["original_filename"] == "invoice.pdf"
+
+
+async def should_mark_reservation_failed_when_storage_write_fails(
+    context: IntakeContext, stored_invoice: Invoice
+) -> None:
+    """Translate storage failure and durably mark the reserved row failed."""
+    context.rate_limiter.allow.return_value = True
+    context.storage.generate_key.return_value = STORAGE_KEY
+    context.invoices.create_pending.return_value = stored_invoice
+    context.storage.save.side_effect = StorageWriteError("disk unavailable")
+
+    with pytest.raises(InvoiceStorageUnavailableError):
+        await context.service.upload(
+            owner_id=OWNER_ID,
+            filename=FILENAME,
+            content_type=CONTENT_TYPE,
+            size=len(PDF_CONTENT),
+            content=PDF_CONTENT,
+        )
+
+    context.invoices.mark_upload_failed.assert_awaited_once_with(invoice_id=INVOICE_ID)

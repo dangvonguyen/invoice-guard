@@ -42,3 +42,7 @@ class InvoiceRepository(Protocol):
     ) -> Invoice:
         """Reserve a pending invoice and return its identity."""
         ...
+
+    async def mark_upload_failed(self, *, invoice_id: UUID) -> None:
+        """Durably mark a reserved invoice whose storage write failed."""
+        ...

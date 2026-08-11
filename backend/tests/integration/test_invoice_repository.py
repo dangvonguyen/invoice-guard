@@ -70,3 +70,19 @@ async def should_generate_a_unique_id_per_invoice(
     )
 
     assert first.id != second.id
+
+
+async def should_durably_mark_a_failed_upload(
+    test_db: AsyncSession, repository: InvoiceRepository, owner: User
+) -> None:
+    """Transition a pending reservation when its storage write fails."""
+    invoice = await repository.create_pending(
+        owner_id=owner.id,
+        storage_key="failed-key",
+        original_filename="invoice.pdf",
+    )
+
+    await repository.mark_upload_failed(invoice_id=invoice.id)
+    await test_db.refresh(invoice)
+
+    assert invoice.status == InvoiceStatus.UPLOAD_FAILED

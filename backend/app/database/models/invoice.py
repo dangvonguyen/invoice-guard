@@ -1,6 +1,6 @@
 """Database model for uploaded invoices.
 
-Scope note: `InvoiceStatus` carries only PENDING for now.
+Scope note: intake records distinguish pending uploads from failed storage writes.
 """
 
 from datetime import datetime
@@ -17,6 +17,7 @@ class InvoiceStatus(StrEnum):
     """Lifecycle states for an invoice."""
 
     PENDING = "pending"
+    UPLOAD_FAILED = "upload_failed"
 
 
 class Invoice(Base):

@@ -9,9 +9,11 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_access_token_codec
+from app.api.deps import get_access_token_codec, get_storage_client
+from app.core.storage import StorageWriteError
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.user import User
+from app.main import app
 
 pytestmark = [
     pytest.mark.acceptance,
@@ -134,3 +136,27 @@ async def should_reject_upload_once_rate_limit_is_exhausted(
     assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
     stored_count = len((await test_db.scalars(select(Invoice))).all())
     assert stored_count == RATE_LIMIT
+
+
+async def should_return_unavailable_and_mark_row_when_storage_fails(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """Expose a retryable response when the storage backend is unavailable."""
+
+    class FailingStorage:
+        def generate_key(self) -> str:
+            return "failed-storage-key"
+
+        async def save(self, *, key: str, content: bytes) -> None:
+            raise StorageWriteError("storage unavailable")
+
+    app.dependency_overrides[get_storage_client] = FailingStorage
+
+    response = await client.post(
+        "/invoices",
+        headers=auth_headers,
+        files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
+    )
+
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE

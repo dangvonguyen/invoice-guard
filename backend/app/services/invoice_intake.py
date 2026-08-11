@@ -4,7 +4,7 @@ from uuid import UUID
 
 from app.core.logging import bind_invoice_id
 from app.core.rate_limit import RateLimiter
-from app.core.storage import StorageClient
+from app.core.storage import StorageClient, StorageWriteError
 from app.database.models import Invoice
 from app.services.interfaces import InvoiceRepository
 from app.services.invoice_mime_validator import InvoiceMimeValidator
@@ -12,6 +12,10 @@ from app.services.invoice_mime_validator import InvoiceMimeValidator
 
 class UploadRateLimitExceededError(Exception):
     """Raised when a caller has exceeded their upload rate limit."""
+
+
+class InvoiceStorageUnavailableError(Exception):
+    """Raised when a validated upload cannot be persisted to storage."""
 
 
 class InvoiceIntakeService:
@@ -61,5 +65,11 @@ class InvoiceIntakeService:
         if invoice is not None:
             bind_invoice_id(str(invoice.id))
 
-        await self._storage.save(key=storage_key, content=content)
+        try:
+            await self._storage.save(key=storage_key, content=content)
+        except StorageWriteError as exc:
+            await self._invoices.mark_upload_failed(invoice_id=invoice.id)
+            raise InvoiceStorageUnavailableError(
+                f"storage failed for invoice {invoice.id}"
+            ) from exc
         return invoice
