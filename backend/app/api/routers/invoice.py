@@ -2,12 +2,13 @@
 
 import logging
 from typing import Annotated, NoReturn
+from uuid import UUID
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from app.api.deps import CurrentUser, InvoiceIntakeServiceDep
+from app.api.deps import CurrentUser, InvoiceIntakeServiceDep, InvoiceRepositoryDep
 from app.core.config import get_settings
-from app.schemas.invoice import InvoiceUploadResponse
+from app.schemas.invoice import InvoiceDetailResponse, InvoiceUploadResponse
 from app.services.invoice_intake import (
     InvoiceStorageUnavailableError,
     UploadRateLimitExceededError,
@@ -21,25 +22,6 @@ from app.services.invoice_mime_validator import (
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
 logger = logging.getLogger(__name__)
-
-
-def _reject_upload(
-    exc: Exception,
-    *,
-    status_code: int,
-    reason: str,
-    detail: str | None = None,
-    **context: object,
-) -> NoReturn:
-    logger.warning(
-        "Invoice upload rejected",
-        extra={
-            "event": "invoice.upload.rejected",
-            "context": {"reason": reason, "status_code": status_code, **context},
-        },
-    )
-
-    raise HTTPException(status_code=status_code, detail=detail or str(exc)) from exc
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -102,3 +84,44 @@ async def upload_invoice(
         },
     )
     return InvoiceUploadResponse(invoice_id=invoice.id, status=invoice.status)
+
+
+@router.get("/{invoice_id}")
+async def get_invoice(
+    invoice_id: UUID,
+    current_user: CurrentUser,
+    invoices: InvoiceRepositoryDep,
+) -> InvoiceDetailResponse:
+    """Return an invoice owned by the authenticated user."""
+    invoice = await invoices.get_by_id(invoice_id)
+    if invoice is None or invoice.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
+        )
+
+    return InvoiceDetailResponse(
+        invoice_id=invoice.id,
+        status=invoice.status,
+        extracted_fields=invoice.extracted_fields,
+        confidence=invoice.confidence,
+        confidence_reason=invoice.confidence_reason,
+    )
+
+
+def _reject_upload(
+    exc: Exception,
+    *,
+    status_code: int,
+    reason: str,
+    detail: str | None = None,
+    **context: object,
+) -> NoReturn:
+    logger.warning(
+        "Invoice upload rejected",
+        extra={
+            "event": "invoice.upload.rejected",
+            "context": {"reason": reason, "status_code": status_code, **context},
+        },
+    )
+
+    raise HTTPException(status_code=status_code, detail=detail or str(exc)) from exc
