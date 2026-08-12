@@ -81,6 +81,7 @@ async def should_accept_valid_pdf_as_pending_invoice(
 ) -> None:
     """Validate, reserve, and store an authenticated employee's PDF."""
     context.rate_limiter.allow.return_value = True
+    context.storage.generate_key = Mock()
     context.storage.generate_key.return_value = STORAGE_KEY
     context.invoices.create_pending.return_value = stored_invoice
 
