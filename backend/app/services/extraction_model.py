@@ -28,6 +28,14 @@ class InvoiceFields(BaseModel):
 class ExtractionModelClient(Protocol):
     """Call the extraction model and return its raw structured response."""
 
-    async def extract(self, *, document_text: str) -> dict[str, Any]:
-        """Return the model's raw structured response for one document."""
+    async def extract(
+        self, *, document_text: str, validation_error: str | None = None
+    ) -> dict[str, Any]:
+        """Return the model's raw structured response for one document.
+
+        Args:
+            validation_error: carries the previous attempt's schema-validation
+            failure back to the model so it can be re-prompted; `None` on the
+            first attempt.
+        """
         ...

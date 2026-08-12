@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from typing import Literal
 
+from pydantic import ValidationError
+
 from app.services.extraction_model import ExtractionModelClient, InvoiceFields
 from app.services.span_grounding import SpanGroundingChecker
 
@@ -16,6 +18,10 @@ class ExtractionResult:
     confidence_reason: str | None
 
 
+class ExtractionValidationError(Exception):
+    """Raised when the model never returns a schema-valid response in budget."""
+
+
 class ExtractionService:
     """Convert invoice text into schema-validated structured fields."""
 
@@ -27,6 +33,8 @@ class ExtractionService:
         "currency",
     )
 
+    _MAX_ATTEMPTS = 3
+
     def __init__(
         self, model: ExtractionModelClient, grounding_checker: SpanGroundingChecker
     ) -> None:
@@ -34,10 +42,32 @@ class ExtractionService:
         self._grounding_checker = grounding_checker
 
     async def extract(self, *, document_text: str) -> ExtractionResult:
-        """Return structured invoice fields extracted from document text."""
-        raw_response = await self._model.extract(document_text=document_text)
-        fields = InvoiceFields.model_validate(raw_response)
+        """Return structured invoice fields extracted from document text.
 
+        Raises:
+            ExtractionValidationError: the model returned a schema-invalid
+                response on every attempt, including retries.
+        """
+        validation_error: str | None = None
+        for _ in range(self._MAX_ATTEMPTS):
+            raw_response = await self._model.extract(
+                document_text=document_text, validation_error=validation_error
+            )
+            try:
+                fields = InvoiceFields.model_validate(raw_response)
+            except ValidationError as exc:
+                validation_error = str(exc)
+                continue
+            return self._result_for(fields, document_text)
+
+        raise ExtractionValidationError(
+            "model did not return a schema-valid response within "
+            f"{self._MAX_ATTEMPTS} attempts"
+        )
+
+    def _result_for(
+        self, fields: InvoiceFields, document_text: str
+    ) -> ExtractionResult:
         ungrounded = self._ungrounded_field_names(fields, document_text)
         if not ungrounded:
             return ExtractionResult(
