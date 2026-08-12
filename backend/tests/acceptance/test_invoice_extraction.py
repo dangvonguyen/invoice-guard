@@ -75,6 +75,24 @@ def image_only_pdf_bytes() -> bytes:
     return bytes(pdf.output())
 
 
+def text_native_pdf_bytes_with_ungrounded_amount() -> bytes:
+    """Build a PDF with a grounded amount but not the ungrounded one."""
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=12)
+    pdf.multi_cell(
+        0,
+        10,
+        text=(
+            f"Vendor: {VENDOR_NAME}\n"
+            f"Invoice Date: {INVOICE_DATE.isoformat()}\n"
+            f"Tax: {TAX_AMOUNT} {CURRENCY}\n"
+            f"Total: $120.00 {CURRENCY}\n"  # grounded amount
+        ),
+    )
+    return bytes(pdf.output())
+
+
 class FakeExtractionModelClient:
     """Stand in for the real LLM boundary with a fixed, schema-valid response."""
 
@@ -108,6 +126,24 @@ class AlwaysInvalidExtractionModelClient:
         del document_text, validation_error
         self.call_count += 1
         return {k: v for k, v in EXTRACTED_FIELDS.items() if k != "total_amount"}
+
+
+class UngroundedFieldExtractionModelClient:
+    """Stand in for an LLM returning a schema-valid value not in the source text."""
+
+    async def extract(
+        self, *, document_text: str, validation_error: str | None = None
+    ) -> dict[str, Any]:
+        assert "$120.00" in document_text  # sanity: grounded value is present
+        assert "$999.00" not in document_text  # sanity: ungrounded value is absent
+        return {
+            "vendor_name": VENDOR_NAME,
+            "invoice_date": INVOICE_DATE.isoformat(),
+            "currency": CURRENCY,
+            "tax_amount": str(TAX_AMOUNT),
+            "total_amount": "999.00",  # schema-valid, but ungrounded in source
+            "line_items": [],
+        }
 
 
 @pytest_asyncio.fixture
@@ -160,6 +196,24 @@ async def stored_invoice_without_text_layer(
         original_filename="invoice.pdf",
     )
     await storage.save(key=invoice.storage_key, content=image_only_pdf_bytes())
+    return invoice, storage
+
+
+@pytest_asyncio.fixture
+async def stored_invoice_with_ungrounded_amount(
+    test_db: AsyncSession, owner: User, tmp_path: Path
+) -> tuple[Invoice, LocalStorageClient]:
+    """Reserve a pending invoice with an extracted value not grounded in the PDF."""
+    storage = LocalStorageClient(base_path=tmp_path)
+    repository = InvoiceRepository(session=test_db)
+    invoice = await repository.create_pending(
+        owner_id=owner.id,
+        storage_key=storage.generate_key(),
+        original_filename="invoice.pdf",
+    )
+    await storage.save(
+        key=invoice.storage_key, content=text_native_pdf_bytes_with_ungrounded_amount()
+    )
     return invoice, storage
 
 
@@ -255,3 +309,35 @@ async def should_route_to_review_after_exhausting_validation_retries(
     assert body["status"] == "extraction_failed"
     assert body["extracted_fields"] is None
     assert model.call_count == 3
+
+
+async def should_flag_ungrounded_field_as_low_confidence(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    stored_invoice_with_ungrounded_amount: tuple[Invoice, LocalStorageClient],
+    auth_headers: dict[str, str],
+) -> None:
+    """Flag a schema-valid but ungrounded field value with low confidence."""
+    invoice, storage = stored_invoice_with_ungrounded_amount
+    extraction_service = ExtractionService(
+        model=UngroundedFieldExtractionModelClient(),
+        grounding_checker=SpanGroundingChecker(),
+    )
+
+    await extract_invoice(
+        invoice.id,
+        invoices=InvoiceRepository(session=test_db),
+        storage=storage,
+        text_extractor=PdfTextExtractor(),
+        extraction_service=extraction_service,
+    )
+    await test_db.commit()
+
+    response = await client.get(f"/invoices/{invoice.id}", headers=auth_headers)
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
+    assert body["status"] == "extracted"
+    assert body["extracted_fields"]["total_amount"] == "999.00"  # persisted as-is
+    assert body["confidence"] == "low"
+    assert "total_amount" in body["confidence_reason"]
