@@ -78,7 +78,9 @@ def image_only_pdf_bytes() -> bytes:
 class FakeExtractionModelClient:
     """Stand in for the real LLM boundary with a fixed, schema-valid response."""
 
-    async def extract(self, *, document_text: str) -> dict[str, Any]:
+    async def extract(
+        self, *, document_text: str, validation_error: str | None = None
+    ) -> dict[str, Any]:
         assert VENDOR_NAME in document_text  # sanity: real text was passed in
         return EXTRACTED_FIELDS
 
@@ -86,10 +88,26 @@ class FakeExtractionModelClient:
 class NeverCalledExtractionModelClient:
     """Stand in for the LLM boundary that must never be reached for this scenario."""
 
-    async def extract(self, *, document_text: str) -> dict[str, Any]:
+    async def extract(
+        self, *, document_text: str, validation_error: str | None = None
+    ) -> dict[str, Any]:
         raise AssertionError(
             "extraction model should not be called when the PDF has no text layer"
         )
+
+
+class AlwaysInvalidExtractionModelClient:
+    """Stand in for an LLM boundary that never returns a schema-valid response."""
+
+    def __init__(self) -> None:
+        self.call_count = 0
+
+    async def extract(
+        self, *, document_text: str, validation_error: str | None = None
+    ) -> dict[str, Any]:
+        del document_text, validation_error
+        self.call_count += 1
+        return {k: v for k, v in EXTRACTED_FIELDS.items() if k != "total_amount"}
 
 
 @pytest_asyncio.fixture
@@ -205,3 +223,35 @@ async def should_fail_fast_for_a_pdf_without_a_text_layer(
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
     assert body["status"] == "extraction_failed"
+
+
+async def should_route_to_review_after_exhausting_validation_retries(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    stored_invoice: tuple[Invoice, LocalStorageClient],
+    auth_headers: dict[str, str],
+) -> None:
+    """Fail extraction when the model never returns a schema-valid response."""
+    invoice, storage = stored_invoice
+    model = AlwaysInvalidExtractionModelClient()
+    extraction_service = ExtractionService(
+        model=model,
+        grounding_checker=SpanGroundingChecker(),
+    )
+
+    await extract_invoice(
+        invoice.id,
+        invoices=InvoiceRepository(session=test_db),
+        storage=storage,
+        text_extractor=PdfTextExtractor(),
+        extraction_service=extraction_service,
+    )
+    await test_db.commit()
+
+    response = await client.get(f"/invoices/{invoice.id}", headers=auth_headers)
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
+    assert body["status"] == "extraction_failed"
+    assert body["extracted_fields"] is None
+    assert model.call_count == 3
