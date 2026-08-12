@@ -1,7 +1,5 @@
 """Specify how text is extracted from a stored PDF's bytes."""
 
-from typing import cast
-
 import pytest
 from fpdf import FPDF
 
@@ -15,15 +13,15 @@ def pdf_with_text(text: str) -> bytes:
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Helvetica", size=12)
-    pdf.multi_cell(0, 10, txt=text)
-    return cast(str, pdf.output(dest="S")).encode("latin-1")
+    pdf.multi_cell(0, 10, text=text)
+    return bytes(pdf.output())
 
 
 def blank_pdf() -> bytes:
     """Build a real, parseable PDF with a page but no text content."""
     pdf = FPDF()
     pdf.add_page()
-    return cast(str, pdf.output(dest="S")).encode("latin-1")
+    return bytes(pdf.output())
 
 
 @pytest.fixture
