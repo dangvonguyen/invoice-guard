@@ -68,12 +68,28 @@ def text_native_pdf_bytes() -> bytes:
     return bytes(pdf.output())
 
 
+def image_only_pdf_bytes() -> bytes:
+    """Build a real PDF page with no text layer (e.g. a scanned image)."""
+    pdf = FPDF()
+    pdf.add_page()
+    return bytes(pdf.output())
+
+
 class FakeExtractionModelClient:
     """Stand in for the real LLM boundary with a fixed, schema-valid response."""
 
     async def extract(self, *, document_text: str) -> dict[str, Any]:
         assert VENDOR_NAME in document_text  # sanity: real text was passed in
         return EXTRACTED_FIELDS
+
+
+class NeverCalledExtractionModelClient:
+    """Stand in for the LLM boundary that must never be reached for this scenario."""
+
+    async def extract(self, *, document_text: str) -> dict[str, Any]:
+        raise AssertionError(
+            "extraction model should not be called when the PDF has no text layer"
+        )
 
 
 @pytest_asyncio.fixture
@@ -113,6 +129,22 @@ async def stored_invoice(
     return invoice, storage
 
 
+@pytest_asyncio.fixture
+async def stored_invoice_without_text_layer(
+    test_db: AsyncSession, owner: User, tmp_path: Path
+) -> tuple[Invoice, LocalStorageClient]:
+    """Reserve a pending invoice whose stored PDF has no extractable text."""
+    storage = LocalStorageClient(base_path=tmp_path)
+    repository = InvoiceRepository(session=test_db)
+    invoice = await repository.create_pending(
+        owner_id=owner.id,
+        storage_key=storage.generate_key(),
+        original_filename="invoice.pdf",
+    )
+    await storage.save(key=invoice.storage_key, content=image_only_pdf_bytes())
+    return invoice, storage
+
+
 async def should_extract_fields_from_a_text_native_pdf_on_first_valid_response(
     client: AsyncClient,
     test_db: AsyncSession,
@@ -144,3 +176,32 @@ async def should_extract_fields_from_a_text_native_pdf_on_first_valid_response(
     assert body["extracted_fields"]["total_amount"] == str(TOTAL_AMOUNT)
     assert body["extracted_fields"]["currency"] == CURRENCY
     assert body["confidence"] == "high"
+
+
+async def should_fail_fast_for_a_pdf_without_a_text_layer(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    stored_invoice_without_text_layer: tuple[Invoice, LocalStorageClient],
+    auth_headers: dict[str, str],
+) -> None:
+    """Route a scanned/image-only PDF to extraction_failed with no model call."""
+    invoice, storage = stored_invoice_without_text_layer
+    extraction_service = ExtractionService(
+        model=NeverCalledExtractionModelClient(),
+        grounding_checker=SpanGroundingChecker(),
+    )
+
+    await extract_invoice(
+        invoice.id,
+        invoices=InvoiceRepository(session=test_db),
+        storage=storage,
+        text_extractor=PdfTextExtractor(),
+        extraction_service=extraction_service,
+    )
+    await test_db.commit()
+
+    response = await client.get(f"/invoices/{invoice.id}", headers=auth_headers)
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
+    assert body["status"] == "extraction_failed"
