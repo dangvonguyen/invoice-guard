@@ -5,7 +5,7 @@ from uuid import UUID
 from app.core.storage import StorageClient
 from app.database.repositories.invoice import InvoiceRepository
 from app.services.extraction_service import ExtractionService
-from app.services.text_extractor import TextExtractor
+from app.services.text_extractor import NoTextLayerError, TextExtractor
 
 
 class InvoiceNotFoundError(Exception):
@@ -26,7 +26,11 @@ async def extract_invoice(
         raise InvoiceNotFoundError(f"invoice {invoice_id} does not exist")
 
     pdf_content = await storage.read(key=invoice.storage_key)
-    document_text = text_extractor.extract_text(content=pdf_content)
+    try:
+        document_text = text_extractor.extract_text(content=pdf_content)
+    except NoTextLayerError:
+        await invoices.mark_extraction_failed(invoice_id=invoice_id)
+        return
 
     result = await extraction_service.extract(document_text=document_text)
 

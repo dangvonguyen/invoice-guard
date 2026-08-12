@@ -10,6 +10,7 @@ import pytest
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.services.extraction_model import InvoiceFields
 from app.services.extraction_service import ExtractionResult
+from app.services.text_extractor import NoTextLayerError
 from app.workers.extract_invoice import InvoiceNotFoundError, extract_invoice
 
 pytestmark = [
@@ -121,4 +122,20 @@ async def should_reject_an_unknown_invoice_before_reading_storage(
 
     context.storage.read.assert_not_awaited()
     context.extraction_service.extract.assert_not_awaited()
+    context.invoices.mark_extracted.assert_not_awaited()
+
+
+async def should_mark_extraction_failed_without_calling_the_model_when_pdf_has_no_text_layer(
+    context: JobContext,
+) -> None:
+    """Route a scanned/image-only PDF to extraction_failed before any model call."""
+    context.text_extractor.extract_text.side_effect = NoTextLayerError()
+
+    await context.run()
+
+    context.text_extractor.extract_text.assert_called_once_with(content=PDF_CONTENT)
+    context.extraction_service.extract.assert_not_awaited()
+    context.invoices.mark_extraction_failed.assert_awaited_once_with(
+        invoice_id=INVOICE_ID
+    )
     context.invoices.mark_extracted.assert_not_awaited()
