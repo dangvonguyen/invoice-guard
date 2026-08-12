@@ -4,7 +4,10 @@ from uuid import UUID
 
 from app.core.storage import StorageClient
 from app.database.repositories.invoice import InvoiceRepository
-from app.services.extraction_service import ExtractionService
+from app.services.extraction_service import (
+    ExtractionService,
+    ExtractionValidationError,
+)
 from app.services.text_extractor import NoTextLayerError, TextExtractor
 
 
@@ -32,7 +35,11 @@ async def extract_invoice(
         await invoices.mark_extraction_failed(invoice_id=invoice_id)
         return
 
-    result = await extraction_service.extract(document_text=document_text)
+    try:
+        result = await extraction_service.extract(document_text=document_text)
+    except ExtractionValidationError:
+        await invoices.mark_extraction_failed(invoice_id=invoice_id)
+        return
 
     await invoices.mark_extracted(
         invoice_id=invoice_id,

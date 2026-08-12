@@ -9,7 +9,7 @@ import pytest
 
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.services.extraction_model import InvoiceFields
-from app.services.extraction_service import ExtractionResult
+from app.services.extraction_service import ExtractionResult, ExtractionValidationError
 from app.services.text_extractor import NoTextLayerError
 from app.workers.extract_invoice import InvoiceNotFoundError, extract_invoice
 
@@ -135,6 +135,23 @@ async def should_mark_extraction_failed_without_calling_the_model_when_pdf_has_n
 
     context.text_extractor.extract_text.assert_called_once_with(content=PDF_CONTENT)
     context.extraction_service.extract.assert_not_awaited()
+    context.invoices.mark_extraction_failed.assert_awaited_once_with(
+        invoice_id=INVOICE_ID
+    )
+    context.invoices.mark_extracted.assert_not_awaited()
+
+
+async def should_mark_extraction_failed_when_validation_retries_are_exhausted(
+    context: JobContext,
+) -> None:
+    """Route to review when the model never returns a schema-valid response."""
+    context.extraction_service.extract.side_effect = ExtractionValidationError()
+
+    await context.run()
+
+    context.extraction_service.extract.assert_awaited_once_with(
+        document_text=DOCUMENT_TEXT
+    )
     context.invoices.mark_extraction_failed.assert_awaited_once_with(
         invoice_id=INVOICE_ID
     )
