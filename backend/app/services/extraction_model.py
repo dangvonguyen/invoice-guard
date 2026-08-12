@@ -39,3 +39,12 @@ class ExtractionModelClient(Protocol):
             first attempt.
         """
         ...
+
+
+class TempExtractionModelClient:
+    """Temporary `ExtractionModelClient` until an LLM vendor is chosen."""
+
+    async def extract(
+        self, *, document_text: str, validation_error: str | None = None
+    ) -> dict[str, Any]:
+        raise NotImplementedError()
