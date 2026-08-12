@@ -56,19 +56,3 @@ class InvoiceRepository(Protocol):
     ) -> None:
         """Durably persist successfully extracted invoice data."""
         ...
-
-
-class PdfTextExtractor(Protocol):
-    """Extract an embedded text layer from an invoice document."""
-
-    def extract_text(self, *, content: bytes) -> str:
-        """Return the document's embedded text."""
-        ...
-
-
-class ExtractionService(Protocol):
-    """Convert invoice text into schema-validated structured fields."""
-
-    async def extract(self, *, document_text: str) -> dict[str, Any]:
-        """Return structured invoice fields extracted from document text."""
-        ...

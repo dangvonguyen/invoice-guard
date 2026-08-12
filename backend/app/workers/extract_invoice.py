@@ -3,11 +3,9 @@
 from uuid import UUID
 
 from app.core.storage import StorageClient
-from app.services.interfaces import (
-    ExtractionService,
-    InvoiceRepository,
-    TextExtractor,
-)
+from app.database.repositories.invoice import InvoiceRepository
+from app.services.extraction_service import ExtractionService
+from app.services.text_extractor import TextExtractor
 
 
 class InvoiceNotFoundError(Exception):
@@ -29,6 +27,12 @@ async def extract_invoice(
 
     pdf_content = await storage.read(key=invoice.storage_key)
     document_text = text_extractor.extract_text(content=pdf_content)
+
     result = await extraction_service.extract(document_text=document_text)
 
-    await invoices.mark_extracted(invoice_id=invoice_id, extraction_result=result)
+    await invoices.mark_extracted(
+        invoice_id=invoice_id,
+        fields=result.fields,
+        confidence=result.confidence,
+        confidence_reason=result.confidence_reason,
+    )

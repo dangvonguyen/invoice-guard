@@ -24,8 +24,9 @@ from app.core.storage import LocalStorageClient
 from app.database.models.invoice import Invoice
 from app.database.models.user import User
 from app.database.repositories.invoice import InvoiceRepository
-from app.services.interfaces import ExtractionService, TextExtractor
+from app.services.extraction_service import ExtractionService
 from app.services.span_grounding import SpanGroundingChecker
+from app.services.text_extractor import TextExtractor
 from app.workers.extract_invoice import extract_invoice
 
 pytestmark = [
@@ -34,18 +35,14 @@ pytestmark = [
 ]
 
 VENDOR_NAME = "Acme Supplies"
-INVOICE_NUMBER = "INV-2026-00142"
-INVOICE_DATE = date(2026, 8, 3)
-SUBTOTAL = Decimal("450.00")
+INVOICE_DATE = date(2000, 1, 1)
 TOTAL_AMOUNT = Decimal("482.10")
 TAX_AMOUNT = Decimal("32.10")
 CURRENCY = "USD"
-EXTRACTION_RESULT = {
+EXTRACTED_FIELDS = {
     "vendor_name": VENDOR_NAME,
-    "invoice_number": INVOICE_NUMBER,
     "invoice_date": INVOICE_DATE.isoformat(),
     "currency": CURRENCY,
-    "subtotal": str(SUBTOTAL),
     "tax_amount": str(TAX_AMOUNT),
     "total_amount": str(TOTAL_AMOUNT),
     "line_items": [],
@@ -62,9 +59,7 @@ def text_native_pdf_bytes() -> bytes:
         10,
         text=(
             f"Vendor: {VENDOR_NAME}\n"
-            f"Invoice Number: {INVOICE_NUMBER}\n"
             f"Invoice Date: {INVOICE_DATE.isoformat()}\n"
-            f"Subtotal: {SUBTOTAL} {CURRENCY}\n"
             f"Tax: {TAX_AMOUNT} {CURRENCY}\n"
             f"Total: {TOTAL_AMOUNT} {CURRENCY}\n"
         ),
@@ -77,7 +72,7 @@ class FakeExtractionModelClient:
 
     async def extract(self, *, document_text: str) -> dict:
         assert VENDOR_NAME in document_text  # sanity: real text was passed in
-        return EXTRACTION_RESULT
+        return EXTRACTED_FIELDS
 
 
 @pytest_asyncio.fixture
@@ -144,4 +139,7 @@ async def should_extract_fields_from_a_text_native_pdf_on_first_valid_response(
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
     assert body["status"] == "extracted"
-    assert body["extraction_result"] == EXTRACTION_RESULT
+    assert body["extracted_fields"]["vendor_name"] == VENDOR_NAME
+    assert body["extracted_fields"]["total_amount"] == str(TOTAL_AMOUNT)
+    assert body["extracted_fields"]["currency"] == CURRENCY
+    assert body["confidence"] == "high"

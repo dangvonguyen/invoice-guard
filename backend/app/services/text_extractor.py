@@ -1,12 +1,21 @@
 """Extract raw text from a stored PDF's bytes."""
 
 from io import BytesIO
+from typing import Protocol
 
 from pypdf import PdfReader
 
 
 class NoTextLayerError(Exception):
     """Raised when a PDF has no extractable text on any page."""
+
+
+class TextExtractor(Protocol):
+    """Extract an embedded text layer from an invoice document."""
+
+    def extract_text(self, *, content: bytes) -> str:
+        """Return the document's embedded text."""
+        ...
 
 
 class PdfTextExtractor:

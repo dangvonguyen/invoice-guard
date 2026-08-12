@@ -54,7 +54,12 @@ class InvoiceRepository:
         await self._session.commit()
 
     async def mark_extracted(
-        self, *, invoice_id: UUID, extraction_result: dict[str, Any]
+        self,
+        *,
+        invoice_id: UUID,
+        fields: dict[str, Any],
+        confidence: str,
+        confidence_reason: str | None,
     ) -> None:
         """Durably persist extracted fields and mark the invoice as extracted."""
         await self._session.execute(
@@ -62,7 +67,9 @@ class InvoiceRepository:
             .where(Invoice.id == invoice_id)
             .values(
                 status=InvoiceStatus.EXTRACTED,
-                extraction_result=extraction_result,
+                extracted_fields=fields,
+                confidence=confidence,
+                confidence_reason=confidence_reason,
             )
         )
         await self._session.commit()

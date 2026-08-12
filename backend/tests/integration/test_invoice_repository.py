@@ -97,7 +97,7 @@ async def should_durably_mark_an_invoice_as_extracted(
         storage_key="extracted-key",
         original_filename="invoice.pdf",
     )
-    extraction_result = {
+    extracted_result = {
         "invoice_number": "INV-001",
         "total_amount": "125.50",
         "currency": "USD",
@@ -105,12 +105,14 @@ async def should_durably_mark_an_invoice_as_extracted(
 
     await repository.mark_extracted(
         invoice_id=invoice.id,
-        extraction_result=extraction_result,
+        fields=extracted_result,
+        confidence="high",
+        confidence_reason=None,
     )
     await test_db.refresh(invoice)
 
     assert invoice.status == InvoiceStatus.EXTRACTED
-    assert invoice.extraction_result is not None
-    assert invoice.extraction_result["invoice_number"] == "INV-001"
-    assert invoice.extraction_result["total_amount"] == "125.50"
-    assert invoice.extraction_result["currency"] == "USD"
+    assert invoice.extracted_fields is not None
+    assert invoice.extracted_fields["invoice_number"] == "INV-001"
+    assert invoice.extracted_fields["total_amount"] == "125.50"
+    assert invoice.extracted_fields["currency"] == "USD"
