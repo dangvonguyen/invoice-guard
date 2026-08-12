@@ -1,7 +1,8 @@
 """Authentication service implementations."""
 
 from app.core.logging import bind_user_id
-from app.services.interfaces import AccessTokenIssuer, PasswordVerifier, UserRepository
+from app.core.security import JwtAccessTokenCodec, PasswordHasher
+from app.database.repositories import UserRepository
 
 
 class InvalidCredentialsError(Exception):
@@ -14,8 +15,8 @@ class AuthService:
     def __init__(
         self,
         users: UserRepository,
-        password_verifier: PasswordVerifier,
-        access_token_issuer: AccessTokenIssuer,
+        password_verifier: PasswordHasher,
+        access_token_issuer: JwtAccessTokenCodec,
     ) -> None:
         """Initialize the service with required dependencies."""
         self._users = users

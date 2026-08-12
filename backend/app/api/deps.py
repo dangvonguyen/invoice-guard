@@ -16,14 +16,10 @@ from app.core.redis import get_redis
 from app.core.security import JwtAccessTokenCodec, PasswordHasher
 from app.core.storage import LocalStorageClient, StorageClient
 from app.database.models.user import User
-from app.database.repositories.invoice import InvoiceRepository as DbInvoiceRepository
-from app.database.repositories.user import UserRepository as DbUserRepository
+from app.database.repositories.invoice import InvoiceRepository
+from app.database.repositories.user import UserRepository
 from app.database.session import get_session, get_session_manual
 from app.services.auth import AuthService
-from app.services.interfaces import (
-    InvoiceRepository,
-    UserRepository,
-)
 from app.services.invoice_intake import InvoiceIntakeService
 from app.services.invoice_mime_validator import InvoiceMimeValidator
 
@@ -34,7 +30,7 @@ RedisDep = Annotated[Redis, Depends(get_redis)]
 
 def get_user_repository(session: SessionDep) -> UserRepository:
     """Create a user repository configured with the database session."""
-    return DbUserRepository(session=session)
+    return UserRepository(session=session)
 
 
 def get_password_hasher() -> PasswordHasher:
@@ -124,7 +120,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 def get_invoice_repository(session: SessionManualDep) -> InvoiceRepository:
     """Create an invoice repository configured with a manually-controlled session."""
-    return DbInvoiceRepository(session=session)
+    return InvoiceRepository(session=session)
 
 
 InvoiceRepositoryDep = Annotated[InvoiceRepository, Depends(get_invoice_repository)]

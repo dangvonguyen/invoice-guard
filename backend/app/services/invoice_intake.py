@@ -6,7 +6,7 @@ from app.core.logging import bind_invoice_id
 from app.core.rate_limit import RateLimiter
 from app.core.storage import StorageClient, StorageWriteError
 from app.database.models import Invoice
-from app.services.interfaces import InvoiceRepository
+from app.database.repositories.invoice import InvoiceRepository
 from app.services.invoice_mime_validator import InvoiceMimeValidator
 
 

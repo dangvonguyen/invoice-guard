@@ -7,19 +7,14 @@ from uuid import UUID
 
 import pytest
 
-from app.core.rate_limit import RateLimiter
-from app.core.storage import StorageClient, StorageWriteError
+from app.core.storage import StorageWriteError
 from app.database.models.invoice import Invoice, InvoiceStatus
-from app.services.interfaces import InvoiceRepository
 from app.services.invoice_intake import (
     InvoiceIntakeService,
     InvoiceStorageUnavailableError,
     UploadRateLimitExceededError,
 )
-from app.services.invoice_mime_validator import (
-    InvoiceMimeValidator,
-    UnsupportedMediaTypeError,
-)
+from app.services.invoice_mime_validator import UnsupportedMediaTypeError
 
 pytestmark = [
     pytest.mark.unit,
@@ -62,10 +57,10 @@ def stored_invoice() -> Invoice:
 @pytest.fixture
 def context() -> IntakeContext:
     """Build invoice intake with mocks for the roles it coordinates."""
-    validator = Mock(spec=InvoiceMimeValidator)
-    rate_limiter = AsyncMock(spec=RateLimiter)
-    invoices = AsyncMock(spec=InvoiceRepository)
-    storage = AsyncMock(spec=StorageClient)
+    validator = Mock()
+    rate_limiter = AsyncMock()
+    invoices = AsyncMock()
+    storage = AsyncMock()
     service = InvoiceIntakeService(
         validator=validator,
         rate_limiter=rate_limiter,
