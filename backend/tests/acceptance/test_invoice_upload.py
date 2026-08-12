@@ -1,5 +1,6 @@
 """Acceptance scenarios for invoice intake."""
 
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -10,10 +11,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_access_token_codec, get_storage_client
+from app.core.queue import get_extraction_queue
 from app.core.storage import StorageWriteError
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.user import User
 from app.main import app
+from app.workers.jobs import run_extraction_job
 
 pytestmark = [
     pytest.mark.acceptance,
@@ -220,3 +223,30 @@ async def should_return_unavailable_and_mark_row_when_storage_fails(
     )
 
     assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+
+async def should_enqueue_extraction_for_every_accepted_upload(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """Push a newly-accepted invoice onto the extraction queue."""
+
+    class SpyQueue:
+        def __init__(self) -> None:
+            self.enqueued: list[tuple[Any, tuple[Any, ...]]] = []
+
+        def enqueue(self, func: Any, *args: Any) -> None:
+            self.enqueued.append((func, args))
+
+    spy_queue = SpyQueue()
+    app.dependency_overrides[get_extraction_queue] = lambda: spy_queue
+
+    response = await client.post(
+        "/invoices",
+        headers=auth_headers,
+        files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    invoice_id = response.json()["invoice_id"]
+    assert spy_queue.enqueued == [(run_extraction_job, (invoice_id,))]
