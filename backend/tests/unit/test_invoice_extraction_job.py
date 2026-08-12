@@ -104,7 +104,7 @@ async def should_persist_extracted_fields_on_first_successful_attempt(
     )
     context.invoices.mark_extracted.assert_awaited_once_with(
         invoice_id=INVOICE_ID,
-        fields=extraction_result.fields,
+        fields=extraction_result.fields.model_dump(mode="json"),
         confidence=extraction_result.confidence,
         confidence_reason=extraction_result.confidence_reason,
     )

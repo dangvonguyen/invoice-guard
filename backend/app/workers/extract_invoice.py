@@ -32,7 +32,7 @@ async def extract_invoice(
 
     await invoices.mark_extracted(
         invoice_id=invoice_id,
-        fields=result.fields,
+        fields=result.fields.model_dump(mode="json"),
         confidence=result.confidence,
         confidence_reason=result.confidence_reason,
     )

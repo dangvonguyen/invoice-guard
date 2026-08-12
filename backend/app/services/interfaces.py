@@ -52,7 +52,12 @@ class InvoiceRepository(Protocol):
         ...
 
     async def mark_extracted(
-        self, *, invoice_id: UUID, extraction_result: dict[str, Any]
+        self,
+        *,
+        invoice_id: UUID,
+        fields: dict[str, Any],
+        confidence: str,
+        confidence_reason: str | None,
     ) -> None:
         """Durably persist successfully extracted invoice data."""
         ...

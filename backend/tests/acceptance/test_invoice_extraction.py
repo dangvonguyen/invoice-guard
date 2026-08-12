@@ -10,6 +10,7 @@ The extraction *model* is the one collaborator faked here.
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -26,7 +27,7 @@ from app.database.models.user import User
 from app.database.repositories.invoice import InvoiceRepository
 from app.services.extraction_service import ExtractionService
 from app.services.span_grounding import SpanGroundingChecker
-from app.services.text_extractor import TextExtractor
+from app.services.text_extractor import PdfTextExtractor
 from app.workers.extract_invoice import extract_invoice
 
 pytestmark = [
@@ -70,7 +71,7 @@ def text_native_pdf_bytes() -> bytes:
 class FakeExtractionModelClient:
     """Stand in for the real LLM boundary with a fixed, schema-valid response."""
 
-    async def extract(self, *, document_text: str) -> dict:
+    async def extract(self, *, document_text: str) -> dict[str, Any]:
         assert VENDOR_NAME in document_text  # sanity: real text was passed in
         return EXTRACTED_FIELDS
 
@@ -129,7 +130,7 @@ async def should_extract_fields_from_a_text_native_pdf_on_first_valid_response(
         invoice.id,
         invoices=InvoiceRepository(session=test_db),
         storage=storage,
-        text_extractor=TextExtractor(),
+        text_extractor=PdfTextExtractor(),
         extraction_service=extraction_service,
     )
     await test_db.commit()
