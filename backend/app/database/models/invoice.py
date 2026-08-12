@@ -21,6 +21,7 @@ class InvoiceStatus(StrEnum):
     PENDING = "pending"
     UPLOAD_FAILED = "upload_failed"
     EXTRACTED = "extracted"
+    EXTRACTION_FAILED = "extraction_failed"
 
 
 class ExtractionConfidence(StrEnum):

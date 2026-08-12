@@ -53,6 +53,15 @@ class InvoiceRepository:
         )
         await self._session.commit()
 
+    async def mark_extraction_failed(self, *, invoice_id: UUID) -> None:
+        """Durably record that extraction could not proceed for an invoice."""
+        await self._session.execute(
+            update(Invoice)
+            .where(Invoice.id == invoice_id)
+            .values(status=InvoiceStatus.EXTRACTION_FAILED)
+        )
+        await self._session.commit()
+
     async def mark_extracted(
         self,
         *,
