@@ -25,10 +25,10 @@ from app.core.storage import LocalStorageClient
 from app.database.models.invoice import Invoice
 from app.database.models.user import User
 from app.database.repositories.invoice import InvoiceRepository
+from app.jobs.extract_invoice import extract_invoice
 from app.services.extraction_service import ExtractionService
 from app.services.span_grounding import SpanGroundingChecker
 from app.services.text_extractor import PdfTextExtractor
-from app.workers.extract_invoice import extract_invoice
 
 pytestmark = [
     pytest.mark.acceptance,

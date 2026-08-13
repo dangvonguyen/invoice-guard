@@ -10,11 +10,11 @@ from app.core.config import get_settings, unwrap_secret
 from app.core.storage import LocalStorageClient
 from app.database.repositories.invoice import InvoiceRepository
 from app.database.session import get_session_factory
+from app.jobs.extract_invoice import extract_invoice
 from app.services.extraction_model import OpenAIExtractionModelClient
 from app.services.extraction_service import ExtractionService
 from app.services.span_grounding import SpanGroundingChecker
 from app.services.text_extractor import PdfTextExtractor
-from app.workers.extract_invoice import extract_invoice
 
 
 def run_extraction_job(invoice_id: str) -> None:

@@ -17,7 +17,7 @@ from app.core.storage import StorageWriteError
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.user import User
 from app.main import app
-from app.workers.jobs import run_extraction_job
+from app.queueing.extraction import run_extraction_job
 
 pytestmark = [
     pytest.mark.acceptance,

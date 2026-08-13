@@ -8,10 +8,10 @@ from uuid import UUID
 import pytest
 
 from app.database.models.invoice import Invoice, InvoiceStatus
+from app.jobs.extract_invoice import InvoiceNotFoundError, extract_invoice
 from app.services.extraction_model import InvoiceFields
 from app.services.extraction_service import ExtractionResult, ExtractionValidationError
 from app.services.text_extractor import NoTextLayerError
-from app.workers.extract_invoice import InvoiceNotFoundError, extract_invoice
 
 pytestmark = [
     pytest.mark.unit,

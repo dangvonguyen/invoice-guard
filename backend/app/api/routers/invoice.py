@@ -16,6 +16,7 @@ from app.api.deps import (
 )
 from app.core.config import get_settings
 from app.database.models.invoice import InvoiceStatus
+from app.queueing.extraction import run_extraction_job
 from app.schemas.invoice import InvoiceDetailResponse, InvoiceUploadResponse
 from app.services.invoice_intake import (
     InvoiceStorageUnavailableError,
@@ -27,7 +28,6 @@ from app.services.invoice_mime_validator import (
     UnreadableUploadError,
     UnsupportedMediaTypeError,
 )
-from app.workers.jobs import run_extraction_job
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
 logger = logging.getLogger(__name__)
