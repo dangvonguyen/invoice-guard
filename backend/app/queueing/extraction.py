@@ -79,6 +79,9 @@ def on_extraction_failure(
     """Failure callback: mark the invoice failed once retries are exhausted."""
     del connection, exc_type, exc_value, exc_traceback
 
+    if job.retries_left != 0:
+        return
+
     invoice_id = UUID(job.args[0])
 
     async def run() -> None:
