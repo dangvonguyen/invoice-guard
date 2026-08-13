@@ -7,6 +7,7 @@ import pytest
 import pytest_asyncio
 from fastapi import status
 from httpx import AsyncClient
+from redis.exceptions import RedisError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -250,3 +251,32 @@ async def should_enqueue_extraction_for_every_accepted_upload(
     assert response.status_code == status.HTTP_201_CREATED
     invoice_id = response.json()["invoice_id"]
     assert spy_queue.enqueued == [(run_extraction_job, (invoice_id,))]
+
+
+async def should_accept_the_upload_even_when_enqueueing_fails(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    auth_headers: dict[str, str],
+) -> None:
+    """Mark extraction failed when broker is unavailable, but keep upload accepted."""
+
+    class FailingQueue:
+        def enqueue(self, func: Any, *args: Any) -> None:
+            del func, args
+            raise RedisError("broker unavailable")
+
+    app.dependency_overrides[get_extraction_queue] = lambda: FailingQueue()
+
+    response = await client.post(
+        "/invoices",
+        headers=auth_headers,
+        files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    response_body = response.json()
+    assert response_body["status"] == "extraction_failed"
+    invoice_id = UUID(response_body["invoice_id"])
+    stored = await test_db.get(Invoice, invoice_id)
+    assert stored is not None
+    assert stored.status == InvoiceStatus.EXTRACTION_FAILED

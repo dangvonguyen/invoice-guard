@@ -6,6 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
+from redis.exceptions import RedisError
 
 from app.api.deps import (
     CurrentUser,
@@ -14,6 +15,7 @@ from app.api.deps import (
     InvoiceRepositoryDep,
 )
 from app.core.config import get_settings
+from app.database.models.invoice import InvoiceStatus
 from app.schemas.invoice import InvoiceDetailResponse, InvoiceUploadResponse
 from app.services.invoice_intake import (
     InvoiceStorageUnavailableError,
@@ -36,6 +38,7 @@ async def upload_invoice(
     current_user: CurrentUser,
     invoice_intake: InvoiceIntakeServiceDep,
     extraction_queue: ExtractionQueueDep,
+    invoices: InvoiceRepositoryDep,
     file: Annotated[UploadFile, File()],
 ) -> InvoiceUploadResponse:
     """Accept an invoice document and enqueue it for processing."""
@@ -84,9 +87,20 @@ async def upload_invoice(
             detail="Invoice storage is temporarily unavailable. Try again shortly.",
         )
 
-    await run_in_threadpool(
-        extraction_queue.enqueue, run_extraction_job, str(invoice.id)
-    )
+    try:
+        await run_in_threadpool(
+            extraction_queue.enqueue, run_extraction_job, str(invoice.id)
+        )
+    except RedisError:
+        logger.warning(
+            "Invoice extraction enqueue failed",
+            extra={
+                "event": "invoice.extraction.enqueue_failed",
+                "context": {"invoice_id": str(invoice.id)},
+            },
+        )
+        await invoices.mark_extraction_failed(invoice_id=invoice.id)
+        invoice.status = InvoiceStatus.EXTRACTION_FAILED
 
     logger.info(
         "Invoice upload accepted",
