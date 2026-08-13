@@ -64,6 +64,10 @@ class Settings(BaseSettings):
     # adapter behind the same StorageClient protocol before deploying.
     STORAGE_LOCAL_PATH: str = "./data/invoices"
 
+    # Extraction model
+    OPENAI_API_KEY: SecretStr
+    OPENAI_EXTRACTION_MODEL: str = "gpt-5-mini"
+
     @field_validator("API_ROOT")
     @classmethod
     def check_api_root(cls: type[Settings], value: str) -> str:

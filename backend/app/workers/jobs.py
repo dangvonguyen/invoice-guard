@@ -4,11 +4,13 @@ import asyncio
 from pathlib import Path
 from uuid import UUID
 
-from app.core.config import get_settings
+from openai import AsyncOpenAI
+
+from app.core.config import get_settings, unwrap_secret
 from app.core.storage import LocalStorageClient
 from app.database.repositories.invoice import InvoiceRepository
 from app.database.session import get_session_factory
-from app.services.extraction_model import TempExtractionModelClient
+from app.services.extraction_model import OpenAIExtractionModelClient
 from app.services.extraction_service import ExtractionService
 from app.services.span_grounding import SpanGroundingChecker
 from app.services.text_extractor import PdfTextExtractor
@@ -29,7 +31,10 @@ async def _run_extraction_job(invoice_id: UUID) -> None:
             storage=LocalStorageClient(base_path=Path(settings.STORAGE_LOCAL_PATH)),
             text_extractor=PdfTextExtractor(),
             extraction_service=ExtractionService(
-                model=TempExtractionModelClient(),
+                model=OpenAIExtractionModelClient(
+                    client=AsyncOpenAI(api_key=unwrap_secret(settings.OPENAI_API_KEY)),
+                    model=settings.OPENAI_EXTRACTION_MODEL,
+                ),
                 grounding_checker=SpanGroundingChecker(),
             ),
         )
