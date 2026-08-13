@@ -236,7 +236,8 @@ async def should_enqueue_extraction_for_every_accepted_upload(
         def __init__(self) -> None:
             self.enqueued: list[tuple[Any, tuple[Any, ...]]] = []
 
-        def enqueue(self, func: Any, *args: Any) -> None:
+        def enqueue(self, func: Any, *args: Any, **kwargs: Any) -> None:
+            del kwargs
             self.enqueued.append((func, args))
 
     spy_queue = SpyQueue()
@@ -261,8 +262,8 @@ async def should_accept_the_upload_even_when_enqueueing_fails(
     """Mark extraction failed when broker is unavailable, but keep upload accepted."""
 
     class FailingQueue:
-        def enqueue(self, func: Any, *args: Any) -> None:
-            del func, args
+        def enqueue(self, func: Any, *args: Any, **kwargs: Any) -> None:
+            del func, args, kwargs
             raise RedisError("broker unavailable")
 
     app.dependency_overrides[get_extraction_queue] = lambda: FailingQueue()

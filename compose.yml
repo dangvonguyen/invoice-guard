@@ -101,7 +101,7 @@ services:
       POSTGRES_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
-    command: ["rq", "worker", "extraction"]
+    command: ["rq", "worker", "extraction", "--with-scheduler"]
     volumes:
       - ./backend:/app
       - /app/.venv
