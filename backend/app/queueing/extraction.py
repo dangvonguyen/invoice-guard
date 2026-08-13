@@ -1,6 +1,7 @@
 """Queue invoice extraction jobs and handle their worker lifecycle."""
 
 import asyncio
+import logging
 from pathlib import Path
 from types import TracebackType
 from uuid import UUID
@@ -15,7 +16,7 @@ from app.core.config import get_settings, unwrap_secret
 from app.core.storage import LocalStorageClient
 from app.database.repositories.invoice import InvoiceRepository
 from app.database.session import get_session_factory
-from app.jobs.extract_invoice import extract_invoice
+from app.jobs.extract_invoice import InvoiceNotFoundError, extract_invoice
 from app.services.extraction_model import OpenAIExtractionModelClient
 from app.services.extraction_service import ExtractionService
 from app.services.span_grounding import SpanGroundingChecker
@@ -24,6 +25,8 @@ from app.services.text_extractor import PdfTextExtractor
 _EXTRACTION_TIMEOUT_SECONDS = 180
 _EXTRACTION_RETRY_INTERVALS_SECONDS = [10, 30]
 _FAILURE_CALLBACK_TIMEOUT_SECONDS = 10
+
+logger = logging.getLogger(__name__)
 
 
 class ExtractionEnqueueError(Exception):
@@ -54,19 +57,30 @@ async def run_extraction_job(invoice_id: str) -> None:
     """Entry point: extract fields for one stored invoice."""
     settings = get_settings()
     async with get_session_factory()() as session, session.begin():
-        await extract_invoice(
-            UUID(invoice_id),
-            invoices=InvoiceRepository(session=session),
-            storage=LocalStorageClient(base_path=Path(settings.STORAGE_LOCAL_PATH)),
-            text_extractor=PdfTextExtractor(),
-            extraction_service=ExtractionService(
-                model=OpenAIExtractionModelClient(
-                    client=AsyncOpenAI(api_key=unwrap_secret(settings.OPENAI_API_KEY)),
-                    model=settings.OPENAI_EXTRACTION_MODEL,
+        try:
+            await extract_invoice(
+                UUID(invoice_id),
+                invoices=InvoiceRepository(session=session),
+                storage=LocalStorageClient(base_path=Path(settings.STORAGE_LOCAL_PATH)),
+                text_extractor=PdfTextExtractor(),
+                extraction_service=ExtractionService(
+                    model=OpenAIExtractionModelClient(
+                        client=AsyncOpenAI(
+                            api_key=unwrap_secret(settings.OPENAI_API_KEY)
+                        ),
+                        model=settings.OPENAI_EXTRACTION_MODEL,
+                    ),
+                    grounding_checker=SpanGroundingChecker(),
                 ),
-                grounding_checker=SpanGroundingChecker(),
-            ),
-        )
+            )
+        except InvoiceNotFoundError:
+            logger.warning(
+                "Invoice extraction skipped because the invoice no longer exists",
+                extra={
+                    "event": "invoice.extraction.invoice_not_found",
+                    "context": {"invoice_id": invoice_id},
+                },
+            )
 
 
 def on_extraction_failure(
