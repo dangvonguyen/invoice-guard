@@ -7,7 +7,8 @@ The backend is a FastAPI application backed by PostgreSQL and Redis. It can be r
 - **FastAPI** as the API framework.
 - **Pydantic** for request, response, and settings validation.
 - **PostgreSQL** as the relational database.
-- **Redis** for per-user invoice upload rate limiting.
+- **Redis** for per-user invoice upload rate limiting and the RQ extraction queue.
+- **OpenAI structured outputs** for schema-constrained invoice field extraction.
 - **SQLAlchemy** with `asyncpg` for asynchronous ORM and database access.
 - **Alembic** for migrations, configured for async engines.
 - **Argon2** and **PyJWT** for password hashing and JWT bearer authentication.
@@ -32,7 +33,7 @@ cp .env.example .env
 cp backend/.env.example backend/.env
 ```
 
-Update the root `.env` file with your PostgreSQL credentials. The example files also contain the Redis connection and invoice upload settings used by local development.
+Update the root `.env` file with your PostgreSQL credentials, then set `OPENAI_API_KEY` in `backend/.env`. The example files also contain the Redis connection, invoice upload, and extraction model settings used by local development.
 
 > **NOTE**
 >
@@ -42,7 +43,7 @@ Update the root `.env` file with your PostgreSQL credentials. The example files 
 
 The root `Makefile` provides convenient wrappers around the Docker Compose commands used to manage the stack.
 
-From the repository root, start PostgreSQL and Redis, apply database migrations, and run the backend with automatic reload. Use `up-d` to start the same stack in the background:
+From the repository root, start PostgreSQL and Redis, apply database migrations, and run the backend, extraction worker, and frontend. Use `up-d` to start the same stack in the background:
 
 ```sh
 make up
@@ -80,11 +81,17 @@ uv run alembic upgrade head
 uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
 ```
 
+Start the extraction worker in a second terminal from the `backend` directory:
+
+```sh
+uv run rq worker extraction --with-scheduler
+```
+
 ## Invoice uploads
 
 Authenticated users can upload invoices as multipart form data through `POST /invoices`. The `file` field currently accepts non-empty PDF content whose filename ends in `.pdf`.
 
-Accepted uploads return `201` with an invoice ID and `pending` status. The service creates the database record before writing the file. If storage fails, it marks the record as `upload_failed` and returns `503` so the request can be retried safely.
+Accepted uploads are stored and queued for asynchronous extraction. They return `201` with an invoice ID and usually a `pending` status. The service creates the database record before writing the file. If storage fails, it marks the record as `upload_failed` and returns `503` so the request can be retried safely. If queueing fails, the upload remains accepted but is returned with an `extraction_failed` status.
 
 Upload behavior is configured in `backend/.env`:
 
@@ -108,6 +115,12 @@ The endpoint can return:
 
 The raw `POST /invoices` request body is capped before multipart parsing at `UPLOAD_MAX_BYTES` plus 64 KiB for the multipart envelope. This bounds temporary disk and memory use even for unauthenticated or chunked requests.
 
+## Invoice extraction
+
+The RQ worker reads an uploaded PDF, extracts its text layer, and sends that text to the configured OpenAI model for structured extraction. Returned values are checked against the source text before the invoice is saved with an `extracted` status and `high` or `low` confidence. PDFs without a text layer and jobs that exhaust their retries are marked `extraction_failed`.
+
+Authenticated users can retrieve an invoice they own through `GET /invoices/{invoice_id}`. The response contains its current status and, when extraction succeeds, the extracted fields, confidence, and confidence reason. Missing invoices and invoices owned by another user both return `404`.
+
 ## Project structure
 
 ```
@@ -116,6 +129,7 @@ app/
   core/
     security/           # Password hashing and JWT issuing/decoding
     config.py           # Settings (env-driven)
+    queue.py            # RQ queue connection and factory
     rate_limit.py       # Redis-backed fixed-window rate limiter
     storage.py          # Invoice storage interface and local adapter
   database/
@@ -125,7 +139,9 @@ app/
     base.py             # Declarative base model
     session.py          # Engine, session factories
   schemas/              # Pydantic request/response models
-  services/             # Application use cases and collaborator protocols
+  jobs/                 # RQ worker entry points
+  queueing/             # Queue scheduling and retry policy
+  services/             # Application use cases
 scripts/                # Operational commands, including local user seeding
 tests/
   unit/                 # No I/O, collaborators mocked
