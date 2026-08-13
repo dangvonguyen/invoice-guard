@@ -6,7 +6,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
-from redis.exceptions import RedisError
 
 from app.api.deps import (
     CurrentUser,
@@ -16,7 +15,7 @@ from app.api.deps import (
 )
 from app.core.config import get_settings
 from app.database.models.invoice import InvoiceStatus
-from app.queueing.extraction import run_extraction_job
+from app.queueing.extraction import ExtractionEnqueueError, run_extraction_enqueue
 from app.schemas.invoice import InvoiceDetailResponse, InvoiceUploadResponse
 from app.services.invoice_intake import (
     InvoiceStorageUnavailableError,
@@ -88,10 +87,8 @@ async def upload_invoice(
         )
 
     try:
-        await run_in_threadpool(
-            extraction_queue.enqueue, run_extraction_job, str(invoice.id)
-        )
-    except RedisError:
+        await run_in_threadpool(run_extraction_enqueue, extraction_queue, invoice.id)
+    except ExtractionEnqueueError:
         logger.warning(
             "Invoice extraction enqueue failed",
             extra={
