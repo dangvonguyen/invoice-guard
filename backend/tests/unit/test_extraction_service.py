@@ -8,6 +8,7 @@ from app.services.extraction_service import (
     ExtractionService,
     ExtractionValidationError,
 )
+from app.services.span_grounding import SpanGroundingChecker
 
 pytestmark = [
     pytest.mark.unit,
@@ -100,6 +101,50 @@ async def should_flag_low_confidence_when_a_field_is_not_grounded(
     assert str(result.fields.total_amount) == "999.00"
     assert result.confidence == "low"
     assert result.confidence_reason is not None
+
+
+async def should_ground_dates_and_amounts_using_equivalent_source_formats(
+    model: AsyncMock,
+) -> None:
+    """Validated dates and decimals need not retain their source formatting."""
+    model.extract.return_value = {
+        **VALID_RAW_RESPONSE,
+        "invoice_date": "2026-08-13",
+        "total_amount": "1234.56",
+    }
+    service = ExtractionService(model=model, grounding_checker=SpanGroundingChecker())
+    document_text = (
+        "Vendor: Acme Supplies\nInvoice date: 08/13/2026\n"
+        "Tax: 32.10 USD\nTotal: 1,234.56 USD"
+    )
+
+    result = await service.extract(document_text=document_text)
+
+    assert result.confidence == "high"
+    assert result.confidence_reason is None
+
+
+async def should_not_ground_different_dates_or_grouped_amounts(
+    model: AsyncMock,
+) -> None:
+    """Format-aware comparison must still reject unequal values."""
+    model.extract.return_value = {
+        **VALID_RAW_RESPONSE,
+        "invoice_date": "2026-08-14",
+        "total_amount": "1235.56",
+    }
+    service = ExtractionService(model=model, grounding_checker=SpanGroundingChecker())
+    document_text = (
+        "Vendor: Acme Supplies\nInvoice date: 08/13/2026\n"
+        "Tax: 32.10 USD\nTotal: 1,234.56 USD"
+    )
+
+    result = await service.extract(document_text=document_text)
+
+    assert result.confidence == "low"
+    assert result.confidence_reason is not None
+    assert "invoice_date" in result.confidence_reason
+    assert "total_amount" in result.confidence_reason
 
 
 async def should_retry_and_succeed_when_a_later_attempt_is_schema_valid(

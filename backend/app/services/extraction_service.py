@@ -1,6 +1,8 @@
 """Coordinate the extraction model and span-grounding checks."""
 
 from dataclasses import dataclass
+from datetime import date
+from decimal import Decimal
 from typing import Literal
 
 from pydantic import ValidationError
@@ -84,9 +86,35 @@ class ExtractionService:
     ) -> list[str]:
         ungrounded: list[str] = []
         for field_name in self._GROUNDED_FIELD_NAMES:
-            value = str(getattr(fields, field_name))
-            if not self._grounding_checker.check(
-                value=value, source_text=document_text
+            value = getattr(fields, field_name)
+            if not any(
+                self._grounding_checker.check(
+                    value=candidate, source_text=document_text
+                )
+                for candidate in self._grounding_candidates(value)
             ):
                 ungrounded.append(field_name)
         return ungrounded
+
+    @staticmethod
+    def _grounding_candidates(value: str | date | Decimal) -> tuple[str, ...]:
+        """Return common source spellings equivalent to a validated value."""
+        candidates: tuple[str, ...]
+        if isinstance(value, date):
+            year, month, day = value.year, value.month, value.day
+            candidates = (
+                f"{year:04d}-{month:02d}-{day:02d}",
+                f"{month:02d}/{day:02d}/{year:04d}",
+                f"{month}/{day}/{year:04d}",
+                f"{day:02d}/{month:02d}/{year:04d}",
+                f"{day}/{month}/{year:04d}",
+            )
+        elif isinstance(value, Decimal):
+            candidates = (
+                format(value, "f"),
+                format(value, ",f"),
+            )
+        else:
+            candidates = (value,)
+
+        return tuple(dict.fromkeys(candidates))
