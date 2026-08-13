@@ -5,8 +5,14 @@ from typing import Annotated, NoReturn
 from uuid import UUID
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 
-from app.api.deps import CurrentUser, InvoiceIntakeServiceDep, InvoiceRepositoryDep
+from app.api.deps import (
+    CurrentUser,
+    ExtractionQueueDep,
+    InvoiceIntakeServiceDep,
+    InvoiceRepositoryDep,
+)
 from app.core.config import get_settings
 from app.schemas.invoice import InvoiceDetailResponse, InvoiceUploadResponse
 from app.services.invoice_intake import (
@@ -19,6 +25,7 @@ from app.services.invoice_mime_validator import (
     UnreadableUploadError,
     UnsupportedMediaTypeError,
 )
+from app.workers.jobs import run_extraction_job
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
 logger = logging.getLogger(__name__)
@@ -28,6 +35,7 @@ logger = logging.getLogger(__name__)
 async def upload_invoice(
     current_user: CurrentUser,
     invoice_intake: InvoiceIntakeServiceDep,
+    extraction_queue: ExtractionQueueDep,
     file: Annotated[UploadFile, File()],
 ) -> InvoiceUploadResponse:
     """Accept an invoice document and enqueue it for processing."""
@@ -75,6 +83,10 @@ async def upload_invoice(
             reason="storage_unavailable",
             detail="Invoice storage is temporarily unavailable. Try again shortly.",
         )
+
+    await run_in_threadpool(
+        extraction_queue.enqueue, run_extraction_job, str(invoice.id)
+    )
 
     logger.info(
         "Invoice upload accepted",

@@ -7,10 +7,12 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from redis.asyncio import Redis
+from rq import Queue
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings, unwrap_secret
 from app.core.logging import bind_user_id
+from app.core.queue import get_extraction_queue
 from app.core.rate_limit import RateLimiter, RedisRateLimiter
 from app.core.redis import get_redis
 from app.core.security import JwtAccessTokenCodec, PasswordHasher
@@ -177,3 +179,6 @@ def get_invoice_intake_service(
 InvoiceIntakeServiceDep = Annotated[
     InvoiceIntakeService, Depends(get_invoice_intake_service)
 ]
+
+
+ExtractionQueueDep = Annotated[Queue, Depends(get_extraction_queue)]
