@@ -87,14 +87,22 @@ class ExtractionService:
         ungrounded: list[str] = []
         for field_name in self._GROUNDED_FIELD_NAMES:
             value = getattr(fields, field_name)
-            if not any(
-                self._grounding_checker.check(
-                    value=candidate, source_text=document_text
-                )
-                for candidate in self._grounding_candidates(value)
-            ):
+            if not self._is_grounded(value, document_text):
                 ungrounded.append(field_name)
+
+        for index, line_item in enumerate(fields.line_items):
+            if not self._is_grounded(line_item.description, document_text):
+                ungrounded.append(f"line_items[{index}].description")
+            if not self._is_grounded(line_item.amount, document_text):
+                ungrounded.append(f"line_items[{index}].amount")
+
         return ungrounded
+
+    def _is_grounded(self, value: str | date | Decimal, document_text: str) -> bool:
+        return any(
+            self._grounding_checker.check(value=candidate, source_text=document_text)
+            for candidate in self._grounding_candidates(value)
+        )
 
     @staticmethod
     def _grounding_candidates(value: str | date | Decimal) -> tuple[str, ...]:

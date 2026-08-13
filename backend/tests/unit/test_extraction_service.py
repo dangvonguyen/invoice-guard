@@ -147,6 +147,48 @@ async def should_not_ground_different_dates_or_grouped_amounts(
     assert "total_amount" in result.confidence_reason
 
 
+async def should_ground_line_item_descriptions_and_formatted_amounts(
+    model: AsyncMock,
+) -> None:
+    """Line-item fields participate in grounding with semantic amounts."""
+    model.extract.return_value = {
+        **VALID_RAW_RESPONSE,
+        "line_items": [{"description": "Consulting", "amount": "1234.56"}],
+    }
+    service = ExtractionService(model=model, grounding_checker=SpanGroundingChecker())
+    document_text = (
+        "Vendor: Acme Supplies\nInvoice date: 2026-08-03\n"
+        "Consulting 1,234.56\nTax: 32.10 USD\nTotal: 482.10 USD"
+    )
+
+    result = await service.extract(document_text=document_text)
+
+    assert result.confidence == "high"
+    assert result.confidence_reason is None
+
+
+async def should_flag_ungrounded_line_item_fields_as_low_confidence(
+    model: AsyncMock,
+) -> None:
+    """Fabricated line-item descriptions and amounts lower confidence."""
+    model.extract.return_value = {
+        **VALID_RAW_RESPONSE,
+        "line_items": [{"description": "Fabricated service", "amount": "999.00"}],
+    }
+    service = ExtractionService(model=model, grounding_checker=SpanGroundingChecker())
+    document_text = (
+        "Vendor: Acme Supplies\nInvoice date: 2026-08-03\n"
+        "Consulting 100.00\nTax: 32.10 USD\nTotal: 482.10 USD"
+    )
+
+    result = await service.extract(document_text=document_text)
+
+    assert result.confidence == "low"
+    assert result.confidence_reason is not None
+    assert "line_items[0].description" in result.confidence_reason
+    assert "line_items[0].amount" in result.confidence_reason
+
+
 async def should_retry_and_succeed_when_a_later_attempt_is_schema_valid(
     service: ExtractionService, model: AsyncMock, grounding_checker: Mock
 ) -> None:
