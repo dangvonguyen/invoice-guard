@@ -96,7 +96,7 @@ def text_native_pdf_bytes_with_ungrounded_amount() -> bytes:
 class FakeExtractionModelClient:
     """Stand in for the real LLM boundary with a fixed, schema-valid response."""
 
-    async def extract(
+    async def extract_raw_fields(
         self, *, document_text: str, validation_error: str | None = None
     ) -> dict[str, Any]:
         assert VENDOR_NAME in document_text  # sanity: real text was passed in
@@ -106,7 +106,7 @@ class FakeExtractionModelClient:
 class NeverCalledExtractionModelClient:
     """Stand in for the LLM boundary that must never be reached for this scenario."""
 
-    async def extract(
+    async def extract_raw_fields(
         self, *, document_text: str, validation_error: str | None = None
     ) -> dict[str, Any]:
         raise AssertionError(
@@ -120,7 +120,7 @@ class AlwaysInvalidExtractionModelClient:
     def __init__(self) -> None:
         self.call_count = 0
 
-    async def extract(
+    async def extract_raw_fields(
         self, *, document_text: str, validation_error: str | None = None
     ) -> dict[str, Any]:
         del document_text, validation_error
@@ -131,7 +131,7 @@ class AlwaysInvalidExtractionModelClient:
 class UngroundedFieldExtractionModelClient:
     """Stand in for an LLM returning a schema-valid value not in the source text."""
 
-    async def extract(
+    async def extract_raw_fields(
         self, *, document_text: str, validation_error: str | None = None
     ) -> dict[str, Any]:
         assert "$120.00" in document_text  # sanity: grounded value is present

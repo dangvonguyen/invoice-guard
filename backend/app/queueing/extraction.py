@@ -17,8 +17,8 @@ from app.core.storage import LocalStorageClient
 from app.database.repositories.invoice import InvoiceRepository
 from app.database.session import get_session_factory
 from app.jobs.extract_invoice import InvoiceNotFoundError, extract_invoice
+from app.services.extraction.model import OpenAIModelClient
 from app.services.extraction.pipeline import ExtractionPipeline
-from app.services.extraction_model import OpenAIExtractionModelClient
 from app.services.span_grounding import SpanGroundingChecker
 from app.services.text_extractor import PdfTextExtractor
 
@@ -81,7 +81,7 @@ async def run_extraction_job(invoice_id: str) -> None:
                 storage=LocalStorageClient(base_path=Path(settings.STORAGE_LOCAL_PATH)),
                 text_extractor=PdfTextExtractor(),
                 extraction_pipeline=ExtractionPipeline(
-                    model=OpenAIExtractionModelClient(
+                    model=OpenAIModelClient(
                         client=AsyncOpenAI(
                             api_key=unwrap_secret(settings.OPENAI_API_KEY)
                         ),

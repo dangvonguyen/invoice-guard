@@ -9,8 +9,8 @@ import pytest
 
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.jobs.extract_invoice import InvoiceNotFoundError, extract_invoice
+from app.services.extraction.model import ExtractedInvoice
 from app.services.extraction.pipeline import ExtractionResult, InvalidModelOutputError
-from app.services.extraction_model import InvoiceFields
 from app.services.text_extractor import NoTextLayerError
 
 pytestmark = [
@@ -68,7 +68,7 @@ def stored_invoice() -> Invoice:
 
 @pytest.fixture
 def extraction_result() -> ExtractionResult:
-    fields = InvoiceFields.model_validate(EXTRACTED_FIELDS)
+    fields = ExtractedInvoice.model_validate(EXTRACTED_FIELDS)
     return ExtractionResult(fields=fields, confidence="high", confidence_reason=None)
 
 

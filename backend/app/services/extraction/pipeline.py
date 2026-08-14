@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import ValidationError
 
-from app.services.extraction_model import ExtractionModelClient, InvoiceFields
+from app.services.extraction.model import ExtractedInvoice, ModelClient
 from app.services.span_grounding import SpanGroundingChecker
 
 
@@ -15,7 +15,7 @@ from app.services.span_grounding import SpanGroundingChecker
 class ExtractionResult:
     """One extraction attempt's persisted-worthy outcome."""
 
-    fields: InvoiceFields
+    fields: ExtractedInvoice
     confidence: Literal["high", "low"]
     confidence_reason: str | None
 
@@ -38,7 +38,7 @@ class ExtractionPipeline:
     _MAX_MODEL_ATTEMPTS = 3
 
     def __init__(
-        self, model: ExtractionModelClient, grounding_checker: SpanGroundingChecker
+        self, model: ModelClient, grounding_checker: SpanGroundingChecker
     ) -> None:
         self._model = model
         self._grounding_checker = grounding_checker
@@ -52,11 +52,11 @@ class ExtractionPipeline:
         """
         validation_error: str | None = None
         for _ in range(self._MAX_MODEL_ATTEMPTS):
-            raw_response = await self._model.extract(
+            raw_response = await self._model.extract_raw_fields(
                 document_text=document_text, validation_error=validation_error
             )
             try:
-                fields = InvoiceFields.model_validate(raw_response)
+                fields = ExtractedInvoice.model_validate(raw_response)
             except ValidationError as exc:
                 validation_error = str(exc)
                 continue
@@ -68,7 +68,7 @@ class ExtractionPipeline:
         )
 
     def _build_result(
-        self, fields: InvoiceFields, document_text: str
+        self, fields: ExtractedInvoice, document_text: str
     ) -> ExtractionResult:
         ungrounded = self._find_ungrounded_fields(fields, document_text)
         if not ungrounded:
@@ -82,7 +82,7 @@ class ExtractionPipeline:
         )
 
     def _find_ungrounded_fields(
-        self, fields: InvoiceFields, document_text: str
+        self, fields: ExtractedInvoice, document_text: str
     ) -> list[str]:
         ungrounded: list[str] = []
         for field_name in self._REQUIRING_FIELDS:
