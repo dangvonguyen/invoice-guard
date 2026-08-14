@@ -17,9 +17,9 @@ from app.core.storage import LocalStorageClient
 from app.database.repositories.invoice import InvoiceRepository
 from app.database.session import get_session_factory
 from app.jobs.extract_invoice import InvoiceNotFoundError, extract_invoice
+from app.services.extraction.grounding import GroundingChecker
 from app.services.extraction.model import OpenAIModelClient
 from app.services.extraction.pipeline import ExtractionPipeline
-from app.services.span_grounding import SpanGroundingChecker
 from app.services.text_extractor import PdfTextExtractor
 
 _EXTRACTION_TIMEOUT_SECONDS = 180
@@ -87,7 +87,7 @@ async def run_extraction_job(invoice_id: str) -> None:
                         ),
                         model=settings.OPENAI_EXTRACTION_MODEL,
                     ),
-                    grounding_checker=SpanGroundingChecker(),
+                    grounding_checker=GroundingChecker(),
                 ),
             )
         except InvoiceNotFoundError:

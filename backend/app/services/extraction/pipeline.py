@@ -1,14 +1,12 @@
 """Coordinate the extraction model and span-grounding checks."""
 
 from dataclasses import dataclass
-from datetime import date
-from decimal import Decimal
 from typing import Literal
 
 from pydantic import ValidationError
 
+from app.services.extraction.grounding import GroundingChecker
 from app.services.extraction.model import ExtractedInvoice, ModelClient
-from app.services.span_grounding import SpanGroundingChecker
 
 
 @dataclass(frozen=True)
@@ -37,9 +35,7 @@ class ExtractionPipeline:
 
     _MAX_MODEL_ATTEMPTS = 3
 
-    def __init__(
-        self, model: ModelClient, grounding_checker: SpanGroundingChecker
-    ) -> None:
+    def __init__(self, model: ModelClient, grounding_checker: GroundingChecker) -> None:
         self._model = model
         self._grounding_checker = grounding_checker
 
@@ -87,42 +83,19 @@ class ExtractionPipeline:
         ungrounded: list[str] = []
         for field_name in self._REQUIRING_FIELDS:
             value = getattr(fields, field_name)
-            if not self._is_grounded(value, document_text):
+            if not self._grounding_checker.is_grounded(
+                value=value, source_text=document_text
+            ):
                 ungrounded.append(field_name)
 
         for index, line_item in enumerate(fields.line_items):
-            if not self._is_grounded(line_item.description, document_text):
+            if not self._grounding_checker.is_grounded(
+                value=line_item.description, source_text=document_text
+            ):
                 ungrounded.append(f"line_items[{index}].description")
-            if not self._is_grounded(line_item.amount, document_text):
+            if not self._grounding_checker.is_grounded(
+                value=line_item.amount, source_text=document_text
+            ):
                 ungrounded.append(f"line_items[{index}].amount")
 
         return ungrounded
-
-    def _is_grounded(self, value: str | date | Decimal, document_text: str) -> bool:
-        return any(
-            self._grounding_checker.check(value=candidate, source_text=document_text)
-            for candidate in self._grounding_candidates(value)
-        )
-
-    @staticmethod
-    def _grounding_candidates(value: str | date | Decimal) -> tuple[str, ...]:
-        """Return common source spellings equivalent to a validated value."""
-        candidates: tuple[str, ...]
-        if isinstance(value, date):
-            year, month, day = value.year, value.month, value.day
-            candidates = (
-                f"{year:04d}-{month:02d}-{day:02d}",
-                f"{month:02d}/{day:02d}/{year:04d}",
-                f"{month}/{day}/{year:04d}",
-                f"{day:02d}/{month:02d}/{year:04d}",
-                f"{day}/{month}/{year:04d}",
-            )
-        elif isinstance(value, Decimal):
-            candidates = (
-                format(value, "f"),
-                format(value, ",f"),
-            )
-        else:
-            candidates = (value,)
-
-        return tuple(dict.fromkeys(candidates))

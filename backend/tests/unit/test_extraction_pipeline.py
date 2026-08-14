@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from app.services.extraction.grounding import GroundingChecker
 from app.services.extraction.pipeline import ExtractionPipeline, InvalidModelOutputError
-from app.services.span_grounding import SpanGroundingChecker
 
 pytestmark = [
     pytest.mark.unit,
@@ -50,7 +50,7 @@ async def should_return_high_confidence_when_every_field_is_grounded(
 ) -> None:
     """A schema-valid, fully-grounded response is high confidence."""
     model.extract_raw_fields.return_value = VALID_RAW_RESPONSE
-    grounding_checker.check.return_value = True
+    grounding_checker.is_grounded.return_value = True
 
     result = await pipeline.run(document_text=DOCUMENT_TEXT)
 
@@ -68,16 +68,17 @@ async def should_check_every_extracted_field_against_the_source_text(
 ) -> None:
     """Ground each scalar field individually, not just the response as a whole."""
     model.extract_raw_fields.return_value = VALID_RAW_RESPONSE
-    grounding_checker.check.return_value = True
+    grounding_checker.is_grounded.return_value = True
 
     await pipeline.run(document_text=DOCUMENT_TEXT)
 
     checked_values = {
-        call.kwargs["value"] for call in grounding_checker.check.call_args_list
+        str(call.kwargs["value"])
+        for call in grounding_checker.is_grounded.call_args_list
     }
     assert "Acme Supplies" in checked_values
     assert "482.10" in checked_values
-    for call in grounding_checker.check.call_args_list:
+    for call in grounding_checker.is_grounded.call_args_list:
         assert call.kwargs["source_text"] == DOCUMENT_TEXT
 
 
@@ -90,11 +91,11 @@ async def should_flag_low_confidence_when_a_field_is_not_grounded(
         "total_amount": "999.00",
     }
 
-    def check(*, value: str, source_text: str) -> bool:
+    def is_grounded(value: object, source_text: str) -> bool:
         del source_text
-        return value != "999.00"
+        return str(value) != "999.00"
 
-    grounding_checker.check.side_effect = check
+    grounding_checker.is_grounded.side_effect = is_grounded
 
     result = await pipeline.run(document_text=DOCUMENT_TEXT)
 
@@ -112,7 +113,7 @@ async def should_ground_dates_and_amounts_using_equivalent_source_formats(
         "invoice_date": "2026-08-13",
         "total_amount": "1234.56",
     }
-    pipeline = ExtractionPipeline(model=model, grounding_checker=SpanGroundingChecker())
+    pipeline = ExtractionPipeline(model=model, grounding_checker=GroundingChecker())
     document_text = (
         "Vendor: Acme Supplies\nInvoice date: 08/13/2026\n"
         "Tax: 32.10 USD\nTotal: 1,234.56 USD"
@@ -133,7 +134,7 @@ async def should_not_ground_different_dates_or_grouped_amounts(
         "invoice_date": "2026-08-14",
         "total_amount": "1235.56",
     }
-    pipeline = ExtractionPipeline(model=model, grounding_checker=SpanGroundingChecker())
+    pipeline = ExtractionPipeline(model=model, grounding_checker=GroundingChecker())
     document_text = (
         "Vendor: Acme Supplies\nInvoice date: 08/13/2026\n"
         "Tax: 32.10 USD\nTotal: 1,234.56 USD"
@@ -155,7 +156,7 @@ async def should_ground_line_item_descriptions_and_formatted_amounts(
         **VALID_RAW_RESPONSE,
         "line_items": [{"description": "Consulting", "amount": "1234.56"}],
     }
-    pipeline = ExtractionPipeline(model=model, grounding_checker=SpanGroundingChecker())
+    pipeline = ExtractionPipeline(model=model, grounding_checker=GroundingChecker())
     document_text = (
         "Vendor: Acme Supplies\nInvoice date: 2026-08-03\n"
         "Consulting 1,234.56\nTax: 32.10 USD\nTotal: 482.10 USD"
@@ -175,7 +176,7 @@ async def should_flag_ungrounded_line_item_fields_as_low_confidence(
         **VALID_RAW_RESPONSE,
         "line_items": [{"description": "Fabricated service", "amount": "999.00"}],
     }
-    pipeline = ExtractionPipeline(model=model, grounding_checker=SpanGroundingChecker())
+    pipeline = ExtractionPipeline(model=model, grounding_checker=GroundingChecker())
     document_text = (
         "Vendor: Acme Supplies\nInvoice date: 2026-08-03\n"
         "Consulting 100.00\nTax: 32.10 USD\nTotal: 482.10 USD"
@@ -194,7 +195,7 @@ async def should_retry_and_succeed_when_a_later_attempt_is_schema_valid(
 ) -> None:
     """A schema-invalid first attempt is retried, not fatal, within budget."""
     model.extract_raw_fields.side_effect = [INVALID_RAW_RESPONSE, VALID_RAW_RESPONSE]
-    grounding_checker.check.return_value = True
+    grounding_checker.is_grounded.return_value = True
 
     result = await pipeline.run(document_text=DOCUMENT_TEXT)
 
@@ -208,7 +209,7 @@ async def should_reprompt_with_the_previous_validation_error_on_retry(
 ) -> None:
     """Feed the prior attempt's schema-validation failure back to the model."""
     model.extract_raw_fields.side_effect = [INVALID_RAW_RESPONSE, VALID_RAW_RESPONSE]
-    grounding_checker.check.return_value = True
+    grounding_checker.is_grounded.return_value = True
 
     await pipeline.run(document_text=DOCUMENT_TEXT)
 
@@ -223,7 +224,7 @@ async def should_raise_after_exhausting_all_retry_attempts(
 ) -> None:
     """Give up after 1 initial attempt plus 2 retries, all schema-invalid."""
     model.extract_raw_fields.return_value = INVALID_RAW_RESPONSE
-    grounding_checker.check.return_value = True
+    grounding_checker.is_grounded.return_value = True
 
     with pytest.raises(InvalidModelOutputError):
         await pipeline.run(document_text=DOCUMENT_TEXT)
