@@ -1,5 +1,6 @@
 """Specify SQL-backed invoice persistence behavior."""
 
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import pytest
@@ -132,3 +133,59 @@ async def should_durably_mark_an_invoice_as_extracted(
     assert invoice.extracted_fields["invoice_number"] == "INV-001"
     assert invoice.extracted_fields["total_amount"] == "125.50"
     assert invoice.extracted_fields["currency"] == "USD"
+
+
+async def should_list_only_pending_invoices_older_than_a_cutoff(
+    test_db: AsyncSession, repository: InvoiceRepository, owner: User
+) -> None:
+    """Exclude younger pending rows and non-pending rows of any age."""
+    now = datetime.now(UTC)
+    old_pending = Invoice(
+        owner_id=owner.id,
+        storage_key="old-pending.pdf",
+        original_filename="old-pending.pdf",
+        created_at=now - timedelta(hours=1),
+    )
+    young_pending = Invoice(
+        owner_id=owner.id,
+        storage_key="young-pending.pdf",
+        original_filename="young-pending.pdf",
+        created_at=now - timedelta(seconds=1),
+    )
+    old_extracted = Invoice(
+        owner_id=owner.id,
+        storage_key="old-extracted.pdf",
+        original_filename="old-extracted.pdf",
+        created_at=now - timedelta(hours=1),
+        status=InvoiceStatus.EXTRACTED,
+    )
+    test_db.add_all([old_pending, young_pending, old_extracted])
+    await test_db.flush()
+
+    result = await repository.list_old_pending(
+        cutoff=now - timedelta(minutes=30), limit=10
+    )
+
+    assert [invoice.id for invoice in result] == [old_pending.id]
+
+
+async def should_cap_the_pending_batch_at_the_requested_limit(
+    test_db: AsyncSession, repository: InvoiceRepository, owner: User
+) -> None:
+    """Bound a single scan's results to the requested batch limit."""
+    now = datetime.now(UTC)
+    stale_invoices = [
+        Invoice(
+            owner_id=owner.id,
+            storage_key=f"stale-{index}.pdf",
+            original_filename=f"stale-{index}.pdf",
+            created_at=now - timedelta(hours=1),
+        )
+        for index in range(3)
+    ]
+    test_db.add_all(stale_invoices)
+    await test_db.flush()
+
+    result = await repository.list_old_pending(cutoff=now, limit=2)
+
+    assert len(result) == 2
