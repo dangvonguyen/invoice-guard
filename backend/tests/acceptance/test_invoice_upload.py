@@ -1,19 +1,25 @@
 """Acceptance scenarios for invoice intake."""
 
+from unittest.mock import patch
 from uuid import UUID
 
 import pytest
 import pytest_asyncio
 from fastapi import status
 from httpx import AsyncClient
+from redis import Redis as SyncRedis
+from redis.exceptions import RedisError
+from rq import Queue
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_access_token_codec, get_storage_client
+from app.core.queue import EXTRACTION_QUEUE_NAME
 from app.core.storage import StorageWriteError
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.user import User
 from app.main import app
+from app.queueing.extraction import extraction_job_id
 
 pytestmark = [
     pytest.mark.acceptance,
@@ -220,3 +226,50 @@ async def should_return_unavailable_and_mark_row_when_storage_fails(
     )
 
     assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+
+async def should_enqueue_extraction_for_every_accepted_upload(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+    sync_redis: SyncRedis,
+) -> None:
+    """Push a newly-accepted invoice onto the extraction queue."""
+    response = await client.post(
+        "/invoices",
+        headers=auth_headers,
+        files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    invoice_id = response.json()["invoice_id"]
+
+    queue = Queue(EXTRACTION_QUEUE_NAME, connection=sync_redis)
+    job = queue.fetch_job(extraction_job_id(UUID(invoice_id)))
+    assert job is not None
+    assert job.args == (invoice_id,)
+
+
+async def should_accept_the_upload_even_when_enqueueing_fails(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    auth_headers: dict[str, str],
+) -> None:
+    """Mark extraction failed when broker is unavailable, but keep upload accepted."""
+
+    with patch(
+        "app.queueing.extraction.Queue.enqueue",
+        side_effect=RedisError("broker unavailable"),
+    ):
+        response = await client.post(
+            "/invoices",
+            headers=auth_headers,
+            files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
+        )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    response_body = response.json()
+    assert response_body["status"] == "extraction_failed"
+    invoice_id = UUID(response_body["invoice_id"])
+    stored = await test_db.get(Invoice, invoice_id)
+    assert stored is not None
+    assert stored.status == InvoiceStatus.EXTRACTION_FAILED

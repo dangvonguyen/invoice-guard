@@ -4,12 +4,15 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.middleware import RequestBodyLimitMiddleware, RequestLoggingMiddleware
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
+from app.core.queue import get_extraction_queue
+from app.queueing.reconcile import schedule_next_reconcile
 
 # Set up CORS
 cors_list = [
@@ -26,6 +29,10 @@ log_exclude_paths = [
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Lifespan function Replaces the previous startup/shutdown functions"""
     configure_logging(get_settings().LOG_LEVEL)
+
+    # Seed the self-rescheduling reconcile chain on every start. Safe per
+    # replica because the tick id is a shared UTC epoch bucket.
+    await run_in_threadpool(schedule_next_reconcile, get_extraction_queue())
 
     yield
 

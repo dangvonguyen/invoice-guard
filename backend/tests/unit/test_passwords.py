@@ -4,7 +4,6 @@ from unittest.mock import Mock
 
 import pytest
 from pwdlib.hashers.argon2 import Argon2Hasher
-from pwdlib.hashers.base import HasherProtocol
 
 from app.core.security.passwords import PasswordHasher
 
@@ -19,7 +18,7 @@ def hasher() -> Argon2Hasher:
 
 def should_delegate_password_hashing_to_configured_hasher() -> None:
     """Return the hash produced by the configured hashing implementation."""
-    hasher = Mock(spec=HasherProtocol)
+    hasher = Mock()
     hasher.hash.return_value = "hashed-password"
 
     result = PasswordHasher(hasher=hasher).hash("plain-password")

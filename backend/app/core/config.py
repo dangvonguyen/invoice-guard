@@ -64,6 +64,15 @@ class Settings(BaseSettings):
     # adapter behind the same StorageClient protocol before deploying.
     STORAGE_LOCAL_PATH: str = "./data/invoices"
 
+    # Extraction model
+    OPENAI_API_KEY: SecretStr
+    OPENAI_EXTRACTION_MODEL: str = "gpt-5-mini"
+
+    # Extraction reconciliation
+    EXTRACTION_RECONCILE_INTERVAL_SECONDS: PositiveInt = 600
+    EXTRACTION_RECONCILE_STALE_AFTER_SECONDS: PositiveInt = 1200
+    EXTRACTION_RECONCILE_BATCH_LIMIT: PositiveInt = 100
+
     @field_validator("API_ROOT")
     @classmethod
     def check_api_root(cls: type[Settings], value: str) -> str:

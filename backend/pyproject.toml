@@ -8,16 +8,20 @@ dependencies = [
 	"alembic>=1.18.5",
 	"asyncpg>=0.31.0",
 	"fastapi[standard]>=0.140.13",
+	"openai>=3.0.0",
 	"pwdlib[argon2]>=0.3.0",
 	"pydantic>=2.13.4",
 	"pydantic-settings>=2.14.2",
 	"pyjwt>=2.13.0",
+	"pypdf>=6.15.0",
 	"redis>=8.1.0",
+	"rq>=2.10.0",
 	"sqlalchemy[asyncio]>=2.0.51",
 ]
 
 [dependency-groups]
 dev = [
+	"fpdf2>=2.8.8",
 	"mypy>=2.3.0",
 	"poethepoet>=0.48.0",
 	"prek>=0.4.12",

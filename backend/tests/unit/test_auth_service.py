@@ -9,7 +9,6 @@ import pytest
 
 from app.database.models.user import User
 from app.services.auth import AuthService, InvalidCredentialsError
-from app.services.interfaces import AccessTokenIssuer, PasswordVerifier, UserRepository
 
 pytestmark = [
     pytest.mark.unit,
@@ -49,9 +48,9 @@ def registered_user() -> User:
 @pytest.fixture
 def auth() -> AuthenticationContext:
     """Build the service with mocks for the roles it coordinates."""
-    users = AsyncMock(spec=UserRepository)
-    password_verifier = AsyncMock(spec=PasswordVerifier)
-    access_token_issuer = Mock(spec=AccessTokenIssuer)
+    users = AsyncMock()
+    password_verifier = AsyncMock()
+    access_token_issuer = Mock()
     service = AuthService(
         users=users,
         password_verifier=password_verifier,
