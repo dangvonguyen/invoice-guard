@@ -1,23 +1,25 @@
 """Acceptance scenarios for invoice intake."""
 
-from typing import Any
+from unittest.mock import patch
 from uuid import UUID
 
 import pytest
 import pytest_asyncio
 from fastapi import status
 from httpx import AsyncClient
+from redis import Redis as SyncRedis
 from redis.exceptions import RedisError
+from rq import Queue
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_access_token_codec, get_storage_client
-from app.core.queue import get_extraction_queue
+from app.core.queue import EXTRACTION_QUEUE_NAME
 from app.core.storage import StorageWriteError
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.user import User
 from app.main import app
-from app.queueing.extraction import run_extraction_job
+from app.queueing.extraction import extraction_job_id
 
 pytestmark = [
     pytest.mark.acceptance,
@@ -229,20 +231,9 @@ async def should_return_unavailable_and_mark_row_when_storage_fails(
 async def should_enqueue_extraction_for_every_accepted_upload(
     client: AsyncClient,
     auth_headers: dict[str, str],
+    sync_redis: SyncRedis,
 ) -> None:
     """Push a newly-accepted invoice onto the extraction queue."""
-
-    class SpyQueue:
-        def __init__(self) -> None:
-            self.enqueued: list[tuple[Any, tuple[Any, ...]]] = []
-
-        def enqueue(self, func: Any, *args: Any, **kwargs: Any) -> None:
-            del kwargs
-            self.enqueued.append((func, args))
-
-    spy_queue = SpyQueue()
-    app.dependency_overrides[get_extraction_queue] = lambda: spy_queue
-
     response = await client.post(
         "/invoices",
         headers=auth_headers,
@@ -251,7 +242,11 @@ async def should_enqueue_extraction_for_every_accepted_upload(
 
     assert response.status_code == status.HTTP_201_CREATED
     invoice_id = response.json()["invoice_id"]
-    assert spy_queue.enqueued == [(run_extraction_job, (invoice_id,))]
+
+    queue = Queue(EXTRACTION_QUEUE_NAME, connection=sync_redis)
+    job = queue.fetch_job(extraction_job_id(UUID(invoice_id)))
+    assert job is not None
+    assert job.args == (invoice_id,)
 
 
 async def should_accept_the_upload_even_when_enqueueing_fails(
@@ -261,18 +256,15 @@ async def should_accept_the_upload_even_when_enqueueing_fails(
 ) -> None:
     """Mark extraction failed when broker is unavailable, but keep upload accepted."""
 
-    class FailingQueue:
-        def enqueue(self, func: Any, *args: Any, **kwargs: Any) -> None:
-            del func, args, kwargs
-            raise RedisError("broker unavailable")
-
-    app.dependency_overrides[get_extraction_queue] = lambda: FailingQueue()
-
-    response = await client.post(
-        "/invoices",
-        headers=auth_headers,
-        files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
-    )
+    with patch(
+        "app.queueing.extraction.Queue.enqueue",
+        side_effect=RedisError("broker unavailable"),
+    ):
+        response = await client.post(
+            "/invoices",
+            headers=auth_headers,
+            files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
+        )
 
     assert response.status_code == status.HTTP_201_CREATED
     response_body = response.json()

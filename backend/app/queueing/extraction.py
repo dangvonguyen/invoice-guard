@@ -10,7 +10,7 @@ from openai import AsyncOpenAI
 from redis import Redis
 from redis.exceptions import RedisError
 from rq import Callback, Queue, Retry
-from rq.job import Job
+from rq.job import Job, JobStatus
 
 from app.core.config import get_settings, unwrap_secret
 from app.core.storage import LocalStorageClient
@@ -26,6 +26,11 @@ _EXTRACTION_TIMEOUT_SECONDS = 180
 _EXTRACTION_RETRY_INTERVALS_SECONDS = [10, 30]
 _FAILURE_CALLBACK_TIMEOUT_SECONDS = 10
 
+# Statuses under which an RQ job is still expected to run to completion
+LIVE_JOB_STATUSES = frozenset(
+    {JobStatus.QUEUED, JobStatus.STARTED, JobStatus.DEFERRED, JobStatus.SCHEDULED}
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,12 +38,24 @@ class ExtractionEnqueueError(Exception):
     """Raised when an invoice could not be scheduled for extraction."""
 
 
+def extraction_job_id(invoice_id: UUID) -> str:
+    """Return the deterministic RQ job id used for one invoice's extraction."""
+    return f"extraction-{invoice_id}"
+
+
 def run_extraction_enqueue(queue: Queue, invoice_id: UUID) -> None:
     """Schedule extraction for a stored invoice, translating broker failures."""
+    job_id = extraction_job_id(invoice_id)
     try:
+        if Job.exists(job_id, connection=queue.connection):
+            existing = Job.fetch(job_id, connection=queue.connection)
+            if existing.get_status(refresh=False) in LIVE_JOB_STATUSES:
+                return
+
         queue.enqueue(
             run_extraction_job,
             str(invoice_id),
+            job_id=job_id,
             job_timeout=_EXTRACTION_TIMEOUT_SECONDS,
             retry=Retry(
                 max=len(_EXTRACTION_RETRY_INTERVALS_SECONDS),
