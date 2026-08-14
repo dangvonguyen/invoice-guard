@@ -5,7 +5,7 @@ from uuid import UUID
 from app.core.storage import StorageClient
 from app.database.repositories.invoice import InvoiceRepository
 from app.services.extraction.pipeline import ExtractionPipeline, InvalidModelOutputError
-from app.services.text_extractor import NoTextLayerError, TextExtractor
+from app.services.extraction.text import NoTextLayerError, TextExtractor
 
 
 class InvoiceNotFoundError(Exception):

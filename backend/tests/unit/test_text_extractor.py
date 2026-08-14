@@ -3,7 +3,7 @@
 import pytest
 from fpdf import FPDF
 
-from app.services.text_extractor import NoTextLayerError, PdfTextExtractor
+from app.services.extraction.text import NoTextLayerError, PdfTextExtractor
 
 pytestmark = pytest.mark.unit
 

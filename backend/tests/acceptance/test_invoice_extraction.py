@@ -28,7 +28,7 @@ from app.database.repositories.invoice import InvoiceRepository
 from app.jobs.extract_invoice import extract_invoice
 from app.services.extraction.grounding import GroundingChecker
 from app.services.extraction.pipeline import ExtractionPipeline
-from app.services.text_extractor import PdfTextExtractor
+from app.services.extraction.text import PdfTextExtractor
 
 pytestmark = [
     pytest.mark.acceptance,

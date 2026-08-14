@@ -11,7 +11,7 @@ from app.database.models.invoice import Invoice, InvoiceStatus
 from app.jobs.extract_invoice import InvoiceNotFoundError, extract_invoice
 from app.services.extraction.model import ExtractedInvoice
 from app.services.extraction.pipeline import ExtractionResult, InvalidModelOutputError
-from app.services.text_extractor import NoTextLayerError
+from app.services.extraction.text import NoTextLayerError
 
 pytestmark = [
     pytest.mark.unit,

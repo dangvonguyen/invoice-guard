@@ -20,7 +20,7 @@ from app.jobs.extract_invoice import InvoiceNotFoundError, extract_invoice
 from app.services.extraction.grounding import GroundingChecker
 from app.services.extraction.model import OpenAIModelClient
 from app.services.extraction.pipeline import ExtractionPipeline
-from app.services.text_extractor import PdfTextExtractor
+from app.services.extraction.text import PdfTextExtractor
 
 _EXTRACTION_TIMEOUT_SECONDS = 180
 _EXTRACTION_RETRY_INTERVALS_SECONDS = [10, 30]
