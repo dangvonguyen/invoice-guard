@@ -4,10 +4,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from app.services.extraction_service import (
-    ExtractionService,
-    ExtractionValidationError,
-)
+from app.services.extraction.pipeline import ExtractionPipeline, InvalidModelOutputError
 from app.services.span_grounding import SpanGroundingChecker
 
 pytestmark = [
@@ -44,18 +41,18 @@ def grounding_checker() -> Mock:
 
 
 @pytest.fixture
-def service(model: AsyncMock, grounding_checker: Mock) -> ExtractionService:
-    return ExtractionService(model=model, grounding_checker=grounding_checker)
+def pipeline(model: AsyncMock, grounding_checker: Mock) -> ExtractionPipeline:
+    return ExtractionPipeline(model=model, grounding_checker=grounding_checker)
 
 
 async def should_return_high_confidence_when_every_field_is_grounded(
-    service: ExtractionService, model: AsyncMock, grounding_checker: Mock
+    pipeline: ExtractionPipeline, model: AsyncMock, grounding_checker: Mock
 ) -> None:
     """A schema-valid, fully-grounded response is high confidence."""
     model.extract.return_value = VALID_RAW_RESPONSE
     grounding_checker.check.return_value = True
 
-    result = await service.extract(document_text=DOCUMENT_TEXT)
+    result = await pipeline.run(document_text=DOCUMENT_TEXT)
 
     model.extract.assert_awaited_once_with(
         document_text=DOCUMENT_TEXT, validation_error=None
@@ -67,13 +64,13 @@ async def should_return_high_confidence_when_every_field_is_grounded(
 
 
 async def should_check_every_extracted_field_against_the_source_text(
-    service: ExtractionService, model: AsyncMock, grounding_checker: Mock
+    pipeline: ExtractionPipeline, model: AsyncMock, grounding_checker: Mock
 ) -> None:
     """Ground each scalar field individually, not just the response as a whole."""
     model.extract.return_value = VALID_RAW_RESPONSE
     grounding_checker.check.return_value = True
 
-    await service.extract(document_text=DOCUMENT_TEXT)
+    await pipeline.run(document_text=DOCUMENT_TEXT)
 
     checked_values = {
         call.kwargs["value"] for call in grounding_checker.check.call_args_list
@@ -85,7 +82,7 @@ async def should_check_every_extracted_field_against_the_source_text(
 
 
 async def should_flag_low_confidence_when_a_field_is_not_grounded(
-    service: ExtractionService, model: AsyncMock, grounding_checker: Mock
+    pipeline: ExtractionPipeline, model: AsyncMock, grounding_checker: Mock
 ) -> None:
     """A schema-valid but ungrounded field lowers confidence, not the field value."""
     model.extract.return_value = {**VALID_RAW_RESPONSE, "total_amount": "999.00"}
@@ -96,7 +93,7 @@ async def should_flag_low_confidence_when_a_field_is_not_grounded(
 
     grounding_checker.check.side_effect = check
 
-    result = await service.extract(document_text=DOCUMENT_TEXT)
+    result = await pipeline.run(document_text=DOCUMENT_TEXT)
 
     assert str(result.fields.total_amount) == "999.00"
     assert result.confidence == "low"
@@ -112,13 +109,13 @@ async def should_ground_dates_and_amounts_using_equivalent_source_formats(
         "invoice_date": "2026-08-13",
         "total_amount": "1234.56",
     }
-    service = ExtractionService(model=model, grounding_checker=SpanGroundingChecker())
+    pipeline = ExtractionPipeline(model=model, grounding_checker=SpanGroundingChecker())
     document_text = (
         "Vendor: Acme Supplies\nInvoice date: 08/13/2026\n"
         "Tax: 32.10 USD\nTotal: 1,234.56 USD"
     )
 
-    result = await service.extract(document_text=document_text)
+    result = await pipeline.run(document_text=document_text)
 
     assert result.confidence == "high"
     assert result.confidence_reason is None
@@ -133,13 +130,13 @@ async def should_not_ground_different_dates_or_grouped_amounts(
         "invoice_date": "2026-08-14",
         "total_amount": "1235.56",
     }
-    service = ExtractionService(model=model, grounding_checker=SpanGroundingChecker())
+    pipeline = ExtractionPipeline(model=model, grounding_checker=SpanGroundingChecker())
     document_text = (
         "Vendor: Acme Supplies\nInvoice date: 08/13/2026\n"
         "Tax: 32.10 USD\nTotal: 1,234.56 USD"
     )
 
-    result = await service.extract(document_text=document_text)
+    result = await pipeline.run(document_text=document_text)
 
     assert result.confidence == "low"
     assert result.confidence_reason is not None
@@ -155,13 +152,13 @@ async def should_ground_line_item_descriptions_and_formatted_amounts(
         **VALID_RAW_RESPONSE,
         "line_items": [{"description": "Consulting", "amount": "1234.56"}],
     }
-    service = ExtractionService(model=model, grounding_checker=SpanGroundingChecker())
+    pipeline = ExtractionPipeline(model=model, grounding_checker=SpanGroundingChecker())
     document_text = (
         "Vendor: Acme Supplies\nInvoice date: 2026-08-03\n"
         "Consulting 1,234.56\nTax: 32.10 USD\nTotal: 482.10 USD"
     )
 
-    result = await service.extract(document_text=document_text)
+    result = await pipeline.run(document_text=document_text)
 
     assert result.confidence == "high"
     assert result.confidence_reason is None
@@ -175,13 +172,13 @@ async def should_flag_ungrounded_line_item_fields_as_low_confidence(
         **VALID_RAW_RESPONSE,
         "line_items": [{"description": "Fabricated service", "amount": "999.00"}],
     }
-    service = ExtractionService(model=model, grounding_checker=SpanGroundingChecker())
+    pipeline = ExtractionPipeline(model=model, grounding_checker=SpanGroundingChecker())
     document_text = (
         "Vendor: Acme Supplies\nInvoice date: 2026-08-03\n"
         "Consulting 100.00\nTax: 32.10 USD\nTotal: 482.10 USD"
     )
 
-    result = await service.extract(document_text=document_text)
+    result = await pipeline.run(document_text=document_text)
 
     assert result.confidence == "low"
     assert result.confidence_reason is not None
@@ -190,13 +187,13 @@ async def should_flag_ungrounded_line_item_fields_as_low_confidence(
 
 
 async def should_retry_and_succeed_when_a_later_attempt_is_schema_valid(
-    service: ExtractionService, model: AsyncMock, grounding_checker: Mock
+    pipeline: ExtractionPipeline, model: AsyncMock, grounding_checker: Mock
 ) -> None:
     """A schema-invalid first attempt is retried, not fatal, within budget."""
     model.extract.side_effect = [INVALID_RAW_RESPONSE, VALID_RAW_RESPONSE]
     grounding_checker.check.return_value = True
 
-    result = await service.extract(document_text=DOCUMENT_TEXT)
+    result = await pipeline.run(document_text=DOCUMENT_TEXT)
 
     assert model.extract.await_count == 2
     assert str(result.fields.total_amount) == "482.10"
@@ -204,13 +201,13 @@ async def should_retry_and_succeed_when_a_later_attempt_is_schema_valid(
 
 
 async def should_reprompt_with_the_previous_validation_error_on_retry(
-    service: ExtractionService, model: AsyncMock, grounding_checker: Mock
+    pipeline: ExtractionPipeline, model: AsyncMock, grounding_checker: Mock
 ) -> None:
     """Feed the prior attempt's schema-validation failure back to the model."""
     model.extract.side_effect = [INVALID_RAW_RESPONSE, VALID_RAW_RESPONSE]
     grounding_checker.check.return_value = True
 
-    await service.extract(document_text=DOCUMENT_TEXT)
+    await pipeline.run(document_text=DOCUMENT_TEXT)
 
     first_call, second_call = model.extract.await_args_list
     assert first_call.kwargs["validation_error"] is None
@@ -219,13 +216,13 @@ async def should_reprompt_with_the_previous_validation_error_on_retry(
 
 
 async def should_raise_after_exhausting_all_retry_attempts(
-    service: ExtractionService, model: AsyncMock, grounding_checker: Mock
+    pipeline: ExtractionPipeline, model: AsyncMock, grounding_checker: Mock
 ) -> None:
     """Give up after 1 initial attempt plus 2 retries, all schema-invalid."""
     model.extract.return_value = INVALID_RAW_RESPONSE
     grounding_checker.check.return_value = True
 
-    with pytest.raises(ExtractionValidationError):
-        await service.extract(document_text=DOCUMENT_TEXT)
+    with pytest.raises(InvalidModelOutputError):
+        await pipeline.run(document_text=DOCUMENT_TEXT)
 
     assert model.extract.await_count == 3

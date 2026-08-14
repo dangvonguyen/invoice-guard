@@ -26,7 +26,7 @@ from app.database.models.invoice import Invoice
 from app.database.models.user import User
 from app.database.repositories.invoice import InvoiceRepository
 from app.jobs.extract_invoice import extract_invoice
-from app.services.extraction_service import ExtractionService
+from app.services.extraction.pipeline import ExtractionPipeline
 from app.services.span_grounding import SpanGroundingChecker
 from app.services.text_extractor import PdfTextExtractor
 
@@ -225,7 +225,7 @@ async def should_extract_fields_from_a_text_native_pdf_on_first_valid_response(
 ) -> None:
     """Convert a text-native pending invoice into grounded structured fields."""
     invoice, storage = stored_invoice
-    extraction_service = ExtractionService(
+    extraction_pipeline = ExtractionPipeline(
         model=FakeExtractionModelClient(),
         grounding_checker=SpanGroundingChecker(),
     )
@@ -235,7 +235,7 @@ async def should_extract_fields_from_a_text_native_pdf_on_first_valid_response(
         invoices=InvoiceRepository(session=test_db),
         storage=storage,
         text_extractor=PdfTextExtractor(),
-        extraction_service=extraction_service,
+        extraction_pipeline=extraction_pipeline,
     )
     await test_db.commit()
 
@@ -258,7 +258,7 @@ async def should_fail_fast_for_a_pdf_without_a_text_layer(
 ) -> None:
     """Route a scanned/image-only PDF to extraction_failed with no model call."""
     invoice, storage = stored_invoice_without_text_layer
-    extraction_service = ExtractionService(
+    extraction_pipeline = ExtractionPipeline(
         model=NeverCalledExtractionModelClient(),
         grounding_checker=SpanGroundingChecker(),
     )
@@ -268,7 +268,7 @@ async def should_fail_fast_for_a_pdf_without_a_text_layer(
         invoices=InvoiceRepository(session=test_db),
         storage=storage,
         text_extractor=PdfTextExtractor(),
-        extraction_service=extraction_service,
+        extraction_pipeline=extraction_pipeline,
     )
     await test_db.commit()
 
@@ -288,7 +288,7 @@ async def should_route_to_review_after_exhausting_validation_retries(
     """Fail extraction when the model never returns a schema-valid response."""
     invoice, storage = stored_invoice
     model = AlwaysInvalidExtractionModelClient()
-    extraction_service = ExtractionService(
+    extraction_pipeline = ExtractionPipeline(
         model=model,
         grounding_checker=SpanGroundingChecker(),
     )
@@ -298,7 +298,7 @@ async def should_route_to_review_after_exhausting_validation_retries(
         invoices=InvoiceRepository(session=test_db),
         storage=storage,
         text_extractor=PdfTextExtractor(),
-        extraction_service=extraction_service,
+        extraction_pipeline=extraction_pipeline,
     )
     await test_db.commit()
 
@@ -319,7 +319,7 @@ async def should_flag_ungrounded_field_as_low_confidence(
 ) -> None:
     """Flag a schema-valid but ungrounded field value with low confidence."""
     invoice, storage = stored_invoice_with_ungrounded_amount
-    extraction_service = ExtractionService(
+    extraction_pipeline = ExtractionPipeline(
         model=UngroundedFieldExtractionModelClient(),
         grounding_checker=SpanGroundingChecker(),
     )
@@ -329,7 +329,7 @@ async def should_flag_ungrounded_field_as_low_confidence(
         invoices=InvoiceRepository(session=test_db),
         storage=storage,
         text_extractor=PdfTextExtractor(),
-        extraction_service=extraction_service,
+        extraction_pipeline=extraction_pipeline,
     )
     await test_db.commit()
 

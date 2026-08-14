@@ -20,14 +20,14 @@ class ExtractionResult:
     confidence_reason: str | None
 
 
-class ExtractionValidationError(Exception):
+class InvalidModelOutputError(Exception):
     """Raised when the model never returns a schema-valid response in budget."""
 
 
-class ExtractionService:
+class ExtractionPipeline:
     """Convert invoice text into schema-validated structured fields."""
 
-    _GROUNDED_FIELD_NAMES = (
+    _REQUIRING_FIELDS = (
         "vendor_name",
         "invoice_date",
         "total_amount",
@@ -35,7 +35,7 @@ class ExtractionService:
         "currency",
     )
 
-    _MAX_ATTEMPTS = 3
+    _MAX_MODEL_ATTEMPTS = 3
 
     def __init__(
         self, model: ExtractionModelClient, grounding_checker: SpanGroundingChecker
@@ -43,7 +43,7 @@ class ExtractionService:
         self._model = model
         self._grounding_checker = grounding_checker
 
-    async def extract(self, *, document_text: str) -> ExtractionResult:
+    async def run(self, *, document_text: str) -> ExtractionResult:
         """Return structured invoice fields extracted from document text.
 
         Raises:
@@ -51,7 +51,7 @@ class ExtractionService:
                 response on every attempt, including retries.
         """
         validation_error: str | None = None
-        for _ in range(self._MAX_ATTEMPTS):
+        for _ in range(self._MAX_MODEL_ATTEMPTS):
             raw_response = await self._model.extract(
                 document_text=document_text, validation_error=validation_error
             )
@@ -60,17 +60,17 @@ class ExtractionService:
             except ValidationError as exc:
                 validation_error = str(exc)
                 continue
-            return self._result_for(fields, document_text)
+            return self._build_result(fields, document_text)
 
-        raise ExtractionValidationError(
+        raise InvalidModelOutputError(
             "model did not return a schema-valid response within "
-            f"{self._MAX_ATTEMPTS} attempts"
+            f"{self._MAX_MODEL_ATTEMPTS} attempts"
         )
 
-    def _result_for(
+    def _build_result(
         self, fields: InvoiceFields, document_text: str
     ) -> ExtractionResult:
-        ungrounded = self._ungrounded_field_names(fields, document_text)
+        ungrounded = self._find_ungrounded_fields(fields, document_text)
         if not ungrounded:
             return ExtractionResult(
                 fields=fields, confidence="high", confidence_reason=None
@@ -81,11 +81,11 @@ class ExtractionService:
             fields=fields, confidence="low", confidence_reason=reason
         )
 
-    def _ungrounded_field_names(
+    def _find_ungrounded_fields(
         self, fields: InvoiceFields, document_text: str
     ) -> list[str]:
         ungrounded: list[str] = []
-        for field_name in self._GROUNDED_FIELD_NAMES:
+        for field_name in self._REQUIRING_FIELDS:
             value = getattr(fields, field_name)
             if not self._is_grounded(value, document_text):
                 ungrounded.append(field_name)
