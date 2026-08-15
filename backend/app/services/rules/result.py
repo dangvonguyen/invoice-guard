@@ -3,19 +3,15 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
+from app.database.models.rule_result import RuleOutcome
+
+__all__ = ["RuleCode", "RuleOutcome", "RuleResult"]
+
 
 class RuleCode(StrEnum):
     """Identify each deterministic policy rule the engine evaluates."""
 
     EXPENSE_WITHIN_AMOUNT_LIMIT = "expense_within_amount_limit"
-
-
-class RuleOutcome(StrEnum):
-    """The result of evaluating one deterministic rule against one invoice."""
-
-    PASS = "pass"
-    FAIL = "fail"
-    NOT_APPLICABLE = "not_applicable"
 
 
 @dataclass(frozen=True)
