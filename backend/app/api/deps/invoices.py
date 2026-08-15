@@ -11,8 +11,8 @@ from app.core.queue import get_extraction_queue
 from app.core.rate_limit import RateLimiter, RedisRateLimiter
 from app.core.storage import LocalStorageClient, StorageClient
 from app.database.repositories.invoice import InvoiceRepository
-from app.services.invoice_intake import InvoiceIntakeService
 from app.services.invoice_mime_validator import InvoiceMimeValidator
+from app.services.upload.intake import UploadService
 
 from .sessions import RedisDep, SessionManualDep
 
@@ -65,9 +65,9 @@ def get_invoice_intake_service(
     rate_limiter: UploadRateLimiterDep,
     invoices: InvoiceRepositoryDep,
     storage: StorageClientDep,
-) -> InvoiceIntakeService:
+) -> UploadService:
     """Create the invoice intake service from its injected dependencies."""
-    return InvoiceIntakeService(
+    return UploadService(
         validator=validator,
         rate_limiter=rate_limiter,
         invoices=invoices,
@@ -75,9 +75,7 @@ def get_invoice_intake_service(
     )
 
 
-InvoiceIntakeServiceDep = Annotated[
-    InvoiceIntakeService, Depends(get_invoice_intake_service)
-]
+InvoiceIntakeServiceDep = Annotated[UploadService, Depends(get_invoice_intake_service)]
 
 
 ExtractionQueueDep = Annotated[Queue, Depends(get_extraction_queue)]

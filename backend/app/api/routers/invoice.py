@@ -17,15 +17,15 @@ from app.core.config import get_settings
 from app.database.models.invoice import InvoiceStatus
 from app.queueing.extraction import ExtractionEnqueueError, run_extraction_enqueue
 from app.schemas.invoice import InvoiceDetailResponse, InvoiceUploadResponse
-from app.services.invoice_intake import (
-    InvoiceStorageUnavailableError,
-    UploadRateLimitExceededError,
-)
 from app.services.invoice_mime_validator import (
     InvoiceValidationError,
     PayloadTooLargeError,
     UnreadableUploadError,
     UnsupportedMediaTypeError,
+)
+from app.services.upload.intake import (
+    UploadRateLimitExceededError,
+    UploadStorageUnavailableError,
 )
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
@@ -44,7 +44,7 @@ async def upload_invoice(
     settings = get_settings()
     content = await file.read(settings.UPLOAD_MAX_BYTES + 1)
     try:
-        invoice = await invoice_intake.upload(
+        invoice = await invoice_intake.accept(
             owner_id=current_user.id,
             filename=file.filename,
             content_type=file.content_type,
@@ -78,7 +78,7 @@ async def upload_invoice(
             status_code=status.HTTP_400_BAD_REQUEST,
             reason="invalid_upload",
         )
-    except InvoiceStorageUnavailableError as exc:
+    except UploadStorageUnavailableError as exc:
         _reject_upload(
             exc,
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
