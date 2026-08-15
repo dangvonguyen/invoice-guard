@@ -10,6 +10,7 @@ from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PositiveInt = Annotated[int, Field(gt=0)]
+NonNegativeDecimal = Annotated[Decimal, Field(ge=0)]
 
 
 def unwrap_secret(value: SecretStr | str) -> str:
@@ -78,7 +79,7 @@ class Settings(BaseSettings):
     RULE_MAX_EXPENSE_AMOUNT: Decimal = Decimal("1000.00")
     RULE_MAX_EXPENSE_AGE_DAYS: PositiveInt = 90
     RULE_ALLOWED_CURRENCIES: str = "USD,EUR,GBP"
-    RULE_RECONCILIATION_TOLERANCE: Decimal = Decimal("0.01")
+    RULE_RECONCILIATION_TOLERANCE: NonNegativeDecimal = Decimal("0.01")
 
     @field_validator("API_ROOT")
     @classmethod
