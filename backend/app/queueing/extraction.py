@@ -89,6 +89,7 @@ async def execute(invoice_id: str) -> None:
             invoice_uuid = UUID(invoice_id)
             invoices = InvoiceRepository(session=session)
             invoice = await invoices.get_by_id(invoice_uuid)
+            extracted_invoice: ExtractedInvoice | None
             if (
                 invoice is not None
                 and invoice.status == InvoiceStatus.EXTRACTED

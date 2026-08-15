@@ -73,6 +73,7 @@ async def should_evaluate_rules_in_a_fresh_session_after_extraction() -> None:
         patch("app.queueing.extraction.extract_invoice", AsyncMock()),
         patch("app.queueing.extraction.evaluate_rules", AsyncMock()),
     ):
+        invoices.return_value.get_by_id = AsyncMock(return_value=None)
         await extraction.execute(str(INVOICE_ID))
 
     assert session_factory.call_args_list == [call(), call()]
