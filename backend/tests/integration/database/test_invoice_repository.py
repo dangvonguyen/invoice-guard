@@ -105,6 +105,28 @@ async def should_durably_mark_a_failed_extraction(
     assert invoice.status == InvoiceStatus.EXTRACTION_FAILED
 
 
+async def should_not_replace_an_extracted_status_with_extraction_failed(
+    test_db: AsyncSession, repository: InvoiceRepository, owner: User
+) -> None:
+    """Keep durable extraction success when a later rule-evaluation retry exhausts."""
+    invoice = await repository.create_pending(
+        owner_id=owner.id,
+        storage_key="already-extracted-key",
+        original_filename="invoice.pdf",
+    )
+    await repository.mark_extracted(
+        invoice_id=invoice.id,
+        fields={"total_amount": "125.50"},
+        confidence="high",
+        confidence_reason=None,
+    )
+
+    await repository.mark_extraction_failed(invoice_id=invoice.id)
+    await test_db.refresh(invoice)
+
+    assert invoice.status == InvoiceStatus.EXTRACTED
+
+
 async def should_durably_mark_an_invoice_as_extracted(
     test_db: AsyncSession, repository: InvoiceRepository, owner: User
 ) -> None:
