@@ -11,8 +11,8 @@ from app.core.queue import get_extraction_queue
 from app.core.rate_limit import RateLimiter, RedisRateLimiter
 from app.core.storage import LocalStorageClient, StorageClient
 from app.database.repositories.invoice import InvoiceRepository
-from app.services.invoice_mime_validator import InvoiceMimeValidator
 from app.services.upload.intake import UploadService
+from app.services.upload.validation import UploadValidator
 
 from .sessions import RedisDep, SessionManualDep
 
@@ -27,15 +27,13 @@ def get_invoice_repository(session: SessionManualDep) -> InvoiceRepository:
 InvoiceRepositoryDep = Annotated[InvoiceRepository, Depends(get_invoice_repository)]
 
 
-def get_invoice_mime_validator() -> InvoiceMimeValidator:
+def get_invoice_upload_validator() -> UploadValidator:
     """Create the invoice upload validator from configured limits."""
     settings = get_settings()
-    return InvoiceMimeValidator(max_bytes=settings.UPLOAD_MAX_BYTES)
+    return UploadValidator(max_bytes=settings.UPLOAD_MAX_BYTES)
 
 
-InvoiceMimeValidatorDep = Annotated[
-    InvoiceMimeValidator, Depends(get_invoice_mime_validator)
-]
+UploadValidatorDep = Annotated[UploadValidator, Depends(get_invoice_upload_validator)]
 
 
 def get_upload_rate_limiter(redis: RedisDep) -> RateLimiter:
@@ -61,7 +59,7 @@ StorageClientDep = Annotated[StorageClient, Depends(get_storage_client)]
 
 
 def get_invoice_intake_service(
-    validator: InvoiceMimeValidatorDep,
+    validator: UploadValidatorDep,
     rate_limiter: UploadRateLimiterDep,
     invoices: InvoiceRepositoryDep,
     storage: StorageClientDep,

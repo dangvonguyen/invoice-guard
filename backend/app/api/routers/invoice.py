@@ -17,15 +17,15 @@ from app.core.config import get_settings
 from app.database.models.invoice import InvoiceStatus
 from app.queueing.extraction import ExtractionEnqueueError, run_extraction_enqueue
 from app.schemas.invoice import InvoiceDetailResponse, InvoiceUploadResponse
-from app.services.invoice_mime_validator import (
-    InvoiceValidationError,
-    PayloadTooLargeError,
-    UnreadableUploadError,
-    UnsupportedMediaTypeError,
-)
 from app.services.upload.intake import (
     UploadRateLimitExceededError,
     UploadStorageUnavailableError,
+)
+from app.services.upload.validation import (
+    InvalidPayloadError,
+    InvalidUploadError,
+    PayloadTooLargeError,
+    UnsupportedMediaTypeError,
 )
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
@@ -48,7 +48,7 @@ async def upload_invoice(
             owner_id=current_user.id,
             filename=file.filename,
             content_type=file.content_type,
-            size=len(content),
+            content_length=len(content),
             content=content,
         )
     except UploadRateLimitExceededError as exc:
@@ -72,7 +72,7 @@ async def upload_invoice(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             reason="unsupported_media_type",
         )
-    except (UnreadableUploadError, InvoiceValidationError) as exc:
+    except (InvalidPayloadError, InvalidUploadError) as exc:
         _reject_upload(
             exc,
             status_code=status.HTTP_400_BAD_REQUEST,

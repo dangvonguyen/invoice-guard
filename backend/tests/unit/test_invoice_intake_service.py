@@ -9,12 +9,12 @@ import pytest
 
 from app.core.storage import StorageWriteError
 from app.database.models.invoice import Invoice, InvoiceStatus
-from app.services.invoice_mime_validator import UnsupportedMediaTypeError
 from app.services.upload.intake import (
     UploadRateLimitExceededError,
     UploadService,
     UploadStorageUnavailableError,
 )
+from app.services.upload.validation import UnsupportedMediaTypeError
 
 pytestmark = [
     pytest.mark.unit,
@@ -89,7 +89,7 @@ async def should_accept_valid_pdf_as_pending_invoice(
         owner_id=OWNER_ID,
         filename=FILENAME,
         content_type=CONTENT_TYPE,
-        size=len(PDF_CONTENT),
+        content_length=len(PDF_CONTENT),
         content=PDF_CONTENT,
     )
 
@@ -97,7 +97,7 @@ async def should_accept_valid_pdf_as_pending_invoice(
     context.validator.validate.assert_called_once_with(
         filename=FILENAME,
         content_type=CONTENT_TYPE,
-        size=len(PDF_CONTENT),
+        content_length=len(PDF_CONTENT),
         content=PDF_CONTENT,
     )
     context.rate_limiter.allow.assert_awaited_once_with(
@@ -125,7 +125,7 @@ async def should_write_storage_only_after_the_row_is_created(
         owner_id=OWNER_ID,
         filename=FILENAME,
         content_type=CONTENT_TYPE,
-        size=len(PDF_CONTENT),
+        content_length=len(PDF_CONTENT),
         content=PDF_CONTENT,
     )
 
@@ -143,7 +143,7 @@ async def should_reject_upload_when_rate_limit_denies_it(
             owner_id=OWNER_ID,
             filename=FILENAME,
             content_type=CONTENT_TYPE,
-            size=len(PDF_CONTENT),
+            content_length=len(PDF_CONTENT),
             content=PDF_CONTENT,
         )
 
@@ -163,7 +163,7 @@ async def should_reject_upload_when_validation_fails_without_persisting(
             owner_id=OWNER_ID,
             filename="receipt.jpg",
             content_type="image/jpeg",
-            size=10,
+            content_length=10,
             content=b"x",
         )
 
@@ -181,7 +181,7 @@ async def should_generate_a_storage_key_never_derived_from_the_filename(
         owner_id=OWNER_ID,
         filename="invoice.pdf",
         content_type=CONTENT_TYPE,
-        size=len(PDF_CONTENT),
+        content_length=len(PDF_CONTENT),
         content=PDF_CONTENT,
     )
 
@@ -204,7 +204,7 @@ async def should_mark_reservation_failed_when_storage_write_fails(
             owner_id=OWNER_ID,
             filename=FILENAME,
             content_type=CONTENT_TYPE,
-            size=len(PDF_CONTENT),
+            content_length=len(PDF_CONTENT),
             content=PDF_CONTENT,
         )
 

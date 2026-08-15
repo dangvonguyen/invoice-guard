@@ -7,7 +7,7 @@ from app.core.rate_limit import RateLimiter
 from app.core.storage import StorageClient, StorageWriteError
 from app.database.models import Invoice
 from app.database.repositories.invoice import InvoiceRepository
-from app.services.invoice_mime_validator import InvoiceMimeValidator
+from app.services.upload.validation import UploadValidator
 
 
 class UploadRateLimitExceededError(Exception):
@@ -23,7 +23,7 @@ class UploadService:
 
     def __init__(
         self,
-        validator: InvoiceMimeValidator,
+        validator: UploadValidator,
         rate_limiter: RateLimiter,
         invoices: InvoiceRepository,
         storage: StorageClient,
@@ -40,14 +40,14 @@ class UploadService:
         owner_id: UUID,
         filename: str | None,
         content_type: str | None,
-        size: int | None,
+        content_length: int | None,
         content: bytes,
     ) -> Invoice:
         """Accept an invoice upload, return the persisted pending state."""
         self._validator.validate(
             filename=filename,
             content_type=content_type,
-            size=size,
+            content_length=content_length,
             content=content,
         )
 

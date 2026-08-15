@@ -3,23 +3,23 @@
 from collections.abc import Mapping
 
 
-class InvoiceValidationError(Exception):
+class InvalidUploadError(Exception):
     """Base class for invoice upload validation failures."""
 
 
-class PayloadTooLargeError(InvoiceValidationError):
+class PayloadTooLargeError(InvalidUploadError):
     """Raised when the file exceeds the configured size cap."""
 
 
-class UnreadableUploadError(InvoiceValidationError):
+class InvalidPayloadError(InvalidUploadError):
     """Raised when required upload metadata is missing."""
 
 
-class InvalidFilenameError(InvoiceValidationError):
+class InvalidFilenameError(InvalidUploadError):
     """Raised when the upload filename cannot be safely persisted."""
 
 
-class UnsupportedMediaTypeError(InvoiceValidationError):
+class UnsupportedMediaTypeError(InvalidUploadError):
     """Raised when the declared type or extension isn't (yet) accepted."""
 
 
@@ -29,23 +29,23 @@ _DEFAULT_ALLOWED_TYPES: Mapping[str, tuple[str, ...]] = {
 _MAX_FILENAME_LENGTH = 255
 
 
-class InvoiceMimeValidator:
+class UploadValidator:
     """Enforce the Core-scope upload contract: text-native PDF only."""
 
     def __init__(
         self,
         max_bytes: int = 10 * 1024 * 1024,
-        allowed_types: Mapping[str, tuple[str, ...]] | None = None,
+        allowed_media_types: Mapping[str, tuple[str, ...]] | None = None,
     ) -> None:
         self._max_bytes = max_bytes
-        self._allowed_types = dict(allowed_types or _DEFAULT_ALLOWED_TYPES)
+        self._allowed_media_types = dict(allowed_media_types or _DEFAULT_ALLOWED_TYPES)
 
     def validate(
         self,
         *,
         filename: str | None,
         content_type: str | None,
-        size: int | None,
+        content_length: int | None,
         content: bytes,
     ) -> None:
         """Raise if the upload doesn't satisfy the validation requirements.
@@ -53,11 +53,11 @@ class InvoiceMimeValidator:
         Raises:
             UnsupportedMediaTypeError: declared type isn't allowed, or the
                 filename extension disagrees with the declared type.
-            UnreadableUploadError: size could not be determined.
+            InvalidPayloadError: size could not be determined.
             InvalidFilenameError: filename exceeds the persistence limit.
             PayloadTooLargeError: size exceeds the configured cap.
         """
-        allowed_extensions = self._allowed_types.get(content_type or "")
+        allowed_extensions = self._allowed_media_types.get(content_type or "")
         if allowed_extensions is None:
             raise UnsupportedMediaTypeError(
                 f"{content_type or 'unknown content type'} is not yet "
@@ -71,13 +71,13 @@ class InvoiceMimeValidator:
             raise InvalidFilenameError(
                 f"filename exceeds the {_MAX_FILENAME_LENGTH}-character limit"
             )
-        if size is None:
-            raise UnreadableUploadError("upload size could not be determined")
-        if size > self._max_bytes:
+        if content_length is None:
+            raise InvalidPayloadError("upload size could not be determined")
+        if content_length > self._max_bytes:
             raise PayloadTooLargeError(
                 f"file exceeds the {self._max_bytes}-byte size cap"
             )
         if not content:
-            raise UnreadableUploadError("upload is empty")
+            raise InvalidPayloadError("upload is empty")
         if content_type == "application/pdf" and not content.startswith(b"%PDF-"):
             raise UnsupportedMediaTypeError("file content is not a PDF document")
