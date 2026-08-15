@@ -8,7 +8,7 @@ Steps:
 - Verify the complete persisted rule-result row in the database
 """
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_access_token_codec
 from app.core.storage import LocalStorageClient
 from app.database.models.invoice import Invoice
-from app.database.models.rule_result import RuleOutcome
+from app.database.models.rule_result import InvoiceRuleResult, RuleOutcome
 from app.database.models.user import User
 from app.database.repositories.invoice import InvoiceRepository
 from app.database.repositories.rule_result import RuleResultRepository
@@ -93,17 +93,21 @@ def _pdf_bytes(text: str | None = None) -> bytes:
     return bytes(pdf.output())
 
 
-def compliant_invoice_pdf_bytes() -> bytes:
-    """A real, parseable PDF containing a fully compliant invoice."""
+def invoice_pdf_bytes(fields: dict[str, Any] | None = None) -> bytes:
+    """Build a real text-layer PDF."""
+    if fields is None:
+        return _pdf_bytes()
+
     line_items_text = "\n".join(
-        f"{description}: {amount} {CURRENCY}" for description, amount in LINE_ITEMS
+        f"{description}: {amount} {fields['currency']}"
+        for description, amount in LINE_ITEMS
     )
     return _pdf_bytes(
-        f"Vendor: {VENDOR_NAME}\n"
-        f"Invoice Date: {INVOICE_DATE.isoformat()}\n"
+        f"Vendor: {fields['vendor_name']}\n"
+        f"Invoice Date: {fields['invoice_date']}\n"
         f"{line_items_text}\n"
-        f"Tax: {TAX_AMOUNT} {CURRENCY}\n"
-        f"Total: {TOTAL_AMOUNT} {CURRENCY}\n"
+        f"Tax: {fields['tax_amount']} {fields['currency']}\n"
+        f"Total: {fields['total_amount']} {fields['currency']}\n"
     )
 
 
@@ -151,11 +155,14 @@ async def store_invoice(
 class FakeExtractionModelClient:
     """Stand in for the real LLM boundary with a fixed, schema-valid response."""
 
+    def __init__(self, fields: dict[str, Any] = EXTRACTED_FIELDS) -> None:
+        self.fields = fields
+
     async def extract_raw_fields(
         self, *, document_text: str, validation_error: str | None = None
     ) -> dict[str, Any]:
-        assert VENDOR_NAME in document_text  # sanity check
-        return EXTRACTED_FIELDS
+        assert self.fields["vendor_name"] in document_text  # sanity check
+        return self.fields
 
 
 async def extract_and_fetch(
@@ -163,24 +170,25 @@ async def extract_and_fetch(
     client: AsyncClient,
     test_db: AsyncSession,
     auth_headers: dict[str, str],
-    stored: StoredInvoice,
-    model: Any,
-) -> dict[str, Any]:
-    """Run extraction, then rule evaluation, and return the invoice exposed by the API."""
-    extracted_invoice = await extract_invoice(
+    store_invoice: StoreInvoice,
+    extracted_fields: dict[str, Any] | None,
+) -> tuple[dict[str, Any], Sequence[InvoiceRuleResult]]:
+    """Run extraction, rule evaluation, and return both public and persisted outcomes."""
+    stored = await store_invoice(invoice_pdf_bytes(extracted_fields))
+    extracted_fields = await extract_invoice(
         stored.invoice.id,
         invoices=InvoiceRepository(session=test_db),
         storage=stored.storage,
         text_extractor=PdfTextExtractor(),
         extraction_pipeline=ExtractionPipeline(
-            model=model,
+            model=FakeExtractionModelClient(extracted_fields),
             grounding_checker=GroundingChecker(),
         ),
     )
-    if extracted_invoice is not None:
+    if extracted_fields is not None:
         await evaluate_rules(
             stored.invoice.id,
-            extracted_invoice=extracted_invoice,
+            extracted_invoice=extracted_fields,
             rule_results=RuleResultRepository(session=test_db),
             rule_engine=RuleEngine(config=RULE_CONFIG),
             today=TODAY,
@@ -190,7 +198,10 @@ async def extract_and_fetch(
     response = await client.get(f"/invoices/{stored.invoice.id}", headers=auth_headers)
 
     assert response.status_code == status.HTTP_200_OK
-    return response.json()
+
+    rows = await RuleResultRepository(test_db).list_by_invoice(stored.invoice.id)
+
+    return response.json(), rows
 
 
 async def should_record_all_check_pass_for_a_compliant_invoice(
@@ -199,20 +210,141 @@ async def should_record_all_check_pass_for_a_compliant_invoice(
     store_invoice: StoreInvoice,
     auth_headers: dict[str, str],
 ) -> None:
-    """Evaluate every rule as `pass` for a fully compliant invoice."""
-    stored = await store_invoice(compliant_invoice_pdf_bytes())
-
-    body = await extract_and_fetch(
+    """Record a passing result for every rule when the invoice is compliant."""
+    body, rows = await extract_and_fetch(
         client=client,
         test_db=test_db,
         auth_headers=auth_headers,
-        stored=stored,
-        model=FakeExtractionModelClient(),
+        store_invoice=store_invoice,
+        extracted_fields=EXTRACTED_FIELDS,
     )
 
     assert body["status"] == "extracted"
 
     # Database-level rule code assertion
-    rows = await RuleResultRepository(test_db).list_by_invoice(stored.invoice.id)
     assert {row.rule_code for row in rows} == {code.value for code in RuleCode}
     assert all(row.outcome == RuleOutcome.PASS for row in rows)
+
+
+@pytest.mark.parametrize(
+    ("new_fields", "expected_failed_code", "expected_message_parts"),
+    [
+        (
+            {
+                "tax_amount": Decimal("0.00"),
+                "total_amount": Decimal("1200.00"),
+                "line_items": [
+                    {"description": "Monitor arm", "amount": Decimal("1200.00")},
+                ],
+            },
+            RuleCode.EXPENSE_WITHIN_AMOUNT_LIMIT,
+            ("1200.00", "1000.00"),
+        ),
+        (
+            {
+                "tax_amount": "10.00",
+                "total_amount": "200.00",
+                "line_items": [
+                    {"description": "Buy A", "amount": "70.00"},
+                    {"description": "Buy B", "amount": "30.00"},
+                ],
+            },
+            RuleCode.LINE_ITEM_TOTAL_CONSISTENCY,
+            ("110.00", "200.00"),
+        ),
+        (
+            {
+                "currency": "JPY",
+            },
+            RuleCode.CURRENCY_ALLOWED,
+            ("JPY", "EUR, GBP, USD"),
+        ),
+        (
+            {
+                "invoice_date": "2026-09-01",
+            },
+            RuleCode.INVOICE_DATE_NOT_IN_FUTURE,
+            ("2026-09-01", "2026-08-15"),
+        ),
+        (
+            {
+                "invoice_date": "2025-08-15",
+            },
+            RuleCode.EXPENSE_WITHIN_SUBMISSION_WINDOW,
+            ("365", "90"),
+        ),
+    ],
+)
+async def should_flag_each_individual_policy_violation(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    store_invoice: StoreInvoice,
+    auth_headers: dict[str, str],
+    new_fields: dict[str, Any],
+    expected_failed_code: RuleCode,
+    expected_message_parts: tuple[str, ...],
+) -> None:
+    """Fail only the rule targeted by each individual policy violation."""
+    extracted_fields = {**EXTRACTED_FIELDS, **new_fields}
+    body, rows = await extract_and_fetch(
+        client=client,
+        test_db=test_db,
+        auth_headers=auth_headers,
+        store_invoice=store_invoice,
+        extracted_fields=extracted_fields,
+    )
+
+    assert body["status"] == "extracted"
+
+    assert len(rows) == len(RuleCode)
+    for row in rows:
+        if row.rule_code == expected_failed_code.value:
+            assert row.outcome == RuleOutcome.FAIL
+            assert all(part in row.message for part in expected_message_parts)
+        else:
+            assert row.outcome == RuleOutcome.PASS
+
+
+async def should_record_not_applicable_with_no_line_items(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    store_invoice: StoreInvoice,
+    auth_headers: dict[str, str],
+) -> None:
+    """Mark line-item reconciliation as not applicable when no items exist."""
+    extracted_fields = {**EXTRACTED_FIELDS, "line_items": []}
+    body, rows = await extract_and_fetch(
+        client=client,
+        test_db=test_db,
+        store_invoice=store_invoice,
+        auth_headers=auth_headers,
+        extracted_fields=extracted_fields,
+    )
+
+    assert body["status"] == "extracted"
+
+    assert len(rows) == len(RuleCode)
+    for row in rows:
+        if row.rule_code == RuleCode.LINE_ITEM_TOTAL_CONSISTENCY.value:
+            assert row.outcome == RuleOutcome.NOT_APPLICABLE
+        else:
+            assert row.outcome == RuleOutcome.PASS
+
+
+async def should_skip_evaluation_when_extraction_failed(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    store_invoice: StoreInvoice,
+    auth_headers: dict[str, str],
+) -> None:
+    """Skip rule evaluation when invoice extraction fails."""
+    body, rows = await extract_and_fetch(
+        client=client,
+        test_db=test_db,
+        auth_headers=auth_headers,
+        store_invoice=store_invoice,
+        extracted_fields=None,
+    )
+
+    assert body["status"] == "extraction_failed"
+    assert rows == []
