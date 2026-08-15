@@ -138,15 +138,20 @@ app/
     models/             # SQLAlchemy ORM models
     base.py             # Declarative base model
     session.py          # Engine, session factories
+  queueing/
+    jobs/               # Queue-owned job payloads
+    extraction.py       # Extraction enqueueing and worker lifecycle
+    reconcile.py        # Recovery of stale pending extractions
   schemas/              # Pydantic request/response models
-  jobs/                 # RQ worker entry points
-  queueing/             # Queue scheduling and retry policy
-  services/             # Application use cases
+  services/
+    extraction/         # Model extraction pipeline
+    upload/             # Upload intake and validation
+    auth.py             # Authentication use cases
 scripts/                # Operational commands, including local user seeding
 tests/
   unit/                 # No I/O, collaborators mocked
-  integration/          # Real Postgres, single adapter, no HTTP
-  acceptance/           # Real Postgres, real app, through HTTP
+  integration/          # Real infrastructure; grouped by adapter
+  acceptance/           # HTTP scenarios grouped by user-facing capability
 ```
 
 ## Tests
