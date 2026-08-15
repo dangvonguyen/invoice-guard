@@ -1,6 +1,9 @@
 ci:
   autofix_commit_msg: "style: auto-fix pre-commit hooks"
 
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -33,6 +36,14 @@ repos:
         require_serial: true
         language: system
         types: [python]
+
+      - id: local-mypy
+        name: mypy check
+        entry: uv run --project backend mypy backend/app
+        language: system
+        files: ^backend/
+        pass_filenames: false
+        stages: [pre-push]
 
       - id: local-eslint
         name: run eslint
