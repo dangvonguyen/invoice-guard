@@ -111,13 +111,22 @@ async def execute(invoice_id: str) -> None:
             return
 
     if extracted_invoice is not None:
-        async with session_factory() as session:
-            await evaluate_rules(
-                UUID(invoice_id),
-                extracted_invoice=extracted_invoice,
-                rule_results=RuleResultRepository(session=session),
-                rule_engine=RuleEngine(config=build_rule_config(settings)),
-                today=date.today(),
+        try:
+            async with session_factory() as session:
+                await evaluate_rules(
+                    UUID(invoice_id),
+                    extracted_invoice=extracted_invoice,
+                    rule_results=RuleResultRepository(session=session),
+                    rule_engine=RuleEngine(config=build_rule_config(settings)),
+                    today=date.today(),
+                )
+        except Exception:
+            logger.exception(
+                "Invoice rule evaluation failed after successful extraction",
+                extra={
+                    "event": "invoice.rule_check.failed",
+                    "context": {"invoice_id": invoice_id},
+                },
             )
 
 
