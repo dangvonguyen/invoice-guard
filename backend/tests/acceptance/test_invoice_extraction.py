@@ -25,7 +25,7 @@ from app.core.storage import LocalStorageClient
 from app.database.models.invoice import Invoice
 from app.database.models.user import User
 from app.database.repositories.invoice import InvoiceRepository
-from app.jobs.extract_invoice import extract_invoice
+from app.queueing.jobs.extract_invoice import extract_invoice
 from app.services.extraction.grounding import GroundingChecker
 from app.services.extraction.pipeline import ExtractionPipeline
 from app.services.extraction.text import PdfTextExtractor

@@ -15,7 +15,7 @@ from app.api.deps import (
 )
 from app.core.config import get_settings
 from app.database.models.invoice import InvoiceStatus
-from app.queueing.extraction import ExtractionEnqueueError, run_extraction_enqueue
+from app.queueing import extraction
 from app.schemas.invoice import InvoiceDetailResponse, InvoiceUploadResponse
 from app.services.upload.intake import (
     UploadRateLimitExceededError,
@@ -87,8 +87,8 @@ async def upload_invoice(
         )
 
     try:
-        await run_in_threadpool(run_extraction_enqueue, extraction_queue, invoice.id)
-    except ExtractionEnqueueError:
+        await run_in_threadpool(extraction.enqueue, extraction_queue, invoice.id)
+    except extraction.ExtractionEnqueueError:
         logger.warning(
             "Invoice extraction enqueue failed",
             extra={

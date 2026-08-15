@@ -19,7 +19,7 @@ from app.core.storage import StorageWriteError
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.user import User
 from app.main import app
-from app.queueing.extraction import extraction_job_id
+from app.queueing import extraction
 
 pytestmark = [
     pytest.mark.acceptance,
@@ -244,7 +244,7 @@ async def should_enqueue_extraction_for_every_accepted_upload(
     invoice_id = response.json()["invoice_id"]
 
     queue = Queue(EXTRACTION_QUEUE_NAME, connection=sync_redis)
-    job = queue.fetch_job(extraction_job_id(UUID(invoice_id)))
+    job = queue.fetch_job(extraction.get_job_id(UUID(invoice_id)))
     assert job is not None
     assert job.args == (invoice_id,)
 

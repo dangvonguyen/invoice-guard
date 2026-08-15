@@ -1,10 +1,13 @@
-"""Worker entry point for extracting structured fields from stored invoices."""
+"""The extraction job payload: read a stored invoice, extract its fields, and persist the result."""
 
 from uuid import UUID
 
 from app.core.storage import StorageClient
 from app.database.repositories.invoice import InvoiceRepository
-from app.services.extraction.pipeline import ExtractionPipeline, InvalidModelOutputError
+from app.services.extraction.pipeline import (
+    ExtractionPipeline,
+    InvalidModelOutputError,
+)
 from app.services.extraction.text import NoTextLayerError, TextExtractor
 
 

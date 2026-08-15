@@ -14,12 +14,7 @@ from app.core.config import get_settings
 from app.core.queue import EXTRACTION_QUEUE_NAME
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.user import User, UserRole
-from app.queueing import reconcile
-from app.queueing.extraction import (
-    ExtractionEnqueueError,
-    extraction_job_id,
-    run_extraction_enqueue,
-)
+from app.queueing import extraction, reconcile
 
 pytestmark = [
     pytest.mark.integration,
@@ -76,9 +71,9 @@ async def should_enqueue_extraction_for_a_stuck_pending_invoice(
     """Give a pending invoice with no live job a fresh extraction job."""
     invoice = await _stuck_pending_invoice(test_db, owner=owner)
 
-    await reconcile.reconcile_stuck_pending_invoices()
+    await reconcile.execute()
 
-    job = reconcile_queue.fetch_job(extraction_job_id(invoice.id))
+    job = reconcile_queue.fetch_job(extraction.get_job_id(invoice.id))
     assert job is not None
     assert job.args == (str(invoice.id),)
 
@@ -88,10 +83,10 @@ async def should_skip_a_pending_invoice_that_already_has_a_live_job(
 ) -> None:
     """Leave a pending invoice alone when its extraction job is still live."""
     invoice = await _stuck_pending_invoice(test_db, owner=owner)
-    run_extraction_enqueue(reconcile_queue, invoice.id)
+    extraction.enqueue(reconcile_queue, invoice.id)
 
-    with patch("app.queueing.reconcile.run_extraction_enqueue") as enqueue:
-        await reconcile.reconcile_stuck_pending_invoices()
+    with patch("app.queueing.reconcile.extraction.enqueue") as enqueue:
+        await reconcile.execute()
 
     enqueue.assert_not_called()
 
@@ -109,9 +104,9 @@ async def should_skip_a_pending_invoice_younger_than_the_stale_cutoff(
     test_db.add(invoice)
     await test_db.flush()
 
-    await reconcile.reconcile_stuck_pending_invoices()
+    await reconcile.execute()
 
-    assert reconcile_queue.fetch_job(extraction_job_id(invoice.id)) is None
+    assert reconcile_queue.fetch_job(extraction.get_job_id(invoice.id)) is None
 
 
 @pytest.mark.usefixtures("reconcile_queue")
@@ -122,10 +117,10 @@ async def should_mark_extraction_failed_when_the_reenqueue_attempt_does_not_succ
     invoice = await _stuck_pending_invoice(test_db, owner=owner)
 
     with patch(
-        "app.queueing.reconcile.run_extraction_enqueue",
-        side_effect=ExtractionEnqueueError("broker unavailable"),
+        "app.queueing.reconcile.extraction.enqueue",
+        side_effect=extraction.ExtractionEnqueueError("broker unavailable"),
     ):
-        await reconcile.reconcile_stuck_pending_invoices()
+        await reconcile.execute()
 
     await test_db.refresh(invoice)
     assert invoice.status == InvoiceStatus.EXTRACTION_FAILED
@@ -135,7 +130,7 @@ async def should_reschedule_the_next_tick_after_running(
     reconcile_queue: Queue,
 ) -> None:
     """Keep the self-rescheduling chain alive after each tick runs."""
-    await reconcile.reconcile_stuck_pending_invoices()
+    await reconcile.execute()
 
     assert reconcile_queue.scheduled_job_registry.count == 1
 
@@ -144,7 +139,7 @@ async def should_collapse_duplicate_seeding_for_the_same_tick_boundary(
     reconcile_queue: Queue,
 ) -> None:
     """Never schedule two reconcile jobs for the same interval boundary."""
-    reconcile.schedule_next_reconcile(reconcile_queue)
-    reconcile.schedule_next_reconcile(reconcile_queue)
+    reconcile.schedule_next(reconcile_queue)
+    reconcile.schedule_next(reconcile_queue)
 
     assert reconcile_queue.scheduled_job_registry.count == 1
