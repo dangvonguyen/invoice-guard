@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from datetime import date
 from pathlib import Path
 from types import TracebackType
 from uuid import UUID
@@ -15,12 +16,16 @@ from rq.job import Job, JobStatus
 from app.core.config import get_settings, unwrap_secret
 from app.core.storage import LocalStorageClient
 from app.database.repositories.invoice import InvoiceRepository
+from app.database.repositories.rule_result import RuleResultRepository
 from app.database.session import get_session_factory
+from app.queueing.jobs.evaluate_rules import evaluate_rules
 from app.queueing.jobs.extract_invoice import InvoiceNotFoundError, extract_invoice
 from app.services.extraction.grounding import GroundingChecker
 from app.services.extraction.model import OpenAIModelClient
 from app.services.extraction.pipeline import ExtractionPipeline
 from app.services.extraction.text import PdfTextExtractor
+from app.services.rules.config import build_rule_config
+from app.services.rules.engine import RuleEngine
 
 _EXTRACTION_TIMEOUT_SECONDS = 180
 _EXTRACTION_RETRY_INTERVALS_SECONDS = [10, 30]
@@ -71,11 +76,15 @@ def enqueue(queue: Queue, invoice_id: UUID) -> None:
 
 
 async def execute(invoice_id: str) -> None:
-    """Entry point: extract fields for one stored invoice."""
+    """Entry point: extract fields for one stored invoice, then evaluate policy rules.
+
+    Rule evaluation is a separate step that only runs once extraction has
+    successfully produced extracted fields to check.
+    """
     settings = get_settings()
     async with get_session_factory()() as session, session.begin():
         try:
-            await extract_invoice(
+            extracted_invoice = await extract_invoice(
                 UUID(invoice_id),
                 invoices=InvoiceRepository(session=session),
                 storage=LocalStorageClient(base_path=Path(settings.STORAGE_LOCAL_PATH)),
@@ -97,6 +106,16 @@ async def execute(invoice_id: str) -> None:
                     "event": "invoice.extraction.invoice_not_found",
                     "context": {"invoice_id": invoice_id},
                 },
+            )
+            return
+
+        if extracted_invoice is not None:
+            await evaluate_rules(
+                UUID(invoice_id),
+                extracted_invoice=extracted_invoice,
+                rule_results=RuleResultRepository(session=session),
+                rule_engine=RuleEngine(config=build_rule_config(settings)),
+                today=date.today(),
             )
 
 

@@ -42,9 +42,9 @@ class JobContext:
     text_extractor: Mock
     extraction_pipeline: AsyncMock
 
-    async def run(self) -> None:
+    async def run(self) -> ExtractedInvoice | None:
         """Run the job with its external boundaries replaced."""
-        await extract_invoice(
+        return await extract_invoice(
             INVOICE_ID,
             invoices=self.invoices,
             storage=self.storage,
@@ -55,6 +55,7 @@ class JobContext:
 
 @pytest.fixture
 def stored_invoice() -> Invoice:
+    """Build the pending invoice loaded by the extraction job."""
     timestamp = datetime(2000, 1, 1, tzinfo=UTC)
     return Invoice(
         id=INVOICE_ID,
@@ -68,6 +69,7 @@ def stored_invoice() -> Invoice:
 
 @pytest.fixture
 def extraction_result() -> ExtractionResult:
+    """Build the successful schema-valid result returned by extraction."""
     fields = ExtractedInvoice.model_validate(EXTRACTED_FIELDS)
     return ExtractionResult(fields=fields, confidence="high", confidence_reason=None)
 
@@ -95,7 +97,7 @@ async def should_persist_extracted_fields_on_first_successful_attempt(
     context: JobContext, extraction_result: ExtractionResult
 ) -> None:
     """Read, extract, and persist a valid invoice without retrying."""
-    await context.run()
+    extracted_invoice = await context.run()
 
     context.invoices.get_by_id.assert_awaited_once_with(INVOICE_ID)
     context.storage.read.assert_awaited_once_with(key=STORAGE_KEY)
@@ -109,6 +111,7 @@ async def should_persist_extracted_fields_on_first_successful_attempt(
         confidence=extraction_result.confidence,
         confidence_reason=extraction_result.confidence_reason,
     )
+    assert extracted_invoice == extraction_result.fields
 
 
 async def should_reject_an_unknown_invoice_before_reading_storage(
@@ -131,7 +134,7 @@ async def should_mark_extraction_failed_without_calling_the_model_when_pdf_has_n
     """Route a scanned/image-only PDF to extraction_failed before any model call."""
     context.text_extractor.extract_text.side_effect = NoTextLayerError()
 
-    await context.run()
+    extracted_invoice = await context.run()
 
     context.text_extractor.extract_text.assert_called_once_with(content=PDF_CONTENT)
     context.extraction_pipeline.run.assert_not_awaited()
@@ -139,6 +142,7 @@ async def should_mark_extraction_failed_without_calling_the_model_when_pdf_has_n
         invoice_id=INVOICE_ID
     )
     context.invoices.mark_extracted.assert_not_awaited()
+    assert extracted_invoice is None
 
 
 async def should_mark_extraction_failed_when_validation_retries_are_exhausted(
@@ -147,7 +151,7 @@ async def should_mark_extraction_failed_when_validation_retries_are_exhausted(
     """Route to review when the model never returns a schema-valid response."""
     context.extraction_pipeline.run.side_effect = InvalidModelOutputError()
 
-    await context.run()
+    extracted_invoice = await context.run()
 
     context.extraction_pipeline.run.assert_awaited_once_with(
         document_text=DOCUMENT_TEXT
@@ -156,3 +160,4 @@ async def should_mark_extraction_failed_when_validation_retries_are_exhausted(
         invoice_id=INVOICE_ID
     )
     context.invoices.mark_extracted.assert_not_awaited()
+    assert extracted_invoice is None
