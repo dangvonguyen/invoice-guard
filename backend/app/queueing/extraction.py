@@ -82,7 +82,8 @@ async def execute(invoice_id: str) -> None:
     successfully produced extracted fields to check.
     """
     settings = get_settings()
-    async with get_session_factory()() as session, session.begin():
+    session_factory = get_session_factory()
+    async with session_factory() as session:
         try:
             extracted_invoice = await extract_invoice(
                 UUID(invoice_id),
@@ -109,7 +110,8 @@ async def execute(invoice_id: str) -> None:
             )
             return
 
-        if extracted_invoice is not None:
+    if extracted_invoice is not None:
+        async with session_factory() as session:
             await evaluate_rules(
                 UUID(invoice_id),
                 extracted_invoice=extracted_invoice,
