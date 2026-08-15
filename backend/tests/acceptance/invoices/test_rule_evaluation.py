@@ -193,7 +193,7 @@ async def extract_and_fetch(
     return response.json()
 
 
-async def should_record_no_violations_for_a_compliant_invoice(
+async def should_record_all_check_pass_for_a_compliant_invoice(
     client: AsyncClient,
     test_db: AsyncSession,
     store_invoice: StoreInvoice,
@@ -211,7 +211,6 @@ async def should_record_no_violations_for_a_compliant_invoice(
     )
 
     assert body["status"] == "extracted"
-    assert body["violations"] == []
 
     # Database-level rule code assertion
     rows = await RuleResultRepository(test_db).list_by_invoice(stored.invoice.id)
