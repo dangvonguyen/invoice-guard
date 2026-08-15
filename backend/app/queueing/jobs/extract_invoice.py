@@ -1,14 +1,14 @@
-"""Worker entry point for extracting structured fields from stored invoices."""
+"""The extraction job payload: read a stored invoice, extract its fields, and persist the result."""
 
 from uuid import UUID
 
 from app.core.storage import StorageClient
 from app.database.repositories.invoice import InvoiceRepository
-from app.services.extraction_service import (
-    ExtractionService,
-    ExtractionValidationError,
+from app.services.extraction.pipeline import (
+    ExtractionPipeline,
+    InvalidModelOutputError,
 )
-from app.services.text_extractor import NoTextLayerError, TextExtractor
+from app.services.extraction.text import NoTextLayerError, TextExtractor
 
 
 class InvoiceNotFoundError(Exception):
@@ -21,7 +21,7 @@ async def extract_invoice(
     invoices: InvoiceRepository,
     storage: StorageClient,
     text_extractor: TextExtractor,
-    extraction_service: ExtractionService,
+    extraction_pipeline: ExtractionPipeline,
 ) -> None:
     """Extract and persist structured fields for one stored invoice."""
     invoice = await invoices.get_by_id(invoice_id)
@@ -36,8 +36,8 @@ async def extract_invoice(
         return
 
     try:
-        result = await extraction_service.extract(document_text=document_text)
-    except ExtractionValidationError:
+        result = await extraction_pipeline.run(document_text=document_text)
+    except InvalidModelOutputError:
         await invoices.mark_extraction_failed(invoice_id=invoice_id)
         return
 

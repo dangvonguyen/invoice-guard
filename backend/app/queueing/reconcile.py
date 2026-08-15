@@ -1,3 +1,5 @@
+"""Recurring tick that re-enqueues extraction for stale pending invoices."""
+
 import logging
 import math
 from datetime import UTC, datetime, timedelta
@@ -11,12 +13,7 @@ from app.core.config import get_settings
 from app.core.queue import get_extraction_queue
 from app.database.repositories.invoice import InvoiceRepository
 from app.database.session import get_session_factory
-from app.queueing.extraction import (
-    LIVE_JOB_STATUSES,
-    ExtractionEnqueueError,
-    extraction_job_id,
-    run_extraction_enqueue,
-)
+from app.queueing import extraction
 
 # Keeps a failed tick's hash around briefly for debugging
 _RECONCILE_TICK_FAILURE_TTL_SECONDS = 3600
@@ -24,7 +21,7 @@ _RECONCILE_TICK_FAILURE_TTL_SECONDS = 3600
 logger = logging.getLogger(__name__)
 
 
-def next_reconcile_tick(now: datetime, *, interval_seconds: int) -> datetime:
+def next_tick(now: datetime, *, interval_seconds: int) -> datetime:
     """Return the next interval boundary strictly after `now`.
 
     Every caller within the same interval window rounds up to the
@@ -37,12 +34,12 @@ def next_reconcile_tick(now: datetime, *, interval_seconds: int) -> datetime:
     return datetime.fromtimestamp(boundary_epoch, tz=UTC)
 
 
-def reconcile_job_id(tick: datetime) -> str:
+def get_job_id(tick: datetime) -> str:
     """Return the deterministic RQ job id for a reconcile tick."""
     return f"reconcile-pending-invoices-{int(tick.timestamp())}"
 
 
-def schedule_next_reconcile(queue: Queue) -> None:
+def schedule_next(queue: Queue) -> None:
     """Schedule the next reconcile tick, collapsing duplicate seeders.
 
     Called both at API startup and as the first action of every tick, so
@@ -50,11 +47,11 @@ def schedule_next_reconcile(queue: Queue) -> None:
     tick body.
     """
     settings = get_settings()
-    tick = next_reconcile_tick(
+    tick = next_tick(
         datetime.now(UTC),
         interval_seconds=settings.EXTRACTION_RECONCILE_INTERVAL_SECONDS,
     )
-    job_id = reconcile_job_id(tick)
+    job_id = get_job_id(tick)
 
     try:
         if Job.exists(job_id, connection=queue.connection):
@@ -64,7 +61,7 @@ def schedule_next_reconcile(queue: Queue) -> None:
 
         queue.enqueue_at(
             tick,
-            reconcile_stuck_pending_invoices,
+            execute,
             job_id=job_id,
             failure_ttl=_RECONCILE_TICK_FAILURE_TTL_SECONDS,
         )
@@ -78,16 +75,16 @@ def schedule_next_reconcile(queue: Queue) -> None:
         )
 
 
-def has_live_extraction_job(invoice_id: UUID, *, connection: Redis) -> bool:
+def has_active_job(invoice_id: UUID, *, connection: Redis) -> bool:
     """Return whether an invoice's extraction job is still expected to run."""
-    job_id = extraction_job_id(invoice_id)
+    job_id = extraction.get_job_id(invoice_id)
     if not Job.exists(job_id, connection=connection):
         return False
     job = Job.fetch(job_id, connection=connection)
-    return job.get_status(refresh=False) in LIVE_JOB_STATUSES
+    return job.get_status(refresh=False) in extraction.ACTIVE_STATUSES
 
 
-async def reconcile_stuck_pending_invoices() -> None:
+async def execute() -> None:
     """Recurring job: re-enqueue pending invoices with no live extraction job.
 
     Each eligible invoice gets a single enqueue attempt for this tick; an
@@ -96,7 +93,7 @@ async def reconcile_stuck_pending_invoices() -> None:
     """
     queue = get_extraction_queue()
 
-    schedule_next_reconcile(queue)
+    schedule_next(queue)
 
     settings = get_settings()
     stale_cutoff = datetime.now(UTC) - timedelta(
@@ -105,7 +102,7 @@ async def reconcile_stuck_pending_invoices() -> None:
 
     async with get_session_factory()() as session, session.begin():
         invoices = InvoiceRepository(session=session)
-        stuck_invoices = await invoices.list_old_pending(
+        stale_invoices = await invoices.list_old_pending(
             cutoff=stale_cutoff, limit=settings.EXTRACTION_RECONCILE_BATCH_LIMIT
         )
 
@@ -113,17 +110,17 @@ async def reconcile_stuck_pending_invoices() -> None:
             "Extraction reconcile tick scanning stale pending invoices",
             extra={
                 "event": "invoice.extraction.reconcile.tick_started",
-                "context": {"candidate_count": len(stuck_invoices)},
+                "context": {"candidate_count": len(stale_invoices)},
             },
         )
 
-        for invoice in stuck_invoices:
-            if has_live_extraction_job(invoice.id, connection=queue.connection):
+        for invoice in stale_invoices:
+            if has_active_job(invoice.id, connection=queue.connection):
                 continue
 
             try:
-                run_extraction_enqueue(queue, invoice.id)
-            except ExtractionEnqueueError:
+                extraction.enqueue(queue, invoice.id)
+            except extraction.ExtractionEnqueueError:
                 await invoices.mark_extraction_failed(invoice_id=invoice.id)
                 logger.warning(
                     "Reconciler failed to re-enqueue a stuck invoice; marked failed",

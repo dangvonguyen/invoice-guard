@@ -8,10 +8,10 @@ from uuid import UUID
 import pytest
 
 from app.database.models.invoice import Invoice, InvoiceStatus
-from app.jobs.extract_invoice import InvoiceNotFoundError, extract_invoice
-from app.services.extraction_model import InvoiceFields
-from app.services.extraction_service import ExtractionResult, ExtractionValidationError
-from app.services.text_extractor import NoTextLayerError
+from app.queueing.jobs.extract_invoice import InvoiceNotFoundError, extract_invoice
+from app.services.extraction.model import ExtractedInvoice
+from app.services.extraction.pipeline import ExtractionResult, InvalidModelOutputError
+from app.services.extraction.text import NoTextLayerError
 
 pytestmark = [
     pytest.mark.unit,
@@ -40,7 +40,7 @@ class JobContext:
     invoices: AsyncMock
     storage: AsyncMock
     text_extractor: Mock
-    extraction_service: AsyncMock
+    extraction_pipeline: AsyncMock
 
     async def run(self) -> None:
         """Run the job with its external boundaries replaced."""
@@ -49,7 +49,7 @@ class JobContext:
             invoices=self.invoices,
             storage=self.storage,
             text_extractor=self.text_extractor,
-            extraction_service=self.extraction_service,
+            extraction_pipeline=self.extraction_pipeline,
         )
 
 
@@ -68,7 +68,7 @@ def stored_invoice() -> Invoice:
 
 @pytest.fixture
 def extraction_result() -> ExtractionResult:
-    fields = InvoiceFields.model_validate(EXTRACTED_FIELDS)
+    fields = ExtractedInvoice.model_validate(EXTRACTED_FIELDS)
     return ExtractionResult(fields=fields, confidence="high", confidence_reason=None)
 
 
@@ -81,13 +81,13 @@ def context(stored_invoice: Invoice, extraction_result: ExtractionResult) -> Job
     storage.read.return_value = PDF_CONTENT
     text_extractor = Mock()
     text_extractor.extract_text.return_value = DOCUMENT_TEXT
-    extraction_service = AsyncMock()
-    extraction_service.extract.return_value = extraction_result
+    extraction_pipeline = AsyncMock()
+    extraction_pipeline.run.return_value = extraction_result
     return JobContext(
         invoices=invoices,
         storage=storage,
         text_extractor=text_extractor,
-        extraction_service=extraction_service,
+        extraction_pipeline=extraction_pipeline,
     )
 
 
@@ -100,7 +100,7 @@ async def should_persist_extracted_fields_on_first_successful_attempt(
     context.invoices.get_by_id.assert_awaited_once_with(INVOICE_ID)
     context.storage.read.assert_awaited_once_with(key=STORAGE_KEY)
     context.text_extractor.extract_text.assert_called_once_with(content=PDF_CONTENT)
-    context.extraction_service.extract.assert_awaited_once_with(
+    context.extraction_pipeline.run.assert_awaited_once_with(
         document_text=DOCUMENT_TEXT
     )
     context.invoices.mark_extracted.assert_awaited_once_with(
@@ -121,7 +121,7 @@ async def should_reject_an_unknown_invoice_before_reading_storage(
         await context.run()
 
     context.storage.read.assert_not_awaited()
-    context.extraction_service.extract.assert_not_awaited()
+    context.extraction_pipeline.run.assert_not_awaited()
     context.invoices.mark_extracted.assert_not_awaited()
 
 
@@ -134,7 +134,7 @@ async def should_mark_extraction_failed_without_calling_the_model_when_pdf_has_n
     await context.run()
 
     context.text_extractor.extract_text.assert_called_once_with(content=PDF_CONTENT)
-    context.extraction_service.extract.assert_not_awaited()
+    context.extraction_pipeline.run.assert_not_awaited()
     context.invoices.mark_extraction_failed.assert_awaited_once_with(
         invoice_id=INVOICE_ID
     )
@@ -145,11 +145,11 @@ async def should_mark_extraction_failed_when_validation_retries_are_exhausted(
     context: JobContext,
 ) -> None:
     """Route to review when the model never returns a schema-valid response."""
-    context.extraction_service.extract.side_effect = ExtractionValidationError()
+    context.extraction_pipeline.run.side_effect = InvalidModelOutputError()
 
     await context.run()
 
-    context.extraction_service.extract.assert_awaited_once_with(
+    context.extraction_pipeline.run.assert_awaited_once_with(
         document_text=DOCUMENT_TEXT
     )
     context.invoices.mark_extraction_failed.assert_awaited_once_with(

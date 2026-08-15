@@ -9,12 +9,12 @@ import pytest
 
 from app.core.storage import StorageWriteError
 from app.database.models.invoice import Invoice, InvoiceStatus
-from app.services.invoice_intake import (
-    InvoiceIntakeService,
-    InvoiceStorageUnavailableError,
+from app.services.upload.intake import (
     UploadRateLimitExceededError,
+    UploadService,
+    UploadStorageUnavailableError,
 )
-from app.services.invoice_mime_validator import UnsupportedMediaTypeError
+from app.services.upload.validation import UnsupportedMediaTypeError
 
 pytestmark = [
     pytest.mark.unit,
@@ -33,7 +33,7 @@ PDF_CONTENT = b"%PDF-1.4\ninvoice content\n"
 class IntakeContext:
     """Expose the service and collaborator roles used by the scenario."""
 
-    service: InvoiceIntakeService
+    service: UploadService
     validator: Mock
     rate_limiter: AsyncMock
     invoices: AsyncMock
@@ -62,7 +62,7 @@ def context() -> IntakeContext:
     invoices = AsyncMock()
     storage = AsyncMock()
     storage.generate_key = Mock()
-    service = InvoiceIntakeService(
+    service = UploadService(
         validator=validator,
         rate_limiter=rate_limiter,
         invoices=invoices,
@@ -85,11 +85,11 @@ async def should_accept_valid_pdf_as_pending_invoice(
     context.storage.generate_key.return_value = STORAGE_KEY
     context.invoices.create_pending.return_value = stored_invoice
 
-    result = await context.service.upload(
+    result = await context.service.accept(
         owner_id=OWNER_ID,
         filename=FILENAME,
         content_type=CONTENT_TYPE,
-        size=len(PDF_CONTENT),
+        content_length=len(PDF_CONTENT),
         content=PDF_CONTENT,
     )
 
@@ -97,7 +97,7 @@ async def should_accept_valid_pdf_as_pending_invoice(
     context.validator.validate.assert_called_once_with(
         filename=FILENAME,
         content_type=CONTENT_TYPE,
-        size=len(PDF_CONTENT),
+        content_length=len(PDF_CONTENT),
         content=PDF_CONTENT,
     )
     context.rate_limiter.allow.assert_awaited_once_with(
@@ -121,11 +121,11 @@ async def should_write_storage_only_after_the_row_is_created(
     )
     context.storage.save.side_effect = lambda **_: call_order.append("save")
 
-    await context.service.upload(
+    await context.service.accept(
         owner_id=OWNER_ID,
         filename=FILENAME,
         content_type=CONTENT_TYPE,
-        size=len(PDF_CONTENT),
+        content_length=len(PDF_CONTENT),
         content=PDF_CONTENT,
     )
 
@@ -139,11 +139,11 @@ async def should_reject_upload_when_rate_limit_denies_it(
     context.rate_limiter.allow.return_value = False
 
     with pytest.raises(UploadRateLimitExceededError):
-        await context.service.upload(
+        await context.service.accept(
             owner_id=OWNER_ID,
             filename=FILENAME,
             content_type=CONTENT_TYPE,
-            size=len(PDF_CONTENT),
+            content_length=len(PDF_CONTENT),
             content=PDF_CONTENT,
         )
 
@@ -159,11 +159,11 @@ async def should_reject_upload_when_validation_fails_without_persisting(
     context.validator.validate.side_effect = UnsupportedMediaTypeError()
 
     with pytest.raises(UnsupportedMediaTypeError):
-        await context.service.upload(
+        await context.service.accept(
             owner_id=OWNER_ID,
             filename="receipt.jpg",
             content_type="image/jpeg",
-            size=10,
+            content_length=10,
             content=b"x",
         )
 
@@ -177,11 +177,11 @@ async def should_generate_a_storage_key_never_derived_from_the_filename(
 ) -> None:
     """Never pass the client-supplied filename through as the storage key."""
     context.rate_limiter.allow.return_value = True
-    await context.service.upload(
+    await context.service.accept(
         owner_id=OWNER_ID,
         filename="invoice.pdf",
         content_type=CONTENT_TYPE,
-        size=len(PDF_CONTENT),
+        content_length=len(PDF_CONTENT),
         content=PDF_CONTENT,
     )
 
@@ -199,12 +199,12 @@ async def should_mark_reservation_failed_when_storage_write_fails(
     context.invoices.create_pending.return_value = stored_invoice
     context.storage.save.side_effect = StorageWriteError("disk unavailable")
 
-    with pytest.raises(InvoiceStorageUnavailableError):
-        await context.service.upload(
+    with pytest.raises(UploadStorageUnavailableError):
+        await context.service.accept(
             owner_id=OWNER_ID,
             filename=FILENAME,
             content_type=CONTENT_TYPE,
-            size=len(PDF_CONTENT),
+            content_length=len(PDF_CONTENT),
             content=PDF_CONTENT,
         )
 

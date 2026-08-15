@@ -12,7 +12,7 @@ from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.queue import get_extraction_queue
-from app.queueing.reconcile import schedule_next_reconcile
+from app.queueing import reconcile
 
 # Set up CORS
 cors_list = [
@@ -32,7 +32,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
     # Seed the self-rescheduling reconcile chain on every start. Safe per
     # replica because the tick id is a shared UTC epoch bucket.
-    await run_in_threadpool(schedule_next_reconcile, get_extraction_queue())
+    await run_in_threadpool(reconcile.schedule_next, get_extraction_queue())
 
     yield
 

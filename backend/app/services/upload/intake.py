@@ -7,52 +7,52 @@ from app.core.rate_limit import RateLimiter
 from app.core.storage import StorageClient, StorageWriteError
 from app.database.models import Invoice
 from app.database.repositories.invoice import InvoiceRepository
-from app.services.invoice_mime_validator import InvoiceMimeValidator
+from app.services.upload.validation import UploadValidator
 
 
 class UploadRateLimitExceededError(Exception):
     """Raised when a caller has exceeded their upload rate limit."""
 
 
-class InvoiceStorageUnavailableError(Exception):
+class UploadStorageUnavailableError(Exception):
     """Raised when a validated upload cannot be persisted to storage."""
 
 
-class InvoiceIntakeService:
+class UploadService:
     """Coordinate validation, reservation, and storage of invoice uploads."""
 
     def __init__(
         self,
-        validator: InvoiceMimeValidator,
+        validator: UploadValidator,
         rate_limiter: RateLimiter,
         invoices: InvoiceRepository,
         storage: StorageClient,
-        rate_limit_key_prefix: str = "invoice-upload",
+        rate_limit_scope: str = "invoice-upload",
     ) -> None:
         self._validator = validator
         self._rate_limiter = rate_limiter
         self._invoices = invoices
         self._storage = storage
-        self._rate_limit_key_prefix = rate_limit_key_prefix
+        self._rate_limit_scope = rate_limit_scope
 
-    async def upload(
+    async def accept(
         self,
         owner_id: UUID,
         filename: str | None,
         content_type: str | None,
-        size: int | None,
+        content_length: int | None,
         content: bytes,
     ) -> Invoice:
         """Accept an invoice upload, return the persisted pending state."""
         self._validator.validate(
             filename=filename,
             content_type=content_type,
-            size=size,
+            content_length=content_length,
             content=content,
         )
 
         if not await self._rate_limiter.allow(
-            key=owner_id, scope=self._rate_limit_key_prefix
+            key=owner_id, scope=self._rate_limit_scope
         ):
             raise UploadRateLimitExceededError(
                 f"upload rate limit exceeded for {owner_id}"
@@ -72,7 +72,7 @@ class InvoiceIntakeService:
             await self._storage.save(key=storage_key, content=content)
         except StorageWriteError as exc:
             await self._invoices.mark_upload_failed(invoice_id=invoice.id)
-            raise InvoiceStorageUnavailableError(
+            raise UploadStorageUnavailableError(
                 f"storage failed for invoice {invoice.id}"
             ) from exc
         return invoice

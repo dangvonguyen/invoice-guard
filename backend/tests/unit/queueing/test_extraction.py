@@ -8,7 +8,7 @@ import pytest
 from redis import Redis
 from rq.job import Job
 
-from app.queueing.extraction import on_extraction_failure
+from app.queueing import extraction
 
 pytestmark = pytest.mark.unit
 
@@ -35,7 +35,7 @@ def should_mark_extraction_failed_only_after_retries_are_exhausted(
     with patch(
         "app.queueing.extraction.InvoiceRepository.mark_extraction_failed"
     ) as mark_extraction_failed:
-        on_extraction_failure(
+        extraction.handle_failure(
             job=job,
             connection=Mock(spec=Redis),
             exc_type=RuntimeError,
