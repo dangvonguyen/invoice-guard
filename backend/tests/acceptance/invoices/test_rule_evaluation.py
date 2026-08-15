@@ -175,20 +175,20 @@ async def extract_and_fetch(
 ) -> tuple[dict[str, Any], Sequence[InvoiceRuleResult]]:
     """Run extraction, rule evaluation, and return both public and persisted outcomes."""
     stored = await store_invoice(invoice_pdf_bytes(extracted_fields))
-    extracted_fields = await extract_invoice(
+    extracted_invoice = await extract_invoice(
         stored.invoice.id,
         invoices=InvoiceRepository(session=test_db),
         storage=stored.storage,
         text_extractor=PdfTextExtractor(),
         extraction_pipeline=ExtractionPipeline(
-            model=FakeExtractionModelClient(extracted_fields),
+            model=FakeExtractionModelClient(extracted_fields or EXTRACTED_FIELDS),
             grounding_checker=GroundingChecker(),
         ),
     )
-    if extracted_fields is not None:
+    if extracted_invoice is not None:
         await evaluate_rules(
             stored.invoice.id,
-            extracted_invoice=extracted_fields,
+            extracted_invoice=extracted_invoice,
             rule_results=RuleResultRepository(session=test_db),
             rule_engine=RuleEngine(config=RULE_CONFIG),
             today=TODAY,
@@ -300,7 +300,7 @@ async def should_flag_each_individual_policy_violation(
     for row in rows:
         if row.rule_code == expected_failed_code.value:
             assert row.outcome == RuleOutcome.FAIL
-            assert all(part in row.message for part in expected_message_parts)
+            assert all(part in (row.message or "") for part in expected_message_parts)
         else:
             assert row.outcome == RuleOutcome.PASS
 
