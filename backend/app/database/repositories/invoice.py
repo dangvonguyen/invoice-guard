@@ -74,7 +74,10 @@ class InvoiceRepository:
         """Durably record that extraction could not proceed for an invoice."""
         await self._session.execute(
             update(Invoice)
-            .where(Invoice.id == invoice_id)
+            .where(
+                Invoice.id == invoice_id,
+                Invoice.status == InvoiceStatus.PENDING,
+            )
             .values(status=InvoiceStatus.EXTRACTION_FAILED)
         )
         await self._session.commit()

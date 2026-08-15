@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from datetime import date
 from pathlib import Path
 from types import TracebackType
 from uuid import UUID
@@ -14,13 +15,18 @@ from rq.job import Job, JobStatus
 
 from app.core.config import get_settings, unwrap_secret
 from app.core.storage import LocalStorageClient
+from app.database.models.invoice import InvoiceStatus
 from app.database.repositories.invoice import InvoiceRepository
+from app.database.repositories.rule_result import RuleResultRepository
 from app.database.session import get_session_factory
+from app.queueing.jobs.evaluate_rules import evaluate_rules
 from app.queueing.jobs.extract_invoice import InvoiceNotFoundError, extract_invoice
 from app.services.extraction.grounding import GroundingChecker
-from app.services.extraction.model import OpenAIModelClient
+from app.services.extraction.model import ExtractedInvoice, OpenAIModelClient
 from app.services.extraction.pipeline import ExtractionPipeline
 from app.services.extraction.text import PdfTextExtractor
+from app.services.rules.config import build_rule_config
+from app.services.rules.engine import RuleEngine
 
 _EXTRACTION_TIMEOUT_SECONDS = 180
 _EXTRACTION_RETRY_INTERVALS_SECONDS = [10, 30]
@@ -71,25 +77,47 @@ def enqueue(queue: Queue, invoice_id: UUID) -> None:
 
 
 async def execute(invoice_id: str) -> None:
-    """Entry point: extract fields for one stored invoice."""
+    """Entry point: extract fields for one stored invoice, then evaluate policy rules.
+
+    Rule evaluation is a separate step that only runs once extraction has
+    successfully produced extracted fields to check.
+    """
     settings = get_settings()
-    async with get_session_factory()() as session, session.begin():
+    session_factory = get_session_factory()
+    async with session_factory() as session:
         try:
-            await extract_invoice(
-                UUID(invoice_id),
-                invoices=InvoiceRepository(session=session),
-                storage=LocalStorageClient(base_path=Path(settings.STORAGE_LOCAL_PATH)),
-                text_extractor=PdfTextExtractor(),
-                extraction_pipeline=ExtractionPipeline(
-                    model=OpenAIModelClient(
-                        client=AsyncOpenAI(
-                            api_key=unwrap_secret(settings.OPENAI_API_KEY)
-                        ),
-                        model=settings.OPENAI_EXTRACTION_MODEL,
+            invoice_uuid = UUID(invoice_id)
+            invoices = InvoiceRepository(session=session)
+            invoice = await invoices.get_by_id(invoice_uuid)
+            extracted_invoice: ExtractedInvoice | None
+            if (
+                invoice is not None
+                and invoice.status == InvoiceStatus.EXTRACTED
+                and invoice.extracted_fields is not None
+            ):
+                # An RQ retry after evaluation failed must resume from the
+                # durable extraction result instead of calling the model again.
+                extracted_invoice = ExtractedInvoice.model_validate(
+                    invoice.extracted_fields
+                )
+            else:
+                extracted_invoice = await extract_invoice(
+                    invoice_uuid,
+                    invoices=invoices,
+                    storage=LocalStorageClient(
+                        base_path=Path(settings.STORAGE_LOCAL_PATH)
                     ),
-                    grounding_checker=GroundingChecker(),
-                ),
-            )
+                    text_extractor=PdfTextExtractor(),
+                    extraction_pipeline=ExtractionPipeline(
+                        model=OpenAIModelClient(
+                            client=AsyncOpenAI(
+                                api_key=unwrap_secret(settings.OPENAI_API_KEY)
+                            ),
+                            model=settings.OPENAI_EXTRACTION_MODEL,
+                        ),
+                        grounding_checker=GroundingChecker(),
+                    ),
+                )
         except InvoiceNotFoundError:
             logger.warning(
                 "Invoice extraction skipped because the invoice no longer exists",
@@ -98,6 +126,27 @@ async def execute(invoice_id: str) -> None:
                     "context": {"invoice_id": invoice_id},
                 },
             )
+            return
+
+    if extracted_invoice is not None:
+        try:
+            async with session_factory() as session:
+                await evaluate_rules(
+                    UUID(invoice_id),
+                    extracted_invoice=extracted_invoice,
+                    rule_results=RuleResultRepository(session=session),
+                    rule_engine=RuleEngine(config=build_rule_config(settings)),
+                    today=date.today(),
+                )
+        except Exception:
+            logger.exception(
+                "Invoice rule evaluation failed after successful extraction",
+                extra={
+                    "event": "invoice.rule_check.failed",
+                    "context": {"invoice_id": invoice_id},
+                },
+            )
+            raise
 
 
 def handle_failure(

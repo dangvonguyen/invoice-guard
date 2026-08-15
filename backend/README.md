@@ -121,6 +121,14 @@ The RQ worker reads an uploaded PDF, extracts its text layer, and sends that tex
 
 Authenticated users can retrieve an invoice they own through `GET /invoices/{invoice_id}`. The response contains its current status and, when extraction succeeds, the extracted fields, confidence, and confidence reason. Missing invoices and invoices owned by another user both return `404`.
 
+## Invoice rule evaluation
+
+Once extraction succeeds, the same RQ job evaluates the extracted fields against deterministic policy rules: spending limit, line-item/tax reconciliation, currency allow-list, and two invoice-date checks. Evaluation is skipped entirely when extraction fails.
+
+Every rule always produces a result for an evaluated invoice - `pass`, `fail`, or `not_applicable` - and the full set is persisted to `invoice_rule_results`, replacing any prior results for that invoice so a retried job never duplicates rows.
+
+Rule thresholds are configured in `backend/.env`: `RULE_MAX_EXPENSE_AMOUNT`, `RULE_MAX_EXPENSE_AGE_DAYS`, `RULE_ALLOWED_CURRENCIES`, and `RULE_RECONCILIATION_TOLERANCE`.
+
 ## Project structure
 
 ```
@@ -145,6 +153,7 @@ app/
   schemas/              # Pydantic request/response models
   services/
     extraction/         # Model extraction pipeline
+    rules/              # Deterministic policy rule checks and engine
     upload/             # Upload intake and validation
     auth.py             # Authentication use cases
 scripts/                # Operational commands, including local user seeding

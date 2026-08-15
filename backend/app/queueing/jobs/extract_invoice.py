@@ -4,10 +4,8 @@ from uuid import UUID
 
 from app.core.storage import StorageClient
 from app.database.repositories.invoice import InvoiceRepository
-from app.services.extraction.pipeline import (
-    ExtractionPipeline,
-    InvalidModelOutputError,
-)
+from app.services.extraction.model import ExtractedInvoice
+from app.services.extraction.pipeline import ExtractionPipeline, InvalidModelOutputError
 from app.services.extraction.text import NoTextLayerError, TextExtractor
 
 
@@ -22,7 +20,7 @@ async def extract_invoice(
     storage: StorageClient,
     text_extractor: TextExtractor,
     extraction_pipeline: ExtractionPipeline,
-) -> None:
+) -> ExtractedInvoice | None:
     """Extract and persist structured fields for one stored invoice."""
     invoice = await invoices.get_by_id(invoice_id)
     if invoice is None:
@@ -33,13 +31,13 @@ async def extract_invoice(
         document_text = text_extractor.extract_text(content=pdf_content)
     except NoTextLayerError:
         await invoices.mark_extraction_failed(invoice_id=invoice_id)
-        return
+        return None
 
     try:
         result = await extraction_pipeline.run(document_text=document_text)
     except InvalidModelOutputError:
         await invoices.mark_extraction_failed(invoice_id=invoice_id)
-        return
+        return None
 
     await invoices.mark_extracted(
         invoice_id=invoice_id,
@@ -47,3 +45,5 @@ async def extract_invoice(
         confidence=result.confidence,
         confidence_reason=result.confidence_reason,
     )
+
+    return result.fields

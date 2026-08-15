@@ -1,0 +1,56 @@
+"""Specify how rule evaluation persists an invoice's rule-result set, independent of extraction."""
+
+from datetime import date
+from unittest.mock import AsyncMock, Mock
+from uuid import UUID
+
+import pytest
+
+from app.queueing.jobs.evaluate_rules import evaluate_rules
+from app.services.extraction.model import ExtractedInvoice
+from app.services.rules.result import RuleCode, RuleOutcome, RuleResult
+
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.asyncio,
+]
+
+INVOICE_ID = UUID("10000000-0000-0000-0000-000000000001")
+TODAY = date(2026, 8, 15)
+EXTRACTED_INVOICE = ExtractedInvoice.model_validate(
+    {
+        "vendor_name": "Acme Supplies",
+        "invoice_date": "2026-07-30",
+        "currency": "USD",
+        "tax_amount": "36.00",
+        "total_amount": "486.00",
+        "line_items": [],
+    }
+)
+
+
+async def should_evaluate_the_fields_and_replace_the_invoices_rule_results() -> None:
+    """Evaluate against the rule engine and persist the returned result set as-is."""
+    rule_results = AsyncMock()
+    rule_engine = Mock()
+    evaluation = [
+        RuleResult(
+            rule_code=RuleCode.EXPENSE_WITHIN_AMOUNT_LIMIT,
+            outcome=RuleOutcome.PASS,
+            message=None,
+        )
+    ]
+    rule_engine.evaluate.return_value = evaluation
+
+    await evaluate_rules(
+        INVOICE_ID,
+        extracted_invoice=EXTRACTED_INVOICE,
+        rule_results=rule_results,
+        rule_engine=rule_engine,
+        today=TODAY,
+    )
+
+    rule_engine.evaluate.assert_called_once_with(EXTRACTED_INVOICE, TODAY)
+    rule_results.replace_for_invoice.assert_awaited_once_with(
+        invoice_id=INVOICE_ID, results=evaluation
+    )
