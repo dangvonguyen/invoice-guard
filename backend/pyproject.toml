@@ -36,6 +36,7 @@ dev = [
 testpaths = ["tests"]
 pythonpath = ["."]
 python_functions = ["test_*", "should_*"]
+addopts = ["--import-mode=importlib"]
 markers = [
 	"unit: fast, no external deps",
 	"integration: real DB, single adapter, no HTTP layer",
