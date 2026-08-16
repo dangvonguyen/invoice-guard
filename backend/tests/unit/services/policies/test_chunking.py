@@ -40,6 +40,21 @@ def should_treat_a_document_with_zero_detected_headings_as_a_single_section() ->
     assert sections[0].text == text
 
 
+def should_preserve_text_before_the_first_numbered_heading() -> None:
+    """Return introductory policy text as an implicit, unlabeled section."""
+    text = (
+        "These rules apply to all employees.\n\n"
+        "5.1 Meals\n"
+        "Employees may expense meals up to $75 per day."
+    )
+
+    sections = split_into_sections(text)
+
+    assert [section.label for section in sections] == [None, "5.1 Meals"]
+    assert sections[0].text == "These rules apply to all employees."
+    assert "$75" in sections[1].text
+
+
 def should_produce_one_chunk_per_section_when_every_section_fits_the_budget() -> None:
     """Turn each detected section into its own labeled, embeddable chunk."""
     chunker = SectionChunker(min_tokens=1, max_tokens=100)

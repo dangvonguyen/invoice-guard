@@ -42,6 +42,10 @@ def split_into_sections(document_text: str) -> list[Section]:
         return [Section(label=None, text=document_text)]
 
     sections = []
+    prefix = document_text[: headings[0].start()].strip()
+    if prefix:
+        sections.append(Section(label=None, text=prefix))
+
     for heading, next_heading in zip(headings, [*headings[1:], None], strict=True):
         end = next_heading.start() if next_heading else len(document_text)
         sections.append(
