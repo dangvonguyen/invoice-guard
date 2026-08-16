@@ -62,6 +62,11 @@ app.add_middleware(
     max_body_bytes=get_settings().UPLOAD_MAX_BYTES + 64 * 1024,
     paths={"/invoices"},
 )
+app.add_middleware(
+    RequestBodyLimitMiddleware,
+    max_body_bytes=get_settings().POLICY_DOCUMENT_MAX_BYTES + 64 * 1024,
+    paths={"/policies/documents"},
+)
 
 # Add logging middleware last so it wraps CORS responses, including preflights
 app.add_middleware(RequestLoggingMiddleware, exclude_paths=log_exclude_paths)

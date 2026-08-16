@@ -6,25 +6,18 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from app.services.extraction.model import OUTPUT_SCHEMA, OpenAIModelClient
+from tests.support.constants import RAW_INVOICE_DATA
 
 pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
 
 DOCUMENT_TEXT = "Vendor: Acme Supplies\nTotal: 482.10 USD"
-RAW_RESPONSE = {
-    "vendor_name": "Acme Supplies",
-    "invoice_date": "2000-01-01",
-    "currency": "USD",
-    "tax_amount": "32.10",
-    "total_amount": "482.10",
-    "line_items": [],
-}
 
 
 @pytest.fixture
 def openai_client() -> Mock:
     client = Mock()
     client.responses.create = AsyncMock(
-        return_value=Mock(output_text=json.dumps(RAW_RESPONSE))
+        return_value=Mock(output_text=json.dumps(RAW_INVOICE_DATA))
     )
     return client
 
@@ -40,7 +33,7 @@ async def should_return_the_parsed_json_response(
     """Parse the model's output_text into the raw field dict."""
     result = await model_client.extract_raw_fields(document_text=DOCUMENT_TEXT)
 
-    assert result == RAW_RESPONSE
+    assert result == RAW_INVOICE_DATA
 
 
 async def should_request_a_strict_json_schema_matching_invoice_fields(

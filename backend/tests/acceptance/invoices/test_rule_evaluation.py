@@ -10,20 +10,17 @@ Steps:
 
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
-from uuid import UUID
 
 import pytest
 import pytest_asyncio
 from fastapi import status
-from fpdf import FPDF
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_access_token_codec
 from app.core.storage import LocalStorageClient
 from app.database.models.invoice import Invoice
 from app.database.models.rule_result import InvoiceRuleResult, RuleOutcome
@@ -35,43 +32,15 @@ from app.queueing.jobs.extract_invoice import extract_invoice
 from app.services.extraction.grounding import GroundingChecker
 from app.services.extraction.pipeline import ExtractionPipeline
 from app.services.extraction.text import PdfTextExtractor
-from app.services.rules.config import RuleConfig
 from app.services.rules.engine import RuleEngine
 from app.services.rules.result import RuleCode
+from tests.support.constants import LINE_ITEMS, RAW_INVOICE_DATA, RULE_CONFIG, TODAY
+from tests.support.pdf import pdf_bytes
 
 pytestmark = [
     pytest.mark.acceptance,
     pytest.mark.asyncio,
 ]
-
-RULE_CONFIG = RuleConfig(
-    max_expense_amount=Decimal("1000.00"),
-    max_expense_age_days=90,
-    allowed_currencies=frozenset({"USD", "EUR", "GBP"}),
-    reconciliation_tolerance=Decimal("0.01"),
-)
-TODAY = date(2026, 8, 15)
-
-VENDOR_NAME = "Acme Supplies"
-INVOICE_DATE = date(2026, 7, 30)
-CURRENCY = "USD"
-TAX_AMOUNT = Decimal("36.00")
-TOTAL_AMOUNT = Decimal("486.00")
-LINE_ITEMS = [
-    ("Standing desk riser", Decimal("320.00")),
-    ("Monitor arm", Decimal("130.00")),
-]
-EXTRACTED_FIELDS = {
-    "vendor_name": VENDOR_NAME,
-    "invoice_date": INVOICE_DATE.isoformat(),
-    "currency": CURRENCY,
-    "tax_amount": str(TAX_AMOUNT),
-    "total_amount": str(TOTAL_AMOUNT),
-    "line_items": [
-        {"description": description, "amount": str(amount)}
-        for description, amount in LINE_ITEMS
-    ],
-}
 
 
 @dataclass(frozen=True)
@@ -83,26 +52,16 @@ class StoredInvoice:
 StoreInvoice = Callable[[bytes], Awaitable[StoredInvoice]]
 
 
-def _pdf_bytes(text: str | None = None) -> bytes:
-    """Build a real PDF, optionally with a text layer containing `text`."""
-    pdf = FPDF()
-    pdf.add_page()
-    if text is not None:
-        pdf.set_font("Helvetica", size=12)
-        pdf.multi_cell(0, 10, text=text)
-    return bytes(pdf.output())
-
-
 def invoice_pdf_bytes(fields: dict[str, Any] | None = None) -> bytes:
     """Build a real text-layer PDF."""
     if fields is None:
-        return _pdf_bytes()
+        return pdf_bytes()
 
     line_items_text = "\n".join(
         f"{description}: {amount} {fields['currency']}"
         for description, amount in LINE_ITEMS
     )
-    return _pdf_bytes(
+    return pdf_bytes(
         f"Vendor: {fields['vendor_name']}\n"
         f"Invoice Date: {fields['invoice_date']}\n"
         f"{line_items_text}\n"
@@ -112,29 +71,8 @@ def invoice_pdf_bytes(fields: dict[str, Any] | None = None) -> bytes:
 
 
 @pytest_asyncio.fixture
-async def owner(test_db: AsyncSession) -> User:
-    """Persist the employee who owns the invoice being evaluated."""
-    user = User(
-        id=UUID("00000000-0000-0000-0000-000000000001"),
-        email="alice@example.com",
-        hashed_password="unused-password-hash",
-        name="Alice",
-    )
-    test_db.add(user)
-    await test_db.flush()
-    return user
-
-
-@pytest.fixture
-def auth_headers(owner: User) -> dict[str, str]:
-    """Bearer header authenticating as the invoice's owner."""
-    token = get_access_token_codec().issue(str(owner.id))
-    return {"Authorization": f"Bearer {token}"}
-
-
-@pytest_asyncio.fixture
 async def store_invoice(
-    test_db: AsyncSession, owner: User, tmp_path: Path
+    test_db: AsyncSession, employee: User, tmp_path: Path
 ) -> StoreInvoice:
     """A helper that persists invoice content in local test storage."""
     storage = LocalStorageClient(base_path=tmp_path)
@@ -142,7 +80,7 @@ async def store_invoice(
 
     async def store(content: bytes) -> StoredInvoice:
         invoice = await repository.create_pending(
-            owner_id=owner.id,
+            owner_id=employee.id,
             storage_key=storage.generate_key(),
             original_filename="invoice.pdf",
         )
@@ -155,7 +93,7 @@ async def store_invoice(
 class FakeExtractionModelClient:
     """Stand in for the real LLM boundary with a fixed, schema-valid response."""
 
-    def __init__(self, fields: dict[str, Any] = EXTRACTED_FIELDS) -> None:
+    def __init__(self, fields: dict[str, Any] = RAW_INVOICE_DATA) -> None:
         self.fields = fields
 
     async def extract_raw_fields(
@@ -165,23 +103,20 @@ class FakeExtractionModelClient:
         return self.fields
 
 
-async def extract_and_fetch(
+async def run_extraction_and_rule_evaluation(
+    stored: StoredInvoice,
     *,
-    client: AsyncClient,
     test_db: AsyncSession,
-    auth_headers: dict[str, str],
-    store_invoice: StoreInvoice,
     extracted_fields: dict[str, Any] | None,
-) -> tuple[dict[str, Any], Sequence[InvoiceRuleResult]]:
-    """Run extraction, rule evaluation, and return both public and persisted outcomes."""
-    stored = await store_invoice(invoice_pdf_bytes(extracted_fields))
+) -> Sequence[InvoiceRuleResult]:
+    """Run extraction and, on success, rule evaluation; return the persisted rows."""
     extracted_invoice = await extract_invoice(
         stored.invoice.id,
         invoices=InvoiceRepository(session=test_db),
         storage=stored.storage,
         text_extractor=PdfTextExtractor(),
         extraction_pipeline=ExtractionPipeline(
-            model=FakeExtractionModelClient(extracted_fields or EXTRACTED_FIELDS),
+            model=FakeExtractionModelClient(extracted_fields or RAW_INVOICE_DATA),
             grounding_checker=GroundingChecker(),
         ),
     )
@@ -195,30 +130,27 @@ async def extract_and_fetch(
         )
     await test_db.commit()
 
-    response = await client.get(f"/invoices/{stored.invoice.id}", headers=auth_headers)
-
-    assert response.status_code == status.HTTP_200_OK
-
-    rows = await RuleResultRepository(test_db).list_by_invoice(stored.invoice.id)
-
-    return response.json(), rows
+    return await RuleResultRepository(test_db).list_by_invoice(stored.invoice.id)
 
 
 async def should_record_all_check_pass_for_a_compliant_invoice(
     client: AsyncClient,
     test_db: AsyncSession,
     store_invoice: StoreInvoice,
-    auth_headers: dict[str, str],
+    employee_headers: dict[str, str],
 ) -> None:
     """Record a passing result for every rule when the invoice is compliant."""
-    body, rows = await extract_and_fetch(
-        client=client,
-        test_db=test_db,
-        auth_headers=auth_headers,
-        store_invoice=store_invoice,
-        extracted_fields=EXTRACTED_FIELDS,
+    stored = await store_invoice(invoice_pdf_bytes(RAW_INVOICE_DATA))
+    rows = await run_extraction_and_rule_evaluation(
+        stored, test_db=test_db, extracted_fields=RAW_INVOICE_DATA
     )
 
+    response = await client.get(
+        f"/invoices/{stored.invoice.id}", headers=employee_headers
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
     assert body["status"] == "extracted"
 
     # Database-level rule code assertion
@@ -261,17 +193,17 @@ async def should_record_all_check_pass_for_a_compliant_invoice(
         ),
         (
             {
-                "invoice_date": "2026-09-01",
+                "invoice_date": (TODAY + timedelta(days=1)).isoformat(),
             },
             RuleCode.INVOICE_DATE_NOT_IN_FUTURE,
-            ("2026-09-01", "2026-08-15"),
+            (TODAY.isoformat(), (TODAY + timedelta(days=1)).isoformat()),
         ),
         (
             {
-                "invoice_date": "2025-08-15",
+                "invoice_date": (TODAY - timedelta(days=91)).isoformat(),
             },
             RuleCode.EXPENSE_WITHIN_SUBMISSION_WINDOW,
-            ("365", "90"),
+            ("91", "90"),
         ),
     ],
 )
@@ -279,21 +211,24 @@ async def should_flag_each_individual_policy_violation(
     client: AsyncClient,
     test_db: AsyncSession,
     store_invoice: StoreInvoice,
-    auth_headers: dict[str, str],
+    employee_headers: dict[str, str],
     new_fields: dict[str, Any],
     expected_failed_code: RuleCode,
     expected_message_parts: tuple[str, ...],
 ) -> None:
     """Fail only the rule targeted by each individual policy violation."""
-    extracted_fields = {**EXTRACTED_FIELDS, **new_fields}
-    body, rows = await extract_and_fetch(
-        client=client,
-        test_db=test_db,
-        auth_headers=auth_headers,
-        store_invoice=store_invoice,
-        extracted_fields=extracted_fields,
+    extracted_fields = {**RAW_INVOICE_DATA, **new_fields}
+    stored = await store_invoice(invoice_pdf_bytes(extracted_fields))
+    rows = await run_extraction_and_rule_evaluation(
+        stored, test_db=test_db, extracted_fields=extracted_fields
     )
 
+    response = await client.get(
+        f"/invoices/{stored.invoice.id}", headers=employee_headers
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
     assert body["status"] == "extracted"
 
     assert len(rows) == len(RuleCode)
@@ -309,18 +244,21 @@ async def should_record_not_applicable_with_no_line_items(
     client: AsyncClient,
     test_db: AsyncSession,
     store_invoice: StoreInvoice,
-    auth_headers: dict[str, str],
+    employee_headers: dict[str, str],
 ) -> None:
     """Mark line-item reconciliation as not applicable when no items exist."""
-    extracted_fields = {**EXTRACTED_FIELDS, "line_items": []}
-    body, rows = await extract_and_fetch(
-        client=client,
-        test_db=test_db,
-        store_invoice=store_invoice,
-        auth_headers=auth_headers,
-        extracted_fields=extracted_fields,
+    extracted_fields = {**RAW_INVOICE_DATA, "line_items": []}
+    stored = await store_invoice(invoice_pdf_bytes(extracted_fields))
+    rows = await run_extraction_and_rule_evaluation(
+        stored, test_db=test_db, extracted_fields=extracted_fields
     )
 
+    response = await client.get(
+        f"/invoices/{stored.invoice.id}", headers=employee_headers
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
     assert body["status"] == "extracted"
 
     assert len(rows) == len(RuleCode)
@@ -335,16 +273,19 @@ async def should_skip_evaluation_when_extraction_failed(
     client: AsyncClient,
     test_db: AsyncSession,
     store_invoice: StoreInvoice,
-    auth_headers: dict[str, str],
+    employee_headers: dict[str, str],
 ) -> None:
     """Skip rule evaluation when invoice extraction fails."""
-    body, rows = await extract_and_fetch(
-        client=client,
-        test_db=test_db,
-        auth_headers=auth_headers,
-        store_invoice=store_invoice,
-        extracted_fields=None,
+    stored = await store_invoice(invoice_pdf_bytes(None))
+    rows = await run_extraction_and_rule_evaluation(
+        stored, test_db=test_db, extracted_fields=None
     )
 
+    response = await client.get(
+        f"/invoices/{stored.invoice.id}", headers=employee_headers
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
     assert body["status"] == "extraction_failed"
     assert rows == []
