@@ -8,7 +8,12 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.database.base import Base
-from app.database.models import invoice, rule_result, user  # noqa: F401
+from app.database.models import (  # noqa: F401
+    invoice,
+    policy_document,
+    rule_result,
+    user,
+)
 from app.database.session import get_database_url
 
 # this is the Alembic Config object, which provides

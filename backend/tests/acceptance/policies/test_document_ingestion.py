@@ -9,13 +9,22 @@ from fpdf import FPDF
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_access_token_codec
+from app.api.deps import get_access_token_codec, get_embedding_client
 from app.database.models.user import User, UserRole
+from app.main import app
+from app.services.embeddings.client import EMBEDDING_DIMENSIONS
 
 pytestmark = [
     pytest.mark.acceptance,
     pytest.mark.asyncio,
 ]
+
+
+class FakeEmbeddingClient:
+    """Stand in for the embedding-provider boundary with a fixed vector."""
+
+    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        return [[0.0] * EMBEDDING_DIMENSIONS for _ in texts]
 
 
 def handbook_pdf_bytes() -> bytes:
@@ -63,6 +72,8 @@ async def should_activate_a_valid_pdf_upload(
     auth_headers: dict[str, str],
 ) -> None:
     """Accept a text-native PDF handbook and activate it immediately."""
+    app.dependency_overrides[get_embedding_client] = FakeEmbeddingClient
+
     response = await client.post(
         "/policies/documents",
         headers=auth_headers,

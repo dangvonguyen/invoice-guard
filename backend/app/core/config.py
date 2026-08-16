@@ -70,6 +70,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: SecretStr
     OPENAI_EXTRACTION_MODEL: str = "gpt-5-mini"
 
+    # Embedding model
+    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
+
     # Extraction reconciliation
     EXTRACTION_RECONCILE_INTERVAL_SECONDS: PositiveInt = 600
     EXTRACTION_RECONCILE_STALE_AFTER_SECONDS: PositiveInt = 1200
@@ -80,6 +83,10 @@ class Settings(BaseSettings):
     RULE_MAX_EXPENSE_AGE_DAYS: PositiveInt = 90
     RULE_ALLOWED_CURRENCIES: str = "USD,EUR,GBP"
     RULE_RECONCILIATION_TOLERANCE: NonNegativeDecimal = Decimal("0.01")
+
+    # Policy handbook chunking
+    POLICY_CHUNK_MIN_TOKENS: PositiveInt = 100
+    POLICY_CHUNK_MAX_TOKENS: PositiveInt = 500
 
     @field_validator("API_ROOT")
     @classmethod
