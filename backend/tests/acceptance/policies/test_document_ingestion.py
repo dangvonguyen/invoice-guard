@@ -67,6 +67,28 @@ def auth_headers(finance_reviewer: User) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+@pytest_asyncio.fixture
+async def employee(test_db: AsyncSession) -> User:
+    """Persist a plain employee, who is not permitted to upload policies."""
+    user = User(
+        id=UUID("00000000-0000-0000-0000-000000000002"),
+        email="evan@example.com",
+        hashed_password="unused-password-hash",
+        name="Evan",
+        role=UserRole.EMPLOYEE,
+    )
+    test_db.add(user)
+    await test_db.flush()
+    return user
+
+
+@pytest.fixture
+def employee_auth_headers(employee: User) -> dict[str, str]:
+    """Bearer header authenticating as the employee."""
+    token = get_access_token_codec().issue(str(employee.id))
+    return {"Authorization": f"Bearer {token}"}
+
+
 async def should_activate_a_valid_pdf_upload(
     client: AsyncClient,
     auth_headers: dict[str, str],
@@ -131,3 +153,39 @@ async def should_supersede_the_previous_active_document(
     by_id = {document["policy_document_id"]: document for document in documents}
     assert by_id[first_id]["status"] == "superseded"
     assert by_id[second.json()["policy_document_id"]]["status"] == "active"
+
+
+async def should_reject_an_upload_from_a_non_reviewer(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+    employee_auth_headers: dict[str, str],
+) -> None:
+    """An employee cannot upload, and nothing gets persisted."""
+    response = await client.post(
+        "/policies/documents",
+        headers=employee_auth_headers,
+        files={
+            "file": ("expense-handbook-v1.pdf", handbook_pdf_bytes(), "application/pdf")
+        },
+    )
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    listing = await client.get("/policies/documents", headers=auth_headers)
+
+    assert listing.status_code == status.HTTP_200_OK
+    assert listing.json() == []
+
+
+async def should_reject_an_upload_without_authentication(
+    client: AsyncClient,
+) -> None:
+    """A request with no bearer token is rejected before any role check."""
+    response = await client.post(
+        "/policies/documents",
+        files={
+            "file": ("expense-handbook-v1.pdf", handbook_pdf_bytes(), "application/pdf")
+        },
+    )
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
