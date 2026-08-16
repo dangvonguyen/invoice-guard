@@ -7,8 +7,6 @@ checker), then observe the result over HTTP via `GET /invoices/{id}`.
 The extraction *model* is the one collaborator faked here.
 """
 
-from datetime import date
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +24,15 @@ from app.queueing.jobs.extract_invoice import extract_invoice
 from app.services.extraction.grounding import GroundingChecker
 from app.services.extraction.pipeline import ExtractionPipeline
 from app.services.extraction.text import PdfTextExtractor
+from tests.support.constants import (
+    CURRENCY,
+    INVOICE_DATE,
+    LINE_ITEMS,
+    RAW_INVOICE_DATA,
+    TAX_AMOUNT,
+    TOTAL_AMOUNT,
+    VENDOR_NAME,
+)
 from tests.support.pdf import pdf_bytes
 
 pytestmark = [
@@ -33,26 +40,16 @@ pytestmark = [
     pytest.mark.asyncio,
 ]
 
-VENDOR_NAME = "Acme Supplies"
-INVOICE_DATE = date(2000, 1, 1)
-TOTAL_AMOUNT = Decimal("482.10")
-TAX_AMOUNT = Decimal("32.10")
-CURRENCY = "USD"
-EXTRACTED_FIELDS = {
-    "vendor_name": VENDOR_NAME,
-    "invoice_date": INVOICE_DATE.isoformat(),
-    "currency": CURRENCY,
-    "tax_amount": str(TAX_AMOUNT),
-    "total_amount": str(TOTAL_AMOUNT),
-    "line_items": [],
-}
-
 
 def text_native_pdf_bytes() -> bytes:
     """Build a real, parseable PDF containing the invoice's field values."""
+    line_items_text = "\n".join(
+        f"{description}: {amount} {CURRENCY}" for description, amount in LINE_ITEMS
+    )
     return pdf_bytes(
         f"Vendor: {VENDOR_NAME}\n"
         f"Invoice Date: {INVOICE_DATE.isoformat()}\n"
+        f"{line_items_text}\n"
         f"Tax: {TAX_AMOUNT} {CURRENCY}\n"
         f"Total: {TOTAL_AMOUNT} {CURRENCY}\n"
     )
@@ -80,7 +77,7 @@ class FakeExtractionModelClient:
         self, *, document_text: str, validation_error: str | None = None
     ) -> dict[str, Any]:
         assert VENDOR_NAME in document_text  # sanity: real text was passed in
-        return EXTRACTED_FIELDS
+        return RAW_INVOICE_DATA
 
 
 class NeverCalledExtractionModelClient:
@@ -105,7 +102,7 @@ class AlwaysInvalidExtractionModelClient:
     ) -> dict[str, Any]:
         del document_text, validation_error
         self.call_count += 1
-        return {k: v for k, v in EXTRACTED_FIELDS.items() if k != "total_amount"}
+        return {k: v for k, v in RAW_INVOICE_DATA.items() if k != "total_amount"}
 
 
 class UngroundedFieldExtractionModelClient:

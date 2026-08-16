@@ -12,6 +12,7 @@ from app.queueing.jobs.extract_invoice import InvoiceNotFoundError, extract_invo
 from app.services.extraction.model import ExtractedInvoice
 from app.services.extraction.pipeline import ExtractionResult, InvalidModelOutputError
 from app.services.extraction.text import NoTextLayerError
+from tests.support.constants import EXTRACTED_INVOICE
 
 pytestmark = [
     pytest.mark.unit,
@@ -23,14 +24,6 @@ INVOICE_ID = UUID("10000000-0000-0000-0000-000000000001")
 STORAGE_KEY = "20000000-0000-0000-0000-000000000001"
 PDF_CONTENT = b"%PDF-1.4\ninvoice content\n"
 DOCUMENT_TEXT = "Vendor: Acme Supplies\nTotal: 482.10 USD"
-EXTRACTED_FIELDS = {
-    "vendor_name": "Acme Supplies",
-    "invoice_date": "2000-01-01",
-    "currency": "USD",
-    "tax_amount": "32.10",
-    "total_amount": "482.10",
-    "line_items": [],
-}
 
 
 @dataclass(frozen=True)
@@ -70,8 +63,9 @@ def stored_invoice() -> Invoice:
 @pytest.fixture
 def extraction_result() -> ExtractionResult:
     """Build the successful schema-valid result returned by extraction."""
-    fields = ExtractedInvoice.model_validate(EXTRACTED_FIELDS)
-    return ExtractionResult(fields=fields, confidence="high", confidence_reason=None)
+    return ExtractionResult(
+        fields=EXTRACTED_INVOICE, confidence="high", confidence_reason=None
+    )
 
 
 @pytest.fixture

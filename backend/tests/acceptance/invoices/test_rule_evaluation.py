@@ -10,7 +10,7 @@ Steps:
 
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -32,44 +32,15 @@ from app.queueing.jobs.extract_invoice import extract_invoice
 from app.services.extraction.grounding import GroundingChecker
 from app.services.extraction.pipeline import ExtractionPipeline
 from app.services.extraction.text import PdfTextExtractor
-from app.services.rules.config import RuleConfig
 from app.services.rules.engine import RuleEngine
 from app.services.rules.result import RuleCode
+from tests.support.constants import LINE_ITEMS, RAW_INVOICE_DATA, RULE_CONFIG, TODAY
 from tests.support.pdf import pdf_bytes
 
 pytestmark = [
     pytest.mark.acceptance,
     pytest.mark.asyncio,
 ]
-
-RULE_CONFIG = RuleConfig(
-    max_expense_amount=Decimal("1000.00"),
-    max_expense_age_days=90,
-    allowed_currencies=frozenset({"USD", "EUR", "GBP"}),
-    reconciliation_tolerance=Decimal("0.01"),
-)
-TODAY = date(2026, 8, 15)
-
-VENDOR_NAME = "Acme Supplies"
-INVOICE_DATE = date(2026, 7, 30)
-CURRENCY = "USD"
-TAX_AMOUNT = Decimal("36.00")
-TOTAL_AMOUNT = Decimal("486.00")
-LINE_ITEMS = [
-    ("Standing desk riser", Decimal("320.00")),
-    ("Monitor arm", Decimal("130.00")),
-]
-EXTRACTED_FIELDS = {
-    "vendor_name": VENDOR_NAME,
-    "invoice_date": INVOICE_DATE.isoformat(),
-    "currency": CURRENCY,
-    "tax_amount": str(TAX_AMOUNT),
-    "total_amount": str(TOTAL_AMOUNT),
-    "line_items": [
-        {"description": description, "amount": str(amount)}
-        for description, amount in LINE_ITEMS
-    ],
-}
 
 
 @dataclass(frozen=True)
@@ -122,7 +93,7 @@ async def store_invoice(
 class FakeExtractionModelClient:
     """Stand in for the real LLM boundary with a fixed, schema-valid response."""
 
-    def __init__(self, fields: dict[str, Any] = EXTRACTED_FIELDS) -> None:
+    def __init__(self, fields: dict[str, Any] = RAW_INVOICE_DATA) -> None:
         self.fields = fields
 
     async def extract_raw_fields(
@@ -148,7 +119,7 @@ async def extract_and_fetch(
         storage=stored.storage,
         text_extractor=PdfTextExtractor(),
         extraction_pipeline=ExtractionPipeline(
-            model=FakeExtractionModelClient(extracted_fields or EXTRACTED_FIELDS),
+            model=FakeExtractionModelClient(extracted_fields or RAW_INVOICE_DATA),
             grounding_checker=GroundingChecker(),
         ),
     )
@@ -185,7 +156,7 @@ async def should_record_all_check_pass_for_a_compliant_invoice(
         test_db=test_db,
         employee_headers=employee_headers,
         store_invoice=store_invoice,
-        extracted_fields=EXTRACTED_FIELDS,
+        extracted_fields=RAW_INVOICE_DATA,
     )
 
     assert body["status"] == "extracted"
@@ -230,17 +201,17 @@ async def should_record_all_check_pass_for_a_compliant_invoice(
         ),
         (
             {
-                "invoice_date": "2026-09-01",
+                "invoice_date": (TODAY + timedelta(days=1)).isoformat(),
             },
             RuleCode.INVOICE_DATE_NOT_IN_FUTURE,
-            ("2026-09-01", "2026-08-15"),
+            (TODAY.isoformat(), (TODAY + timedelta(days=1)).isoformat()),
         ),
         (
             {
-                "invoice_date": "2025-08-15",
+                "invoice_date": (TODAY - timedelta(days=91)).isoformat(),
             },
             RuleCode.EXPENSE_WITHIN_SUBMISSION_WINDOW,
-            ("365", "90"),
+            ("91", "90"),
         ),
     ],
 )
@@ -254,7 +225,7 @@ async def should_flag_each_individual_policy_violation(
     expected_message_parts: tuple[str, ...],
 ) -> None:
     """Fail only the rule targeted by each individual policy violation."""
-    extracted_fields = {**EXTRACTED_FIELDS, **new_fields}
+    extracted_fields = {**RAW_INVOICE_DATA, **new_fields}
     body, rows = await extract_and_fetch(
         client=client,
         test_db=test_db,
@@ -281,7 +252,7 @@ async def should_record_not_applicable_with_no_line_items(
     employee_headers: dict[str, str],
 ) -> None:
     """Mark line-item reconciliation as not applicable when no items exist."""
-    extracted_fields = {**EXTRACTED_FIELDS, "line_items": []}
+    extracted_fields = {**RAW_INVOICE_DATA, "line_items": []}
     body, rows = await extract_and_fetch(
         client=client,
         test_db=test_db,

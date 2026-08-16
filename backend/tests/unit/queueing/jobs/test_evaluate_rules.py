@@ -1,14 +1,13 @@
 """Specify how rule evaluation persists an invoice's rule-result set, independent of extraction."""
 
-from datetime import date
 from unittest.mock import AsyncMock, Mock
 from uuid import UUID
 
 import pytest
 
 from app.queueing.jobs.evaluate_rules import evaluate_rules
-from app.services.extraction.model import ExtractedInvoice
 from app.services.rules.result import RuleCode, RuleOutcome, RuleResult
+from tests.support.constants import EXTRACTED_INVOICE, TODAY
 
 pytestmark = [
     pytest.mark.unit,
@@ -16,17 +15,6 @@ pytestmark = [
 ]
 
 INVOICE_ID = UUID("10000000-0000-0000-0000-000000000001")
-TODAY = date(2026, 8, 15)
-EXTRACTED_INVOICE = ExtractedInvoice.model_validate(
-    {
-        "vendor_name": "Acme Supplies",
-        "invoice_date": "2026-07-30",
-        "currency": "USD",
-        "tax_amount": "36.00",
-        "total_amount": "486.00",
-        "line_items": [],
-    }
-)
 
 
 async def should_evaluate_the_fields_and_replace_the_invoices_rule_results() -> None:
