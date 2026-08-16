@@ -12,6 +12,9 @@ from app.database.models.policy_document import (
     PolicyDocumentStatus,
 )
 
+# Advisory-lock key used to serialize policy activation
+_ACTIVATION_LOCK_KEY = 111_222_333
+
 
 @dataclass(frozen=True)
 class NewPolicyChunk:
@@ -31,16 +34,18 @@ class PolicyDocumentRepository:
     async def activate(
         self, *, original_filename: str, chunks: Sequence[NewPolicyChunk]
     ) -> PolicyDocument:
-        """Supersede the current active document and activate a new one.
-
-        Serializes concurrent activations with `SELECT ... FOR UPDATE` so two
-        uploads racing each other never leave two documents active.
-        """
+        """Supersede the current active document and activate a new one."""
+        # A transaction-scoped advisory lock prevents two concurrent requests
+        # from both reading the same active document and creating competing
+        # replacements
+        await self._session.execute(
+            select(func.pg_advisory_xact_lock(_ACTIVATION_LOCK_KEY))
+        )
         current_active = (
             await self._session.execute(
-                select(PolicyDocument)
-                .where(PolicyDocument.status == PolicyDocumentStatus.ACTIVE)
-                .with_for_update()
+                select(PolicyDocument).where(
+                    PolicyDocument.status == PolicyDocumentStatus.ACTIVE
+                )
             )
         ).scalar_one_or_none()
         if current_active is not None:
