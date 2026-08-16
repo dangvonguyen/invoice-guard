@@ -12,6 +12,7 @@ from app.services.embeddings.client import EmbeddingClient, OpenAIEmbeddingClien
 from app.services.extraction.text import PdfTextExtractor, TextExtractor
 from app.services.policies.chunking import Chunker, SectionChunker
 from app.services.policies.ingestion import PolicyIngestionService
+from app.services.upload.validation import UploadValidator
 
 from .auth import CurrentUser
 from .sessions import SessionDep
@@ -37,6 +38,17 @@ def get_policy_document_repository(session: SessionDep) -> PolicyDocumentReposit
 
 PolicyDocumentRepositoryDep = Annotated[
     PolicyDocumentRepository, Depends(get_policy_document_repository)
+]
+
+
+def get_policy_document_validator() -> UploadValidator:
+    """Create the MIME/size validator, capped for policy handbook uploads."""
+    settings = get_settings()
+    return UploadValidator(max_bytes=settings.POLICY_DOCUMENT_MAX_BYTES)
+
+
+PolicyDocumentValidatorDep = Annotated[
+    UploadValidator, Depends(get_policy_document_validator)
 ]
 
 
@@ -73,6 +85,7 @@ EmbeddingClientDep = Annotated[EmbeddingClient, Depends(get_embedding_client)]
 
 
 def get_policy_ingestion_service(
+    validator: PolicyDocumentValidatorDep,
     text_extractor: TextExtractorDep,
     chunker: ChunkerDep,
     embedding_client: EmbeddingClientDep,
@@ -80,6 +93,7 @@ def get_policy_ingestion_service(
 ) -> PolicyIngestionService:
     """Create the policy ingestion service from its injected dependencies."""
     return PolicyIngestionService(
+        validator=validator,
         text_extractor=text_extractor,
         chunker=chunker,
         embedding_client=embedding_client,

@@ -1,18 +1,26 @@
 """Routes for policy handbook ingestion and listing."""
 
 import logging
-from typing import Annotated
+from typing import Annotated, NoReturn
 
-from fastapi import APIRouter, Depends, File, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from app.api.deps import (
     PolicyDocumentRepositoryDep,
     PolicyIngestionServiceDep,
     get_current_finance_reviewer,
 )
+from app.core.config import get_settings
 from app.schemas.policy_document import (
     PolicyDocumentListItem,
     PolicyDocumentUploadResponse,
+)
+from app.services.extraction.text import NoTextLayerError
+from app.services.upload.validation import (
+    InvalidPayloadError,
+    InvalidUploadError,
+    PayloadTooLargeError,
+    UnsupportedMediaTypeError,
 )
 
 router = APIRouter(
@@ -28,8 +36,38 @@ async def upload_policy_document(
     ingestion: PolicyIngestionServiceDep, file: Annotated[UploadFile, File()]
 ) -> PolicyDocumentUploadResponse:
     """Ingest a policy handbook PDF and activate it as the current policy."""
-    content = await file.read()
-    result = await ingestion.ingest(filename=file.filename or "", content=content)
+    settings = get_settings()
+    content = await file.read(settings.POLICY_DOCUMENT_MAX_BYTES + 1)
+
+    try:
+        result = await ingestion.ingest(
+            filename=file.filename or "",
+            content_type=file.content_type,
+            content_length=len(content),
+            content=content,
+        )
+    except PayloadTooLargeError as exc:
+        _reject_upload(
+            exc,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            reason="payload_too_large",
+        )
+    except UnsupportedMediaTypeError as exc:
+        _reject_upload(
+            exc,
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            reason="unsupported_media_type",
+        )
+    except (InvalidPayloadError, InvalidUploadError) as exc:
+        _reject_upload(
+            exc, status_code=status.HTTP_400_BAD_REQUEST, reason="invalid_upload"
+        )
+    except NoTextLayerError as exc:
+        _reject_upload(
+            exc,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            reason="no_text_layer",
+        )
 
     logger.info(
         "Policy document activated",
@@ -43,6 +81,19 @@ async def upload_policy_document(
         status=result.status,
         chunk_count=result.chunk_count,
     )
+
+
+def _reject_upload(
+    exc: Exception, *, status_code: int, reason: str, detail: str | None = None
+) -> NoReturn:
+    logger.warning(
+        "Policy document upload rejected",
+        extra={
+            "event": "policy_document.upload.rejected",
+            "context": {"reason": reason, "status_code": status_code},
+        },
+    )
+    raise HTTPException(status_code=status_code, detail=detail or str(exc)) from exc
 
 
 @router.get("")

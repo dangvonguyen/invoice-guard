@@ -10,6 +10,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_access_token_codec, get_embedding_client
+from app.core.config import get_settings
 from app.database.models.user import User, UserRole
 from app.main import app
 from app.services.embeddings.client import EMBEDDING_DIMENSIONS
@@ -189,3 +190,62 @@ async def should_reject_an_upload_without_authentication(
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+async def should_reject_an_upload_over_the_size_cap(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """A file over the configured size cap is rejected, nothing persisted."""
+    oversized_content = b"%PDF-1.4\n" + b"0" * get_settings().POLICY_DOCUMENT_MAX_BYTES
+
+    response = await client.post(
+        "/policies/documents",
+        headers=auth_headers,
+        files={"file": ("huge-handbook.pdf", oversized_content, "application/pdf")},
+    )
+
+    assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE
+
+    listing = await client.get("/policies/documents", headers=auth_headers)
+    assert listing.json() == []
+
+
+async def should_reject_a_non_pdf_upload(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """A non-PDF file is rejected, naming PDF as the supported format."""
+    response = await client.post(
+        "/policies/documents",
+        headers=auth_headers,
+        files={
+            "file": (
+                "handbook.docx",
+                b"fake docx bytes",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+        },
+    )
+
+    assert response.status_code == status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
+    assert "PDF" in response.json()["detail"]
+
+
+async def should_reject_a_pdf_with_no_text_layer(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """A scanned/image-only PDF with no extractable text is rejected."""
+    pdf = FPDF()
+    pdf.add_page()
+    blank_pdf_bytes = bytes(pdf.output())
+
+    response = await client.post(
+        "/policies/documents",
+        headers=auth_headers,
+        files={"file": ("scanned-handbook.pdf", blank_pdf_bytes, "application/pdf")},
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert "text" in response.json()["detail"].lower()

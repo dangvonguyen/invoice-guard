@@ -9,6 +9,7 @@ from app.database.models.policy_document import PolicyDocument, PolicyDocumentSt
 from app.database.repositories.policy_document import NewPolicyChunk
 from app.services.policies.chunking import Chunk
 from app.services.policies.ingestion import PolicyIngestionService
+from app.services.upload.validation import UnsupportedMediaTypeError
 
 pytestmark = [
     pytest.mark.unit,
@@ -20,6 +21,14 @@ SECTION_LABEL = "5.1 Meals"
 CHUNK_CONTENT = "Employees may expense meals up to $75 per day."
 FILENAME = "expense-handbook-v1.pdf"
 CONTENT = b"%PDF-1.4 fake bytes"
+CONTENT_TYPE = "application/pdf"
+CONTENT_LENGTH = len(CONTENT)
+
+
+@pytest.fixture
+def validator() -> Mock:
+    """Stand in for the MIME/size validation boundary, accepting by default."""
+    return Mock()
 
 
 @pytest.fixture
@@ -60,6 +69,7 @@ def policy_documents() -> AsyncMock:
 
 @pytest.fixture
 def service(
+    validator: Mock,
     text_extractor: Mock,
     chunker: Mock,
     embedding_client: AsyncMock,
@@ -67,6 +77,7 @@ def service(
 ) -> PolicyIngestionService:
     """Build the service under test from its fully mocked collaborators."""
     return PolicyIngestionService(
+        validator=validator,
         text_extractor=text_extractor,
         chunker=chunker,
         embedding_client=embedding_client,
@@ -76,14 +87,26 @@ def service(
 
 async def should_activate_the_document_with_its_embedded_chunks(
     service: PolicyIngestionService,
+    validator: Mock,
     text_extractor: Mock,
     chunker: Mock,
     embedding_client: AsyncMock,
     policy_documents: AsyncMock,
 ) -> None:
-    """Extract, chunk, embed every chunk, then activate the document."""
-    result = await service.ingest(filename=FILENAME, content=CONTENT)
+    """Validate, extract, chunk, embed every chunk, then activate the document."""
+    result = await service.ingest(
+        filename=FILENAME,
+        content_type=CONTENT_TYPE,
+        content_length=CONTENT_LENGTH,
+        content=CONTENT,
+    )
 
+    validator.validate.assert_called_once_with(
+        filename=FILENAME,
+        content_type=CONTENT_TYPE,
+        content_length=CONTENT_LENGTH,
+        content=CONTENT,
+    )
     text_extractor.extract_text.assert_called_once_with(content=CONTENT)
     chunker.chunk.assert_called_once_with(DOCUMENT_TEXT)
     embedding_client.embed_batch.assert_awaited_once_with([CHUNK_CONTENT])
@@ -99,3 +122,26 @@ async def should_activate_the_document_with_its_embedded_chunks(
     )
     assert result.chunk_count == 1
     assert result.status == PolicyDocumentStatus.ACTIVE
+
+
+async def should_not_extract_text_when_validation_fails(
+    service: PolicyIngestionService,
+    validator: Mock,
+    text_extractor: Mock,
+    embedding_client: AsyncMock,
+    policy_documents: AsyncMock,
+) -> None:
+    """Stop before any further collaborator runs when validation rejects the upload."""
+    validator.validate.side_effect = UnsupportedMediaTypeError("not a PDF")
+
+    with pytest.raises(UnsupportedMediaTypeError):
+        await service.ingest(
+            filename=FILENAME,
+            content_type=CONTENT_TYPE,
+            content_length=CONTENT_LENGTH,
+            content=CONTENT,
+        )
+
+    text_extractor.extract_text.assert_not_called()
+    embedding_client.embed_batch.assert_not_awaited()
+    policy_documents.activate.assert_not_awaited()

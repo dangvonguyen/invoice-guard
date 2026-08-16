@@ -84,9 +84,10 @@ class Settings(BaseSettings):
     RULE_ALLOWED_CURRENCIES: str = "USD,EUR,GBP"
     RULE_RECONCILIATION_TOLERANCE: NonNegativeDecimal = Decimal("0.01")
 
-    # Policy handbook chunking
+    # Policy handbook ingestion
     POLICY_CHUNK_MIN_TOKENS: PositiveInt = 100
     POLICY_CHUNK_MAX_TOKENS: PositiveInt = 500
+    POLICY_DOCUMENT_MAX_BYTES: PositiveInt = 50 * 1024 * 1024
 
     @field_validator("API_ROOT")
     @classmethod

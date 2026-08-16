@@ -11,6 +11,7 @@ from app.database.repositories.policy_document import (
 from app.services.embeddings.client import EmbeddingClient
 from app.services.extraction.text import TextExtractor
 from app.services.policies.chunking import Chunker
+from app.services.upload.validation import UploadValidator
 
 
 @dataclass(frozen=True)
@@ -28,18 +29,34 @@ class PolicyIngestionService:
     def __init__(
         self,
         *,
+        validator: UploadValidator,
         text_extractor: TextExtractor,
         chunker: Chunker,
         embedding_client: EmbeddingClient,
         policy_documents: PolicyDocumentRepository,
     ) -> None:
+        self._validator = validator
         self._text_extractor = text_extractor
         self._chunker = chunker
         self._embedding_client = embedding_client
         self._policy_documents = policy_documents
 
-    async def ingest(self, *, filename: str, content: bytes) -> IngestResult:
+    async def ingest(
+        self,
+        *,
+        filename: str,
+        content_type: str | None,
+        content_length: int | None,
+        content: bytes,
+    ) -> IngestResult:
         """Ingest a handbook PDF's bytes and activate it as the current policy."""
+        self._validator.validate(
+            filename=filename,
+            content_type=content_type,
+            content_length=content_length,
+            content=content,
+        )
+
         document_text = self._text_extractor.extract_text(content=content)
         chunks = self._chunker.chunk(document_text)
 
