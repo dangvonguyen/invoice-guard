@@ -73,6 +73,48 @@ async def should_activate_the_first_upload_with_its_chunks(
     }
 
 
+async def should_supersede_the_previously_active_document(
+    test_db: AsyncSession, repository: PolicyDocumentRepository
+) -> None:
+    """Activating a new document demotes the current active one, atomically."""
+    first = await repository.activate(
+        original_filename="expense-handbook-v1.pdf",
+        chunks=[
+            NewPolicyChunk(
+                section_label="5.1 Meals",
+                content="Meals text",
+                embedding=embedding(0.1),
+            ),
+        ],
+    )
+
+    second = await repository.activate(
+        original_filename="expense-handbook-v2.pdf",
+        chunks=[
+            NewPolicyChunk(
+                section_label="5.1 Meals",
+                content="Updated meals text",
+                embedding=embedding(0.2),
+            ),
+        ],
+    )
+
+    assert second.status == PolicyDocumentStatus.ACTIVE
+
+    stored_first = await test_db.get(PolicyDocument, first.id)
+    assert stored_first is not None
+    assert stored_first.status == PolicyDocumentStatus.SUPERSEDED
+
+    active_documents = (
+        await test_db.scalars(
+            select(PolicyDocument).where(
+                PolicyDocument.status == PolicyDocumentStatus.ACTIVE
+            )
+        )
+    ).all()
+    assert [document.id for document in active_documents] == [second.id]
+
+
 async def should_list_the_activated_document_with_its_chunk_count(
     repository: PolicyDocumentRepository,
 ) -> None:

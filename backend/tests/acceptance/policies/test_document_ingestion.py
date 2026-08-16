@@ -93,3 +93,41 @@ async def should_activate_a_valid_pdf_upload(
     documents = listing.json()
     assert len(documents) == 1
     assert documents[0]["status"] == "active"
+
+
+async def should_supersede_the_previous_active_document(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """A second upload activates and demotes the first to superseded."""
+    app.dependency_overrides[get_embedding_client] = FakeEmbeddingClient
+
+    first = await client.post(
+        "/policies/documents",
+        headers=auth_headers,
+        files={
+            "file": ("expense-handbook-v1.pdf", handbook_pdf_bytes(), "application/pdf")
+        },
+    )
+    assert first.status_code == status.HTTP_201_CREATED
+    first_id = first.json()["policy_document_id"]
+
+    second = await client.post(
+        "/policies/documents",
+        headers=auth_headers,
+        files={
+            "file": ("expense-handbook-v2.pdf", handbook_pdf_bytes(), "application/pdf")
+        },
+    )
+    assert second.status_code == status.HTTP_201_CREATED
+    assert second.json()["status"] == "active"
+
+    listing = await client.get("/policies/documents", headers=auth_headers)
+
+    assert listing.status_code == status.HTTP_200_OK
+    documents = listing.json()
+    assert len(documents) == 2
+
+    by_id = {document["policy_document_id"]: document for document in documents}
+    assert by_id[first_id]["status"] == "superseded"
+    assert by_id[second.json()["policy_document_id"]]["status"] == "active"
