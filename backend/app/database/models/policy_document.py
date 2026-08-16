@@ -5,7 +5,18 @@ from enum import StrEnum
 from uuid import UUID
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, Uuid, func
+from sqlalchemy import (
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    Uuid,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
@@ -23,6 +34,14 @@ class PolicyDocument(Base):
     """Represent one ingested version of the expense-policy handbook."""
 
     __tablename__ = "policy_documents"
+    __table_args__ = (
+        Index(
+            "uq_policy_documents_single_active",
+            "status",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(
         Uuid,

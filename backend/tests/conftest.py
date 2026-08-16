@@ -13,6 +13,7 @@ from httpx import ASGITransport, AsyncClient
 from redis import Redis as SyncRedis
 from redis.asyncio import Redis
 from rq import Queue
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
     AsyncEngine,
@@ -34,7 +35,7 @@ from app.main import app
 @pytest.fixture(scope="session")
 def postgres_container() -> Generator[PostgresContainer]:
     """Start a session-scoped PostgreSQL container and stop it after the suite."""
-    with PostgresContainer("postgres:16-alpine", driver="asyncpg") as postgres:
+    with PostgresContainer("pgvector/pgvector:pg16", driver="asyncpg") as postgres:
         yield postgres
 
 
@@ -84,6 +85,7 @@ async def test_engine(
         postgres_container.get_connection_url(), poolclass=NullPool
     )
     async with engine.begin() as conn:
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
     try:
         yield engine
