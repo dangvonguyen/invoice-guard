@@ -4,7 +4,13 @@ import re
 from dataclasses import dataclass
 from typing import Protocol
 
-_HEADING_PATTERN = re.compile(r"^\d+(?:\.\d+)*\s+\S.*$", re.MULTILINE)
+_MAX_HEADING_LENGTH = 70
+
+# Match short, title-cased numbered headings, not numbered sentences.
+_HEADING_PATTERN = re.compile(
+    rf"^\d+(?:\.\d+)*[ \t]+[A-Z][^.\n]{{0,{_MAX_HEADING_LENGTH - 1}}}$",
+    re.MULTILINE,
+)
 
 
 @dataclass(frozen=True)
