@@ -9,6 +9,7 @@ dependencies = [
 	"asyncpg>=0.31.0",
 	"fastapi[standard]>=0.140.13",
 	"openai>=3.0.0",
+	"pgvector>=0.5.0",
 	"pwdlib[argon2]>=0.3.0",
 	"pydantic>=2.13.4",
 	"pydantic-settings>=2.14.2",
