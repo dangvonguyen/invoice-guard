@@ -85,10 +85,18 @@ class SectionChunker:
         chunks: list[str] = []
         current = paragraphs[0]
         for paragraph in paragraphs[1:]:
-            if count_words(f"{current}\n\n{paragraph}") > self._max_tokens:
+            candidate = f"{current}\n\n{paragraph}"
+            if (
+                count_words(current) >= self._min_tokens
+                and count_words(candidate) > self._max_tokens
+            ):
                 chunks.append(current)
                 current = paragraph
             else:
-                current = f"{current}\n\n{paragraph}"
-        chunks.append(current)
+                current = candidate
+
+        if chunks and count_words(current) < self._min_tokens:
+            chunks[-1] = f"{chunks[-1]}\n\n{current}"
+        else:
+            chunks.append(current)
         return chunks
