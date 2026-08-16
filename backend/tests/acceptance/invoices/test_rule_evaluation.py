@@ -103,16 +103,13 @@ class FakeExtractionModelClient:
         return self.fields
 
 
-async def extract_and_fetch(
+async def run_extraction_and_rule_evaluation(
+    stored: StoredInvoice,
     *,
-    client: AsyncClient,
     test_db: AsyncSession,
-    employee_headers: dict[str, str],
-    store_invoice: StoreInvoice,
     extracted_fields: dict[str, Any] | None,
-) -> tuple[dict[str, Any], Sequence[InvoiceRuleResult]]:
-    """Run extraction, rule evaluation, and return both public and persisted outcomes."""
-    stored = await store_invoice(invoice_pdf_bytes(extracted_fields))
+) -> Sequence[InvoiceRuleResult]:
+    """Run extraction and, on success, rule evaluation; return the persisted rows."""
     extracted_invoice = await extract_invoice(
         stored.invoice.id,
         invoices=InvoiceRepository(session=test_db),
@@ -133,15 +130,7 @@ async def extract_and_fetch(
         )
     await test_db.commit()
 
-    response = await client.get(
-        f"/invoices/{stored.invoice.id}", headers=employee_headers
-    )
-
-    assert response.status_code == status.HTTP_200_OK
-
-    rows = await RuleResultRepository(test_db).list_by_invoice(stored.invoice.id)
-
-    return response.json(), rows
+    return await RuleResultRepository(test_db).list_by_invoice(stored.invoice.id)
 
 
 async def should_record_all_check_pass_for_a_compliant_invoice(
@@ -151,14 +140,17 @@ async def should_record_all_check_pass_for_a_compliant_invoice(
     employee_headers: dict[str, str],
 ) -> None:
     """Record a passing result for every rule when the invoice is compliant."""
-    body, rows = await extract_and_fetch(
-        client=client,
-        test_db=test_db,
-        employee_headers=employee_headers,
-        store_invoice=store_invoice,
-        extracted_fields=RAW_INVOICE_DATA,
+    stored = await store_invoice(invoice_pdf_bytes(RAW_INVOICE_DATA))
+    rows = await run_extraction_and_rule_evaluation(
+        stored, test_db=test_db, extracted_fields=RAW_INVOICE_DATA
     )
 
+    response = await client.get(
+        f"/invoices/{stored.invoice.id}", headers=employee_headers
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
     assert body["status"] == "extracted"
 
     # Database-level rule code assertion
@@ -226,14 +218,17 @@ async def should_flag_each_individual_policy_violation(
 ) -> None:
     """Fail only the rule targeted by each individual policy violation."""
     extracted_fields = {**RAW_INVOICE_DATA, **new_fields}
-    body, rows = await extract_and_fetch(
-        client=client,
-        test_db=test_db,
-        employee_headers=employee_headers,
-        store_invoice=store_invoice,
-        extracted_fields=extracted_fields,
+    stored = await store_invoice(invoice_pdf_bytes(extracted_fields))
+    rows = await run_extraction_and_rule_evaluation(
+        stored, test_db=test_db, extracted_fields=extracted_fields
     )
 
+    response = await client.get(
+        f"/invoices/{stored.invoice.id}", headers=employee_headers
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
     assert body["status"] == "extracted"
 
     assert len(rows) == len(RuleCode)
@@ -253,14 +248,17 @@ async def should_record_not_applicable_with_no_line_items(
 ) -> None:
     """Mark line-item reconciliation as not applicable when no items exist."""
     extracted_fields = {**RAW_INVOICE_DATA, "line_items": []}
-    body, rows = await extract_and_fetch(
-        client=client,
-        test_db=test_db,
-        store_invoice=store_invoice,
-        employee_headers=employee_headers,
-        extracted_fields=extracted_fields,
+    stored = await store_invoice(invoice_pdf_bytes(extracted_fields))
+    rows = await run_extraction_and_rule_evaluation(
+        stored, test_db=test_db, extracted_fields=extracted_fields
     )
 
+    response = await client.get(
+        f"/invoices/{stored.invoice.id}", headers=employee_headers
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
     assert body["status"] == "extracted"
 
     assert len(rows) == len(RuleCode)
@@ -278,13 +276,16 @@ async def should_skip_evaluation_when_extraction_failed(
     employee_headers: dict[str, str],
 ) -> None:
     """Skip rule evaluation when invoice extraction fails."""
-    body, rows = await extract_and_fetch(
-        client=client,
-        test_db=test_db,
-        employee_headers=employee_headers,
-        store_invoice=store_invoice,
-        extracted_fields=None,
+    stored = await store_invoice(invoice_pdf_bytes(None))
+    rows = await run_extraction_and_rule_evaluation(
+        stored, test_db=test_db, extracted_fields=None
     )
 
+    response = await client.get(
+        f"/invoices/{stored.invoice.id}", headers=employee_headers
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
     assert body["status"] == "extraction_failed"
     assert rows == []

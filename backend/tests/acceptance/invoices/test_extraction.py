@@ -7,6 +7,8 @@ checker), then observe the result over HTTP via `GET /invoices/{id}`.
 The extraction *model* is the one collaborator faked here.
 """
 
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +41,52 @@ pytestmark = [
     pytest.mark.acceptance,
     pytest.mark.asyncio,
 ]
+
+
+@dataclass(frozen=True)
+class StoredInvoice:
+    invoice: Invoice
+    storage: LocalStorageClient
+
+
+StoreInvoice = Callable[[bytes], Awaitable[StoredInvoice]]
+
+
+@pytest_asyncio.fixture
+async def store_invoice(
+    test_db: AsyncSession, employee: User, tmp_path: Path
+) -> StoreInvoice:
+    """A helper that persists invoice content in local test storage."""
+    storage = LocalStorageClient(base_path=tmp_path)
+    repository = InvoiceRepository(session=test_db)
+
+    async def store(content: bytes) -> StoredInvoice:
+        invoice = await repository.create_pending(
+            owner_id=employee.id,
+            storage_key=storage.generate_key(),
+            original_filename="invoice.pdf",
+        )
+        await storage.save(key=invoice.storage_key, content=content)
+        return StoredInvoice(invoice=invoice, storage=storage)
+
+    return store
+
+
+async def run_extraction(
+    stored: StoredInvoice,
+    *,
+    test_db: AsyncSession,
+    extraction_pipeline: ExtractionPipeline,
+) -> None:
+    """Run the extraction job against a stored invoice and commit the result."""
+    await extract_invoice(
+        stored.invoice.id,
+        invoices=InvoiceRepository(session=test_db),
+        storage=stored.storage,
+        text_extractor=PdfTextExtractor(),
+        extraction_pipeline=extraction_pipeline,
+    )
+    await test_db.commit()
 
 
 def text_native_pdf_bytes() -> bytes:
@@ -123,79 +171,25 @@ class UngroundedFieldExtractionModelClient:
         }
 
 
-@pytest_asyncio.fixture
-async def stored_invoice(
-    test_db: AsyncSession, employee: User, tmp_path: Path
-) -> tuple[Invoice, LocalStorageClient]:
-    """Reserve a pending invoice and write its real PDF bytes to storage."""
-    storage = LocalStorageClient(base_path=tmp_path)
-    repository = InvoiceRepository(session=test_db)
-    invoice = await repository.create_pending(
-        owner_id=employee.id,
-        storage_key=storage.generate_key(),
-        original_filename="invoice.pdf",
-    )
-    await storage.save(key=invoice.storage_key, content=text_native_pdf_bytes())
-    return invoice, storage
-
-
-@pytest_asyncio.fixture
-async def stored_invoice_without_text_layer(
-    test_db: AsyncSession, employee: User, tmp_path: Path
-) -> tuple[Invoice, LocalStorageClient]:
-    """Reserve a pending invoice whose stored PDF has no extractable text."""
-    storage = LocalStorageClient(base_path=tmp_path)
-    repository = InvoiceRepository(session=test_db)
-    invoice = await repository.create_pending(
-        owner_id=employee.id,
-        storage_key=storage.generate_key(),
-        original_filename="invoice.pdf",
-    )
-    await storage.save(key=invoice.storage_key, content=image_only_pdf_bytes())
-    return invoice, storage
-
-
-@pytest_asyncio.fixture
-async def stored_invoice_with_ungrounded_amount(
-    test_db: AsyncSession, employee: User, tmp_path: Path
-) -> tuple[Invoice, LocalStorageClient]:
-    """Reserve a pending invoice with an extracted value not grounded in the PDF."""
-    storage = LocalStorageClient(base_path=tmp_path)
-    repository = InvoiceRepository(session=test_db)
-    invoice = await repository.create_pending(
-        owner_id=employee.id,
-        storage_key=storage.generate_key(),
-        original_filename="invoice.pdf",
-    )
-    await storage.save(
-        key=invoice.storage_key, content=text_native_pdf_bytes_with_ungrounded_amount()
-    )
-    return invoice, storage
-
-
 async def should_extract_fields_from_a_text_native_pdf_on_first_valid_response(
     client: AsyncClient,
     test_db: AsyncSession,
-    stored_invoice: tuple[Invoice, LocalStorageClient],
+    store_invoice: StoreInvoice,
     employee_headers: dict[str, str],
 ) -> None:
     """Convert a text-native pending invoice into grounded structured fields."""
-    invoice, storage = stored_invoice
-    extraction_pipeline = ExtractionPipeline(
-        model=FakeExtractionModelClient(),
-        grounding_checker=GroundingChecker(),
+    stored = await store_invoice(text_native_pdf_bytes())
+    await run_extraction(
+        stored,
+        test_db=test_db,
+        extraction_pipeline=ExtractionPipeline(
+            model=FakeExtractionModelClient(), grounding_checker=GroundingChecker()
+        ),
     )
 
-    await extract_invoice(
-        invoice.id,
-        invoices=InvoiceRepository(session=test_db),
-        storage=storage,
-        text_extractor=PdfTextExtractor(),
-        extraction_pipeline=extraction_pipeline,
+    response = await client.get(
+        f"/invoices/{stored.invoice.id}", headers=employee_headers
     )
-    await test_db.commit()
-
-    response = await client.get(f"/invoices/{invoice.id}", headers=employee_headers)
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
@@ -209,26 +203,23 @@ async def should_extract_fields_from_a_text_native_pdf_on_first_valid_response(
 async def should_fail_fast_for_a_pdf_without_a_text_layer(
     client: AsyncClient,
     test_db: AsyncSession,
-    stored_invoice_without_text_layer: tuple[Invoice, LocalStorageClient],
+    store_invoice: StoreInvoice,
     employee_headers: dict[str, str],
 ) -> None:
     """Route a scanned/image-only PDF to extraction_failed with no model call."""
-    invoice, storage = stored_invoice_without_text_layer
-    extraction_pipeline = ExtractionPipeline(
-        model=NeverCalledExtractionModelClient(),
-        grounding_checker=GroundingChecker(),
+    stored = await store_invoice(image_only_pdf_bytes())
+    await run_extraction(
+        stored,
+        test_db=test_db,
+        extraction_pipeline=ExtractionPipeline(
+            model=NeverCalledExtractionModelClient(),
+            grounding_checker=GroundingChecker(),
+        ),
     )
 
-    await extract_invoice(
-        invoice.id,
-        invoices=InvoiceRepository(session=test_db),
-        storage=storage,
-        text_extractor=PdfTextExtractor(),
-        extraction_pipeline=extraction_pipeline,
+    response = await client.get(
+        f"/invoices/{stored.invoice.id}", headers=employee_headers
     )
-    await test_db.commit()
-
-    response = await client.get(f"/invoices/{invoice.id}", headers=employee_headers)
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
@@ -238,27 +229,23 @@ async def should_fail_fast_for_a_pdf_without_a_text_layer(
 async def should_route_to_review_after_exhausting_validation_retries(
     client: AsyncClient,
     test_db: AsyncSession,
-    stored_invoice: tuple[Invoice, LocalStorageClient],
+    store_invoice: StoreInvoice,
     employee_headers: dict[str, str],
 ) -> None:
     """Fail extraction when the model never returns a schema-valid response."""
-    invoice, storage = stored_invoice
+    stored = await store_invoice(text_native_pdf_bytes())
     model = AlwaysInvalidExtractionModelClient()
-    extraction_pipeline = ExtractionPipeline(
-        model=model,
-        grounding_checker=GroundingChecker(),
+    await run_extraction(
+        stored,
+        test_db=test_db,
+        extraction_pipeline=ExtractionPipeline(
+            model=model, grounding_checker=GroundingChecker()
+        ),
     )
 
-    await extract_invoice(
-        invoice.id,
-        invoices=InvoiceRepository(session=test_db),
-        storage=storage,
-        text_extractor=PdfTextExtractor(),
-        extraction_pipeline=extraction_pipeline,
+    response = await client.get(
+        f"/invoices/{stored.invoice.id}", headers=employee_headers
     )
-    await test_db.commit()
-
-    response = await client.get(f"/invoices/{invoice.id}", headers=employee_headers)
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
@@ -270,26 +257,23 @@ async def should_route_to_review_after_exhausting_validation_retries(
 async def should_flag_ungrounded_field_as_low_confidence(
     client: AsyncClient,
     test_db: AsyncSession,
-    stored_invoice_with_ungrounded_amount: tuple[Invoice, LocalStorageClient],
+    store_invoice: StoreInvoice,
     employee_headers: dict[str, str],
 ) -> None:
     """Flag a schema-valid but ungrounded field value with low confidence."""
-    invoice, storage = stored_invoice_with_ungrounded_amount
-    extraction_pipeline = ExtractionPipeline(
-        model=UngroundedFieldExtractionModelClient(),
-        grounding_checker=GroundingChecker(),
+    stored = await store_invoice(text_native_pdf_bytes_with_ungrounded_amount())
+    await run_extraction(
+        stored,
+        test_db=test_db,
+        extraction_pipeline=ExtractionPipeline(
+            model=UngroundedFieldExtractionModelClient(),
+            grounding_checker=GroundingChecker(),
+        ),
     )
 
-    await extract_invoice(
-        invoice.id,
-        invoices=InvoiceRepository(session=test_db),
-        storage=storage,
-        text_extractor=PdfTextExtractor(),
-        extraction_pipeline=extraction_pipeline,
+    response = await client.get(
+        f"/invoices/{stored.invoice.id}", headers=employee_headers
     )
-    await test_db.commit()
-
-    response = await client.get(f"/invoices/{invoice.id}", headers=employee_headers)
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
