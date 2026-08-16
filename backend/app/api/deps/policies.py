@@ -1,5 +1,6 @@
 """Dependencies for policy document ingestion and listing."""
 
+from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -72,11 +73,18 @@ def get_chunker() -> Chunker:
 ChunkerDep = Annotated[Chunker, Depends(get_chunker)]
 
 
+@lru_cache
+def get_openai_client() -> AsyncOpenAI:
+    """Return the shared async OpenAI client."""
+    settings = get_settings()
+    return AsyncOpenAI(api_key=unwrap_secret(settings.OPENAI_API_KEY))
+
+
 def get_embedding_client() -> EmbeddingClient:
     """Create the embedding client, shared with the RAG explanation feature."""
     settings = get_settings()
     return OpenAIEmbeddingClient(
-        client=AsyncOpenAI(api_key=unwrap_secret(settings.OPENAI_API_KEY)),
+        client=get_openai_client(),
         model=settings.OPENAI_EMBEDDING_MODEL,
     )
 

@@ -10,6 +10,8 @@ from openai import AsyncOpenAI
 
 EMBEDDING_DIMENSIONS = 1536
 
+_MAX_BATCH_SIZE = 100
+
 
 class EmbeddingClient(Protocol):
     """Turn text into fixed-length embedding vectors."""
@@ -27,9 +29,13 @@ class OpenAIEmbeddingClient:
         self._model = model
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        response = await self._client.embeddings.create(
-            model=self._model,
-            input=texts,
-            dimensions=EMBEDDING_DIMENSIONS,
-        )
-        return [item.embedding for item in response.data]
+        embeddings: list[list[float]] = []
+        for start in range(0, len(texts), _MAX_BATCH_SIZE):
+            batch = texts[start : start + _MAX_BATCH_SIZE]
+            response = await self._client.embeddings.create(
+                model=self._model,
+                input=batch,
+                dimensions=EMBEDDING_DIMENSIONS,
+            )
+            embeddings.extend(item.embedding for item in response.data)
+        return embeddings
