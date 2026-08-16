@@ -249,3 +249,34 @@ async def should_reject_a_pdf_with_no_text_layer(
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
     assert "text" in response.json()["detail"].lower()
+
+
+async def should_accept_a_pdf_with_no_heading_structure(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """A PDF with only prose paragraphs still ingests as a single section."""
+    app.dependency_overrides[get_embedding_client] = FakeEmbeddingClient
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=12)
+    pdf.multi_cell(
+        0,
+        10,
+        text=(
+            "Employees are expected to submit expense reports promptly and "
+            "keep receipts for every purchase made while traveling on "
+            "company business.\n"
+        ),
+    )
+    plain_pdf_bytes = bytes(pdf.output())
+
+    response = await client.post(
+        "/policies/documents",
+        headers=auth_headers,
+        files={"file": ("plain-handbook.pdf", plain_pdf_bytes, "application/pdf")},
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    assert response.json()["chunk_count"] > 0
