@@ -1,19 +1,14 @@
 """Acceptance scenarios for policy handbook ingestion."""
 
-from uuid import UUID
-
 import pytest
-import pytest_asyncio
 from fastapi import status
-from fpdf import FPDF
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_access_token_codec, get_embedding_client
+from app.api.deps import get_embedding_client
 from app.core.config import get_settings
-from app.database.models.user import User, UserRole
 from app.main import app
 from app.services.embeddings.client import EMBEDDING_DIMENSIONS
+from tests.support.pdf import pdf_bytes
 
 pytestmark = [
     pytest.mark.acceptance,
@@ -30,76 +25,29 @@ class FakeEmbeddingClient:
 
 def handbook_pdf_bytes() -> bytes:
     """Build a real, parseable PDF with numbered section headings."""
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Helvetica", size=12)
-    pdf.multi_cell(
-        0,
-        10,
-        text=(
-            "5.1 Meals\n"
-            "Employees may expense meals up to $75 per day while traveling.\n\n"
-            "5.2 Client Entertainment\n"
-            "Client entertainment expenses require pre-approval from a manager.\n"
-        ),
+    return pdf_bytes(
+        "5.1 Meals\n"
+        "Employees may expense meals up to $75 per day while traveling.\n\n"
+        "5.2 Client Entertainment\n"
+        "Client entertainment expenses require pre-approval from a manager.\n"
     )
-    return bytes(pdf.output())
-
-
-@pytest_asyncio.fixture
-async def finance_reviewer(test_db: AsyncSession) -> User:
-    """Persist a finance reviewer and issue their bearer token."""
-    user = User(
-        id=UUID("00000000-0000-0000-0000-000000000001"),
-        email="rita@example.com",
-        hashed_password="unused-password-hash",
-        name="Rita",
-        role=UserRole.FINANCE_REVIEWER,
-    )
-    test_db.add(user)
-    await test_db.flush()
-    return user
 
 
 @pytest.fixture
-def auth_headers(finance_reviewer: User) -> dict[str, str]:
-    """Bearer header authenticating as the finance_reviewer."""
-    token = get_access_token_codec().issue(str(finance_reviewer.id))
-    return {"Authorization": f"Bearer {token}"}
-
-
-@pytest_asyncio.fixture
-async def employee(test_db: AsyncSession) -> User:
-    """Persist a plain employee, who is not permitted to upload policies."""
-    user = User(
-        id=UUID("00000000-0000-0000-0000-000000000002"),
-        email="evan@example.com",
-        hashed_password="unused-password-hash",
-        name="Evan",
-        role=UserRole.EMPLOYEE,
-    )
-    test_db.add(user)
-    await test_db.flush()
-    return user
-
-
-@pytest.fixture
-def employee_auth_headers(employee: User) -> dict[str, str]:
-    """Bearer header authenticating as the employee."""
-    token = get_access_token_codec().issue(str(employee.id))
-    return {"Authorization": f"Bearer {token}"}
-
-
-async def should_activate_a_valid_pdf_upload(
-    client: AsyncClient,
-    auth_headers: dict[str, str],
-) -> None:
-    """Accept a text-native PDF handbook and activate it immediately."""
+def fake_embeddings() -> None:
+    """Substitute the embedding-provider boundary for tests that reach it."""
     app.dependency_overrides[get_embedding_client] = FakeEmbeddingClient
 
+
+@pytest.mark.usefixtures("fake_embeddings")
+async def should_activate_a_valid_pdf_upload(
+    client: AsyncClient,
+    reviewer_headers: dict[str, str],
+) -> None:
+    """Accept a text-native PDF handbook and activate it immediately."""
     response = await client.post(
         "/policies/documents",
-        headers=auth_headers,
+        headers=reviewer_headers,
         files={
             "file": ("expense-handbook-v1.pdf", handbook_pdf_bytes(), "application/pdf")
         },
@@ -110,7 +58,7 @@ async def should_activate_a_valid_pdf_upload(
     assert body["status"] == "active"
     assert body["chunk_count"] > 0
 
-    listing = await client.get("/policies/documents", headers=auth_headers)
+    listing = await client.get("/policies/documents", headers=reviewer_headers)
 
     assert listing.status_code == status.HTTP_200_OK
     documents = listing.json()
@@ -118,16 +66,15 @@ async def should_activate_a_valid_pdf_upload(
     assert documents[0]["status"] == "active"
 
 
+@pytest.mark.usefixtures("fake_embeddings")
 async def should_supersede_the_previous_active_document(
     client: AsyncClient,
-    auth_headers: dict[str, str],
+    reviewer_headers: dict[str, str],
 ) -> None:
     """A second upload activates and demotes the first to superseded."""
-    app.dependency_overrides[get_embedding_client] = FakeEmbeddingClient
-
     first = await client.post(
         "/policies/documents",
-        headers=auth_headers,
+        headers=reviewer_headers,
         files={
             "file": ("expense-handbook-v1.pdf", handbook_pdf_bytes(), "application/pdf")
         },
@@ -137,7 +84,7 @@ async def should_supersede_the_previous_active_document(
 
     second = await client.post(
         "/policies/documents",
-        headers=auth_headers,
+        headers=reviewer_headers,
         files={
             "file": ("expense-handbook-v2.pdf", handbook_pdf_bytes(), "application/pdf")
         },
@@ -145,7 +92,7 @@ async def should_supersede_the_previous_active_document(
     assert second.status_code == status.HTTP_201_CREATED
     assert second.json()["status"] == "active"
 
-    listing = await client.get("/policies/documents", headers=auth_headers)
+    listing = await client.get("/policies/documents", headers=reviewer_headers)
 
     assert listing.status_code == status.HTTP_200_OK
     documents = listing.json()
@@ -158,13 +105,13 @@ async def should_supersede_the_previous_active_document(
 
 async def should_reject_an_upload_from_a_non_reviewer(
     client: AsyncClient,
-    auth_headers: dict[str, str],
-    employee_auth_headers: dict[str, str],
+    employee_headers: dict[str, str],
+    reviewer_headers: dict[str, str],
 ) -> None:
     """An employee cannot upload, and nothing gets persisted."""
     response = await client.post(
         "/policies/documents",
-        headers=employee_auth_headers,
+        headers=employee_headers,
         files={
             "file": ("expense-handbook-v1.pdf", handbook_pdf_bytes(), "application/pdf")
         },
@@ -172,7 +119,7 @@ async def should_reject_an_upload_from_a_non_reviewer(
 
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    listing = await client.get("/policies/documents", headers=auth_headers)
+    listing = await client.get("/policies/documents", headers=reviewer_headers)
 
     assert listing.status_code == status.HTTP_200_OK
     assert listing.json() == []
@@ -194,31 +141,31 @@ async def should_reject_an_upload_without_authentication(
 
 async def should_reject_an_upload_over_the_size_cap(
     client: AsyncClient,
-    auth_headers: dict[str, str],
+    reviewer_headers: dict[str, str],
 ) -> None:
     """A file over the configured size cap is rejected, nothing persisted."""
     oversized_content = b"%PDF-1.4\n" + b"0" * get_settings().POLICY_DOCUMENT_MAX_BYTES
 
     response = await client.post(
         "/policies/documents",
-        headers=auth_headers,
+        headers=reviewer_headers,
         files={"file": ("huge-handbook.pdf", oversized_content, "application/pdf")},
     )
 
     assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE
 
-    listing = await client.get("/policies/documents", headers=auth_headers)
+    listing = await client.get("/policies/documents", headers=reviewer_headers)
     assert listing.json() == []
 
 
 async def should_reject_a_non_pdf_upload(
     client: AsyncClient,
-    auth_headers: dict[str, str],
+    reviewer_headers: dict[str, str],
 ) -> None:
     """A non-PDF file is rejected, naming PDF as the supported format."""
     response = await client.post(
         "/policies/documents",
-        headers=auth_headers,
+        headers=reviewer_headers,
         files={
             "file": (
                 "handbook.docx",
@@ -234,48 +181,37 @@ async def should_reject_a_non_pdf_upload(
 
 async def should_reject_a_pdf_with_no_text_layer(
     client: AsyncClient,
-    auth_headers: dict[str, str],
+    reviewer_headers: dict[str, str],
 ) -> None:
     """A scanned/image-only PDF with no extractable text is rejected."""
-    pdf = FPDF()
-    pdf.add_page()
-    blank_pdf_bytes = bytes(pdf.output())
-
     response = await client.post(
         "/policies/documents",
-        headers=auth_headers,
-        files={"file": ("scanned-handbook.pdf", blank_pdf_bytes, "application/pdf")},
+        headers=reviewer_headers,
+        files={"file": ("scanned-handbook.pdf", pdf_bytes(), "application/pdf")},
     )
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
     assert "text" in response.json()["detail"].lower()
 
 
+@pytest.mark.usefixtures("fake_embeddings")
 async def should_accept_a_pdf_with_no_heading_structure(
     client: AsyncClient,
-    auth_headers: dict[str, str],
+    reviewer_headers: dict[str, str],
 ) -> None:
     """A PDF with only prose paragraphs still ingests as a single section."""
-    app.dependency_overrides[get_embedding_client] = FakeEmbeddingClient
-
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Helvetica", size=12)
-    pdf.multi_cell(
-        0,
-        10,
-        text=(
-            "Employees are expected to submit expense reports promptly and "
-            "keep receipts for every purchase made while traveling on "
-            "company business.\n"
-        ),
+    plain_text = (
+        "Employees are expected to submit expense reports promptly and "
+        "keep receipts for every purchase made while traveling on "
+        "company business.\n"
     )
-    plain_pdf_bytes = bytes(pdf.output())
 
     response = await client.post(
         "/policies/documents",
-        headers=auth_headers,
-        files={"file": ("plain-handbook.pdf", plain_pdf_bytes, "application/pdf")},
+        headers=reviewer_headers,
+        files={
+            "file": ("plain-handbook.pdf", pdf_bytes(plain_text), "application/pdf")
+        },
     )
 
     assert response.status_code == status.HTTP_201_CREATED

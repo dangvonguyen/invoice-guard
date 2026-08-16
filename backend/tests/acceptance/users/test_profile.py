@@ -1,16 +1,11 @@
 """Acceptance scenarios for retrieving profiles with bearer authentication."""
 
-from uuid import UUID
-
 import pytest
-import pytest_asyncio
 from fastapi import status
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_access_token_codec
-from app.core.security import JwtAccessTokenCodec
-from app.database.models.user import User, UserRole
+from app.database.models.user import User
 
 pytestmark = [
     pytest.mark.acceptance,
@@ -18,43 +13,18 @@ pytestmark = [
 ]
 
 
-@pytest_asyncio.fixture
-async def registered_user(test_db: AsyncSession) -> User:
-    """Persist the profile returned to an authenticated account."""
-    user = User(
-        id=UUID("00000000-0000-0000-0000-000000000001"),
-        email="user@example.com",
-        hashed_password="secret-hash",
-        name="Example User",
-        role=UserRole.FINANCE_REVIEWER,
-    )
-    test_db.add(user)
-    await test_db.flush()
-    return user
-
-
-@pytest.fixture
-def token_issuer() -> JwtAccessTokenCodec:
-    """Provide a codec for issuing access tokens."""
-    return get_access_token_codec()
-
-
 async def should_return_authenticated_users_profile_without_password_hash(
-    client: AsyncClient, registered_user: User, token_issuer: JwtAccessTokenCodec
+    client: AsyncClient, employee: User, employee_headers: dict[str, str]
 ) -> None:
     """Return identity fields without exposing the password hash."""
-    token = token_issuer.issue(str(registered_user.id))
-
-    response = await client.get(
-        "/users/me", headers={"Authorization": f"Bearer {token}"}
-    )
+    response = await client.get("/users/me", headers=employee_headers)
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
-    assert body["id"] == str(registered_user.id)
-    assert body["email"] == registered_user.email
-    assert body["name"] == registered_user.name
-    assert body["role"] == registered_user.role
+    assert body["id"] == str(employee.id)
+    assert body["email"] == employee.email
+    assert body["name"] == employee.name
+    assert body["role"] == employee.role
     assert "hashed_password" not in body
 
 
@@ -79,10 +49,10 @@ async def should_reject_current_profile_request_with_invalid_access_token(
 
 
 async def should_reject_valid_token_when_its_user_no_longer_exists(
-    client: AsyncClient, token_issuer: JwtAccessTokenCodec
+    client: AsyncClient,
 ) -> None:
     """Reload the token subject and reject deleted users."""
-    token = token_issuer.issue("deleted-user")
+    token = get_access_token_codec().issue("deleted-user")
 
     response = await client.get(
         "/users/me", headers={"Authorization": f"Bearer {token}"}

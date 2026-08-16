@@ -14,16 +14,13 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
-from uuid import UUID
 
 import pytest
 import pytest_asyncio
 from fastapi import status
-from fpdf import FPDF
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_access_token_codec
 from app.core.storage import LocalStorageClient
 from app.database.models.invoice import Invoice
 from app.database.models.rule_result import InvoiceRuleResult, RuleOutcome
@@ -38,6 +35,7 @@ from app.services.extraction.text import PdfTextExtractor
 from app.services.rules.config import RuleConfig
 from app.services.rules.engine import RuleEngine
 from app.services.rules.result import RuleCode
+from tests.support.pdf import pdf_bytes
 
 pytestmark = [
     pytest.mark.acceptance,
@@ -83,26 +81,16 @@ class StoredInvoice:
 StoreInvoice = Callable[[bytes], Awaitable[StoredInvoice]]
 
 
-def _pdf_bytes(text: str | None = None) -> bytes:
-    """Build a real PDF, optionally with a text layer containing `text`."""
-    pdf = FPDF()
-    pdf.add_page()
-    if text is not None:
-        pdf.set_font("Helvetica", size=12)
-        pdf.multi_cell(0, 10, text=text)
-    return bytes(pdf.output())
-
-
 def invoice_pdf_bytes(fields: dict[str, Any] | None = None) -> bytes:
     """Build a real text-layer PDF."""
     if fields is None:
-        return _pdf_bytes()
+        return pdf_bytes()
 
     line_items_text = "\n".join(
         f"{description}: {amount} {fields['currency']}"
         for description, amount in LINE_ITEMS
     )
-    return _pdf_bytes(
+    return pdf_bytes(
         f"Vendor: {fields['vendor_name']}\n"
         f"Invoice Date: {fields['invoice_date']}\n"
         f"{line_items_text}\n"
@@ -112,29 +100,8 @@ def invoice_pdf_bytes(fields: dict[str, Any] | None = None) -> bytes:
 
 
 @pytest_asyncio.fixture
-async def owner(test_db: AsyncSession) -> User:
-    """Persist the employee who owns the invoice being evaluated."""
-    user = User(
-        id=UUID("00000000-0000-0000-0000-000000000001"),
-        email="alice@example.com",
-        hashed_password="unused-password-hash",
-        name="Alice",
-    )
-    test_db.add(user)
-    await test_db.flush()
-    return user
-
-
-@pytest.fixture
-def auth_headers(owner: User) -> dict[str, str]:
-    """Bearer header authenticating as the invoice's owner."""
-    token = get_access_token_codec().issue(str(owner.id))
-    return {"Authorization": f"Bearer {token}"}
-
-
-@pytest_asyncio.fixture
 async def store_invoice(
-    test_db: AsyncSession, owner: User, tmp_path: Path
+    test_db: AsyncSession, employee: User, tmp_path: Path
 ) -> StoreInvoice:
     """A helper that persists invoice content in local test storage."""
     storage = LocalStorageClient(base_path=tmp_path)
@@ -142,7 +109,7 @@ async def store_invoice(
 
     async def store(content: bytes) -> StoredInvoice:
         invoice = await repository.create_pending(
-            owner_id=owner.id,
+            owner_id=employee.id,
             storage_key=storage.generate_key(),
             original_filename="invoice.pdf",
         )
@@ -169,7 +136,7 @@ async def extract_and_fetch(
     *,
     client: AsyncClient,
     test_db: AsyncSession,
-    auth_headers: dict[str, str],
+    employee_headers: dict[str, str],
     store_invoice: StoreInvoice,
     extracted_fields: dict[str, Any] | None,
 ) -> tuple[dict[str, Any], Sequence[InvoiceRuleResult]]:
@@ -195,7 +162,9 @@ async def extract_and_fetch(
         )
     await test_db.commit()
 
-    response = await client.get(f"/invoices/{stored.invoice.id}", headers=auth_headers)
+    response = await client.get(
+        f"/invoices/{stored.invoice.id}", headers=employee_headers
+    )
 
     assert response.status_code == status.HTTP_200_OK
 
@@ -208,13 +177,13 @@ async def should_record_all_check_pass_for_a_compliant_invoice(
     client: AsyncClient,
     test_db: AsyncSession,
     store_invoice: StoreInvoice,
-    auth_headers: dict[str, str],
+    employee_headers: dict[str, str],
 ) -> None:
     """Record a passing result for every rule when the invoice is compliant."""
     body, rows = await extract_and_fetch(
         client=client,
         test_db=test_db,
-        auth_headers=auth_headers,
+        employee_headers=employee_headers,
         store_invoice=store_invoice,
         extracted_fields=EXTRACTED_FIELDS,
     )
@@ -279,7 +248,7 @@ async def should_flag_each_individual_policy_violation(
     client: AsyncClient,
     test_db: AsyncSession,
     store_invoice: StoreInvoice,
-    auth_headers: dict[str, str],
+    employee_headers: dict[str, str],
     new_fields: dict[str, Any],
     expected_failed_code: RuleCode,
     expected_message_parts: tuple[str, ...],
@@ -289,7 +258,7 @@ async def should_flag_each_individual_policy_violation(
     body, rows = await extract_and_fetch(
         client=client,
         test_db=test_db,
-        auth_headers=auth_headers,
+        employee_headers=employee_headers,
         store_invoice=store_invoice,
         extracted_fields=extracted_fields,
     )
@@ -309,7 +278,7 @@ async def should_record_not_applicable_with_no_line_items(
     client: AsyncClient,
     test_db: AsyncSession,
     store_invoice: StoreInvoice,
-    auth_headers: dict[str, str],
+    employee_headers: dict[str, str],
 ) -> None:
     """Mark line-item reconciliation as not applicable when no items exist."""
     extracted_fields = {**EXTRACTED_FIELDS, "line_items": []}
@@ -317,7 +286,7 @@ async def should_record_not_applicable_with_no_line_items(
         client=client,
         test_db=test_db,
         store_invoice=store_invoice,
-        auth_headers=auth_headers,
+        employee_headers=employee_headers,
         extracted_fields=extracted_fields,
     )
 
@@ -335,13 +304,13 @@ async def should_skip_evaluation_when_extraction_failed(
     client: AsyncClient,
     test_db: AsyncSession,
     store_invoice: StoreInvoice,
-    auth_headers: dict[str, str],
+    employee_headers: dict[str, str],
 ) -> None:
     """Skip rule evaluation when invoice extraction fails."""
     body, rows = await extract_and_fetch(
         client=client,
         test_db=test_db,
-        auth_headers=auth_headers,
+        employee_headers=employee_headers,
         store_invoice=store_invoice,
         extracted_fields=None,
     )
