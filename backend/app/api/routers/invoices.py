@@ -16,6 +16,7 @@ from app.api.deps import (
 from app.core.config import get_settings
 from app.database.models.invoice import InvoiceStatus
 from app.queueing import extraction
+from app.schemas.envelope import ResponseEnvelope
 from app.schemas.invoice import InvoiceDetailResponse, InvoiceUploadResponse
 from app.services.upload.intake import (
     UploadRateLimitExceededError,
@@ -39,7 +40,7 @@ async def upload_invoice(
     extraction_queue: ExtractionQueueDep,
     invoices: InvoiceRepositoryDep,
     file: Annotated[UploadFile, File()],
-) -> InvoiceUploadResponse:
+) -> ResponseEnvelope[InvoiceUploadResponse]:
     """Accept an invoice document and enqueue it for processing."""
     settings = get_settings()
     content = await file.read(settings.UPLOAD_MAX_BYTES + 1)
@@ -106,7 +107,9 @@ async def upload_invoice(
             "context": {"status_code": status.HTTP_201_CREATED},
         },
     )
-    return InvoiceUploadResponse(invoice_id=invoice.id, status=invoice.status)
+    return ResponseEnvelope(
+        data=InvoiceUploadResponse(invoice_id=invoice.id, status=invoice.status)
+    )
 
 
 @router.get("/{invoice_id}")
@@ -114,7 +117,7 @@ async def get_invoice(
     invoice_id: UUID,
     current_user: CurrentUser,
     invoices: InvoiceRepositoryDep,
-) -> InvoiceDetailResponse:
+) -> ResponseEnvelope[InvoiceDetailResponse]:
     """Return an invoice owned by the authenticated user."""
     invoice = await invoices.get_by_id(invoice_id)
     if invoice is None or invoice.owner_id != current_user.id:
@@ -122,12 +125,14 @@ async def get_invoice(
             status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
         )
 
-    return InvoiceDetailResponse(
-        invoice_id=invoice.id,
-        status=invoice.status,
-        extracted_fields=invoice.extracted_fields,
-        confidence=invoice.confidence,
-        confidence_reason=invoice.confidence_reason,
+    return ResponseEnvelope(
+        data=InvoiceDetailResponse(
+            invoice_id=invoice.id,
+            status=invoice.status,
+            extracted_fields=invoice.extracted_fields,
+            confidence=invoice.confidence,
+            confidence_reason=invoice.confidence_reason,
+        )
     )
 
 

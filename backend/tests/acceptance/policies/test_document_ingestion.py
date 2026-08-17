@@ -54,14 +54,14 @@ async def should_activate_a_valid_pdf_upload(
     )
 
     assert response.status_code == status.HTTP_201_CREATED
-    body = response.json()
+    body = response.json()["data"]
     assert body["status"] == "active"
     assert body["chunk_count"] > 0
 
     listing = await client.get("/policies/documents", headers=reviewer_headers)
 
     assert listing.status_code == status.HTTP_200_OK
-    documents = listing.json()
+    documents = listing.json()["data"]
     assert len(documents) == 1
     assert documents[0]["status"] == "active"
 
@@ -80,7 +80,7 @@ async def should_supersede_the_previous_active_document(
         },
     )
     assert first.status_code == status.HTTP_201_CREATED
-    first_id = first.json()["policy_document_id"]
+    first_id = first.json()["data"]["policy_document_id"]
 
     second = await client.post(
         "/policies/documents",
@@ -90,17 +90,18 @@ async def should_supersede_the_previous_active_document(
         },
     )
     assert second.status_code == status.HTTP_201_CREATED
-    assert second.json()["status"] == "active"
+    second_body = second.json()["data"]
+    assert second_body["status"] == "active"
 
     listing = await client.get("/policies/documents", headers=reviewer_headers)
 
     assert listing.status_code == status.HTTP_200_OK
-    documents = listing.json()
+    documents = listing.json()["data"]
     assert len(documents) == 2
 
     by_id = {document["policy_document_id"]: document for document in documents}
     assert by_id[first_id]["status"] == "superseded"
-    assert by_id[second.json()["policy_document_id"]]["status"] == "active"
+    assert by_id[second_body["policy_document_id"]]["status"] == "active"
 
 
 async def should_reject_an_upload_from_a_non_reviewer(
@@ -122,7 +123,7 @@ async def should_reject_an_upload_from_a_non_reviewer(
     listing = await client.get("/policies/documents", headers=reviewer_headers)
 
     assert listing.status_code == status.HTTP_200_OK
-    assert listing.json() == []
+    assert listing.json()["data"] == []
 
 
 async def should_reject_an_upload_without_authentication(
@@ -155,7 +156,7 @@ async def should_reject_an_upload_over_the_size_cap(
     assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE
 
     listing = await client.get("/policies/documents", headers=reviewer_headers)
-    assert listing.json() == []
+    assert listing.json()["data"] == []
 
 
 async def should_reject_a_non_pdf_upload(
@@ -215,4 +216,4 @@ async def should_accept_a_pdf_with_no_heading_structure(
     )
 
     assert response.status_code == status.HTTP_201_CREATED
-    assert response.json()["chunk_count"] > 0
+    assert response.json()["data"]["chunk_count"] > 0

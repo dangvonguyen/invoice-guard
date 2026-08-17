@@ -51,8 +51,9 @@ async def should_accept_authenticated_employees_valid_pdf_as_pending_invoice(
 
     assert response.status_code == status.HTTP_201_CREATED
     body = response.json()
-    assert body["status"] == "pending"
-    invoice_id = UUID(body["invoice_id"])
+    assert body["success"] is True
+    assert body["data"]["status"] == "pending"
+    invoice_id = UUID(body["data"]["invoice_id"])
 
     stored = await test_db.get(Invoice, invoice_id)
     assert stored is not None
@@ -219,7 +220,7 @@ async def should_enqueue_extraction_for_every_accepted_upload(
     )
 
     assert response.status_code == status.HTTP_201_CREATED
-    invoice_id = response.json()["invoice_id"]
+    invoice_id = response.json()["data"]["invoice_id"]
 
     queue = Queue(EXTRACTION_QUEUE_NAME, connection=sync_redis)
     job = queue.fetch_job(extraction.get_job_id(UUID(invoice_id)))
@@ -245,7 +246,7 @@ async def should_accept_the_upload_even_when_enqueueing_fails(
         )
 
     assert response.status_code == status.HTTP_201_CREATED
-    response_body = response.json()
+    response_body = response.json()["data"]
     assert response_body["status"] == "extraction_failed"
     invoice_id = UUID(response_body["invoice_id"])
     stored = await test_db.get(Invoice, invoice_id)

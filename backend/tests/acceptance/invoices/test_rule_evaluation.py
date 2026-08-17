@@ -150,7 +150,7 @@ async def should_record_all_check_pass_for_a_compliant_invoice(
     )
 
     assert response.status_code == status.HTTP_200_OK
-    body = response.json()
+    body = response.json()["data"]
     assert body["status"] == "extracted"
 
     # Database-level rule code assertion
@@ -228,7 +228,7 @@ async def should_flag_each_individual_policy_violation(
     )
 
     assert response.status_code == status.HTTP_200_OK
-    body = response.json()
+    body = response.json()["data"]
     assert body["status"] == "extracted"
 
     assert len(rows) == len(RuleCode)
@@ -258,7 +258,7 @@ async def should_record_not_applicable_with_no_line_items(
     )
 
     assert response.status_code == status.HTTP_200_OK
-    body = response.json()
+    body = response.json()["data"]
     assert body["status"] == "extracted"
 
     assert len(rows) == len(RuleCode)
@@ -286,6 +286,6 @@ async def should_skip_evaluation_when_extraction_failed(
     )
 
     assert response.status_code == status.HTTP_200_OK
-    body = response.json()
+    body = response.json()["data"]
     assert body["status"] == "extraction_failed"
     assert rows == []
