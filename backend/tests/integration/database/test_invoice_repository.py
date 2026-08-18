@@ -158,6 +158,58 @@ async def should_persist_extracted_fields_without_changing_status(
     assert invoice.extracted_fields["currency"] == "USD"
 
 
+async def should_mark_a_processing_invoice_awaiting_review(
+    test_db: AsyncSession, repository: InvoiceRepository, owner: User
+) -> None:
+    """Open a fully analyzed invoice for review."""
+    invoice = await repository.create_processing(
+        owner_id=owner.id,
+        storage_key="analyzed-key",
+        original_filename="invoice.pdf",
+    )
+
+    await repository.mark_awaiting_review(invoice_id=invoice.id)
+    await test_db.refresh(invoice)
+
+    assert invoice.status == InvoiceStatus.AWAITING_REVIEW
+
+
+async def should_mark_a_processing_error_invoice_awaiting_review(
+    test_db: AsyncSession, repository: InvoiceRepository, owner: User
+) -> None:
+    """Open an invoice for review once its retries are exhausted."""
+    invoice = await repository.create_processing(
+        owner_id=owner.id,
+        storage_key="exhausted-retries-key",
+        original_filename="invoice.pdf",
+    )
+    await repository.mark_processing_error(invoice_id=invoice.id)
+
+    await repository.mark_awaiting_review(invoice_id=invoice.id)
+    await test_db.refresh(invoice)
+
+    assert invoice.status == InvoiceStatus.AWAITING_REVIEW
+
+
+async def should_not_resurrect_a_terminal_invoice_into_awaiting_review(
+    test_db: AsyncSession, repository: InvoiceRepository, owner: User
+) -> None:
+    """Never move a decided invoice back into the review queue."""
+    invoice = Invoice(
+        owner_id=owner.id,
+        storage_key="decided-key",
+        original_filename="invoice.pdf",
+        status=InvoiceStatus.APPROVED,
+    )
+    test_db.add(invoice)
+    await test_db.flush()
+
+    await repository.mark_awaiting_review(invoice_id=invoice.id)
+    await test_db.refresh(invoice)
+
+    assert invoice.status == InvoiceStatus.APPROVED
+
+
 async def should_list_only_processing_invoices_older_than_a_cutoff(
     test_db: AsyncSession, repository: InvoiceRepository, owner: User
 ) -> None:

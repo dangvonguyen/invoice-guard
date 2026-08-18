@@ -108,3 +108,21 @@ class InvoiceRepository:
             )
         )
         await self._session.commit()
+
+    async def mark_awaiting_review(self, *, invoice_id: UUID) -> None:
+        """Durably open an invoice for review, whether analysis completed or not.
+
+        Used both for a fully analyzed invoice and for retry-exhausted ones
+        that never finished analysis - either way, a reviewer decides next.
+        """
+        await self._session.execute(
+            update(Invoice)
+            .where(
+                Invoice.id == invoice_id,
+                Invoice.status.in_(
+                    [InvoiceStatus.PROCESSING, InvoiceStatus.PROCESSING_ERROR]
+                ),
+            )
+            .values(status=InvoiceStatus.AWAITING_REVIEW)
+        )
+        await self._session.commit()

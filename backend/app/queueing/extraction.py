@@ -77,10 +77,11 @@ def enqueue(queue: Queue, invoice_id: UUID) -> None:
 
 
 async def execute(invoice_id: str) -> None:
-    """Entry point: extract fields for one stored invoice, then evaluate policy rules.
+    """Entry point: extract fields, evaluate policy rules, then open for review.
 
     Rule evaluation is a separate step that only runs once extraction has
-    successfully produced extracted fields to check.
+    successfully produced extracted fields to check. The invoice reaches
+    `awaiting_review` only once rule evaluation itself succeeds.
     """
     settings = get_settings()
     session_factory = get_session_factory()
@@ -138,9 +139,12 @@ async def execute(invoice_id: str) -> None:
                     rule_engine=RuleEngine(config=build_rule_config(settings)),
                     today=date.today(),
                 )
+                await InvoiceRepository(session=session).mark_awaiting_review(
+                    invoice_id=UUID(invoice_id)
+                )
         except Exception:
             logger.exception(
-                "Invoice rule evaluation failed after successful extraction",
+                "Invoice failed to reach review queue after successful extraction",
                 extra={
                     "event": "invoice.rule_check.failed",
                     "context": {"invoice_id": invoice_id},
@@ -156,7 +160,7 @@ def handle_failure(
     exc_value: BaseException | None,
     exc_traceback: TracebackType | None,
 ) -> None:
-    """Failure callback: mark the invoice failed once retries are exhausted."""
+    """Failure callback: open the invoice for review once retries are exhausted."""
     del connection, exc_type, exc_value, exc_traceback
 
     if job.retries_left != 0:
@@ -166,7 +170,7 @@ def handle_failure(
 
     async def mark_failed() -> None:
         async with get_session_factory()() as session, session.begin():
-            await InvoiceRepository(session=session).mark_processing_error(
+            await InvoiceRepository(session=session).mark_awaiting_review(
                 invoice_id=invoice_id
             )
 
