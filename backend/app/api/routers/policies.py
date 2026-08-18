@@ -1,9 +1,9 @@
 """Routes for policy handbook ingestion and listing."""
 
 import logging
-from typing import Annotated, NoReturn
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, UploadFile, status
 
 from app.api.deps import (
     PolicyDocumentRepositoryDep,
@@ -11,17 +11,13 @@ from app.api.deps import (
     get_current_finance_reviewer,
 )
 from app.core.config import get_settings
+from app.schemas.envelope import PaginationMeta, ResponseEnvelope
 from app.schemas.policy_document import (
     PolicyDocumentListItem,
     PolicyDocumentUploadResponse,
 )
 from app.services.extraction.text import NoTextLayerError
-from app.services.upload.validation import (
-    InvalidPayloadError,
-    InvalidUploadError,
-    PayloadTooLargeError,
-    UnsupportedMediaTypeError,
-)
+from app.services.upload.validation import InvalidUploadError
 
 router = APIRouter(
     prefix="/policies/documents",
@@ -34,7 +30,7 @@ logger = logging.getLogger(__name__)
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def upload_policy_document(
     ingestion: PolicyIngestionServiceDep, file: Annotated[UploadFile, File()]
-) -> PolicyDocumentUploadResponse:
+) -> ResponseEnvelope[PolicyDocumentUploadResponse]:
     """Ingest a policy handbook PDF and activate it as the current policy."""
     settings = get_settings()
     content = await file.read(settings.POLICY_DOCUMENT_MAX_BYTES + 1)
@@ -46,28 +42,15 @@ async def upload_policy_document(
             content_length=len(content),
             content=content,
         )
-    except PayloadTooLargeError as exc:
-        _reject_upload(
-            exc,
-            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            reason="payload_too_large",
+    except (InvalidUploadError, NoTextLayerError) as exc:
+        logger.warning(
+            "Policy document upload rejected",
+            extra={
+                "event": "policy_document.upload.rejected",
+                "context": {"code": exc.code, "status_code": exc.status_code},
+            },
         )
-    except UnsupportedMediaTypeError as exc:
-        _reject_upload(
-            exc,
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            reason="unsupported_media_type",
-        )
-    except (InvalidPayloadError, InvalidUploadError) as exc:
-        _reject_upload(
-            exc, status_code=status.HTTP_400_BAD_REQUEST, reason="invalid_upload"
-        )
-    except NoTextLayerError as exc:
-        _reject_upload(
-            exc,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            reason="no_text_layer",
-        )
+        raise
 
     logger.info(
         "Policy document activated",
@@ -76,33 +59,22 @@ async def upload_policy_document(
             "context": {"chunk_count": result.chunk_count},
         },
     )
-    return PolicyDocumentUploadResponse(
-        policy_document_id=result.document_id,
-        status=result.status,
-        chunk_count=result.chunk_count,
+    return ResponseEnvelope(
+        data=PolicyDocumentUploadResponse(
+            policy_document_id=result.document_id,
+            status=result.status,
+            chunk_count=result.chunk_count,
+        )
     )
-
-
-def _reject_upload(
-    exc: Exception, *, status_code: int, reason: str, detail: str | None = None
-) -> NoReturn:
-    logger.warning(
-        "Policy document upload rejected",
-        extra={
-            "event": "policy_document.upload.rejected",
-            "context": {"reason": reason, "status_code": status_code},
-        },
-    )
-    raise HTTPException(status_code=status_code, detail=detail or str(exc)) from exc
 
 
 @router.get("")
 async def list_policy_documents(
     policy_documents: PolicyDocumentRepositoryDep,
-) -> list[PolicyDocumentListItem]:
+) -> ResponseEnvelope[list[PolicyDocumentListItem], PaginationMeta]:
     """List every ingested policy document and its current status."""
     documents = await policy_documents.list_all()
-    return [
+    items = [
         PolicyDocumentListItem(
             policy_document_id=document.id,
             status=document.status,
@@ -112,3 +84,4 @@ async def list_policy_documents(
         )
         for document, chunk_count in documents
     ]
+    return ResponseEnvelope(data=items)

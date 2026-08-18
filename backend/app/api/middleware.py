@@ -10,11 +10,13 @@ import time
 from typing import cast
 from uuid import uuid4
 
+from starlette import status
 from starlette.datastructures import MutableHeaders
-from starlette.responses import PlainTextResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.api.handlers import envelope_response
 from app.core.logging import log_context
+from app.schemas.envelope import ErrorInfo
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +82,14 @@ class RequestBodyLimitMiddleware:
 
     @staticmethod
     async def _reject(scope: Scope, receive: Receive, send: Send) -> None:
-        response = PlainTextResponse("Request body too large", status_code=413)
+        response = envelope_response(
+            status.HTTP_413_CONTENT_TOO_LARGE,
+            ErrorInfo(
+                code="REQUEST_BODY_TOO_LARGE",
+                message="Request body too large",
+                details=None,
+            ),
+        )
         await response(scope, receive, send)
 
 
@@ -123,6 +132,9 @@ class RequestLoggingMiddleware:
         try:
             await self._app(scope, receive, send_wrapper)
         except Exception:
+            if "status_code" in response_state:
+                raise
+
             logger.exception(
                 "Unhandled exception during request",
                 extra={
@@ -134,11 +146,15 @@ class RequestLoggingMiddleware:
                     },
                 },
             )
-            if "status_code" in response_state:
-                raise
-
-            response_state["status_code"] = 500
-            response = PlainTextResponse("Internal Server Error", status_code=500)
+            response_state["status_code"] = status.HTTP_500_INTERNAL_SERVER_ERROR
+            response = envelope_response(
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+                ErrorInfo(
+                    code="INTERNAL_SERVER_ERROR",
+                    message="An internal error occurred",
+                    details=None,
+                ),
+            )
             await response(scope, receive, send_wrapper)
             return
 

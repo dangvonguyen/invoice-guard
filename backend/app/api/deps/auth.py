@@ -3,10 +3,11 @@
 from typing import Annotated, Never
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import get_settings, unwrap_secret
+from app.core.errors import UnauthorizedError
 from app.core.logging import bind_user_id
 from app.core.security import JwtAccessTokenCodec, PasswordHasher
 from app.database.models.user import User
@@ -65,9 +66,8 @@ BearerCredentialsDep = Annotated[
 
 def raise_unauthorized() -> Never:
     """Raise the generic authentication failure used by protected routes."""
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+    raise UnauthorizedError(
+        "Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
 

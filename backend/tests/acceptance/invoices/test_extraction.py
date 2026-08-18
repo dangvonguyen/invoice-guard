@@ -192,7 +192,7 @@ async def should_extract_fields_from_a_text_native_pdf_on_first_valid_response(
     )
 
     assert response.status_code == status.HTTP_200_OK
-    body = response.json()
+    body = response.json()["data"]
     assert body["status"] == "extracted"
     assert body["extracted_fields"]["vendor_name"] == VENDOR_NAME
     assert body["extracted_fields"]["total_amount"] == str(TOTAL_AMOUNT)
@@ -222,7 +222,7 @@ async def should_fail_fast_for_a_pdf_without_a_text_layer(
     )
 
     assert response.status_code == status.HTTP_200_OK
-    body = response.json()
+    body = response.json()["data"]
     assert body["status"] == "extraction_failed"
 
 
@@ -248,7 +248,7 @@ async def should_route_to_review_after_exhausting_validation_retries(
     )
 
     assert response.status_code == status.HTTP_200_OK
-    body = response.json()
+    body = response.json()["data"]
     assert body["status"] == "extraction_failed"
     assert body["extracted_fields"] is None
     assert model.call_count == 3
@@ -276,7 +276,7 @@ async def should_flag_ungrounded_field_as_low_confidence(
     )
 
     assert response.status_code == status.HTTP_200_OK
-    body = response.json()
+    body = response.json()["data"]
     assert body["status"] == "extracted"
     assert body["extracted_fields"]["total_amount"] == "999.00"  # persisted as-is
     assert body["confidence"] == "low"

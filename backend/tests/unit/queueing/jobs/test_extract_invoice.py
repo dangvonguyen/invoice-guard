@@ -126,7 +126,9 @@ async def should_mark_extraction_failed_without_calling_the_model_when_pdf_has_n
     context: JobContext,
 ) -> None:
     """Route a scanned/image-only PDF to extraction_failed before any model call."""
-    context.text_extractor.extract_text.side_effect = NoTextLayerError()
+    context.text_extractor.extract_text.side_effect = NoTextLayerError(
+        "PDF has no extractable text layer"
+    )
 
     extracted_invoice = await context.run()
 

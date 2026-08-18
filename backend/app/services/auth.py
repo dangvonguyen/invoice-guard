@@ -1,12 +1,18 @@
 """Authentication service implementations."""
 
+from app.core.errors import UnauthorizedError
 from app.core.logging import bind_user_id
 from app.core.security import JwtAccessTokenCodec, PasswordHasher
 from app.database.repositories import UserRepository
 
 
-class InvalidCredentialsError(Exception):
+class InvalidCredentialsError(UnauthorizedError):
     """Raised when a user provides invalid credentials."""
+
+    code = "INVALID_CREDENTIALS"
+
+    def __init__(self) -> None:
+        super().__init__("Invalid email or password")
 
 
 class AuthService:

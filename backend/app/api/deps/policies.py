@@ -3,10 +3,11 @@
 from functools import lru_cache
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from openai import AsyncOpenAI
 
 from app.core.config import get_settings, unwrap_secret
+from app.core.errors import ForbiddenError
 from app.database.models.user import User, UserRole
 from app.database.repositories.policy_document import PolicyDocumentRepository
 from app.services.embeddings.client import EmbeddingClient, OpenAIEmbeddingClient
@@ -22,10 +23,7 @@ from .sessions import SessionDep
 async def get_current_finance_reviewer(current_user: CurrentUser) -> User:
     """Require the authenticated user to hold the finance_reviewer role."""
     if current_user.role != UserRole.FINANCE_REVIEWER:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="finance_reviewer role required",
-        )
+        raise ForbiddenError("finance_reviewer role required")
     return current_user
 
 
