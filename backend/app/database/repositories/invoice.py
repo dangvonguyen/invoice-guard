@@ -46,6 +46,22 @@ class InvoiceRepository:
         """Return the invoice associated with an ID, if one exists."""
         return await self._session.get(Invoice, invoice_id)
 
+    async def list_for_owner(
+        self, owner_id: UUID, offset: int, limit: int
+    ) -> Sequence[Invoice]:
+        """Return an owner's invoices, newest first, excluding failed uploads."""
+        result = await self._session.execute(
+            select(Invoice)
+            .where(
+                Invoice.owner_id == owner_id,
+                Invoice.status != InvoiceStatus.UPLOAD_FAILED,
+            )
+            .order_by(Invoice.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return result.scalars().all()
+
     async def list_old_processing(
         self, *, cutoff: datetime, limit: int = 100
     ) -> Sequence[Invoice]:

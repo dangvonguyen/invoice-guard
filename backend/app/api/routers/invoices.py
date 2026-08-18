@@ -17,8 +17,12 @@ from app.core.config import get_settings
 from app.core.errors import NotFoundError
 from app.database.models.invoice import InvoiceStatus
 from app.queueing import invoice_processing
-from app.schemas.envelope import ResponseEnvelope
-from app.schemas.invoice import InvoiceDetailResponse, InvoiceUploadResponse
+from app.schemas.envelope import PaginationMeta, ResponseEnvelope
+from app.schemas.invoice import (
+    InvoiceDetailResponse,
+    InvoiceListItem,
+    InvoiceUploadResponse,
+)
 from app.services.upload.intake import (
     UploadRateLimitExceededError,
     UploadStorageUnavailableError,
@@ -93,6 +97,21 @@ async def upload_invoice(
     )
     return ResponseEnvelope(
         data=InvoiceUploadResponse(invoice_id=invoice.id, status=invoice.status)
+    )
+
+
+@router.get("")
+async def list_invoices(
+    current_user: CurrentUser,
+    repository: InvoiceRepositoryDep,
+    offset: int = 0,
+    limit: int = 10,
+) -> ResponseEnvelope[list[InvoiceListItem], PaginationMeta]:
+    """List invoices owned by the authenticated user, newest first."""
+    invoices = await repository.list_for_owner(current_user.id, offset, limit)
+    return ResponseEnvelope(
+        data=[InvoiceListItem.model_validate(inv) for inv in invoices],
+        meta=PaginationMeta(total=len(invoices), offset=offset, limit=limit),
     )
 
 
