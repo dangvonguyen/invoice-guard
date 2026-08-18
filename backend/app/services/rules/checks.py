@@ -25,10 +25,11 @@ def check_max_expense_amount(
     return RuleResult(
         rule_code=RuleCode.EXPENSE_WITHIN_AMOUNT_LIMIT,
         outcome=RuleOutcome.FAIL,
-        message=(
-            f"Invoice total {extracted_voice.total_amount} exceeds the configured "
-            f"spending limit of {config.max_expense_amount}"
-        ),
+        evidence={
+            "invoice_total": extracted_voice.total_amount,
+            "max_expense_amount": config.max_expense_amount,
+            "currency": extracted_voice.currency,
+        },
     )
 
 
@@ -47,7 +48,6 @@ def check_line_item_reconciliation(
         return RuleResult(
             rule_code=RuleCode.LINE_ITEM_TOTAL_CONSISTENCY,
             outcome=RuleOutcome.NOT_APPLICABLE,
-            message="No line items were extracted to reconcile against the total",
         )
 
     reconciled = (
@@ -63,10 +63,11 @@ def check_line_item_reconciliation(
     return RuleResult(
         rule_code=RuleCode.LINE_ITEM_TOTAL_CONSISTENCY,
         outcome=RuleOutcome.FAIL,
-        message=(
-            f"Line items plus tax reconcile to {reconciled}, which does not "
-            f"match the stated total of {extracted_voice.total_amount}"
-        ),
+        evidence={
+            "invoice_total": extracted_voice.total_amount,
+            "reconciled_total": reconciled,
+            "reconciliation_tolerance": config.reconciliation_tolerance,
+        },
     )
 
 
@@ -82,11 +83,13 @@ def check_currency_allowed(
             outcome=RuleOutcome.PASS,
         )
 
-    allowed = ", ".join(sorted(config.allowed_currencies))
     return RuleResult(
         rule_code=RuleCode.CURRENCY_ALLOWED,
         outcome=RuleOutcome.FAIL,
-        message=f"Currency {extracted_voice.currency} is not in the allowed set: {allowed}",
+        evidence={
+            "currency": extracted_voice.currency,
+            "allowed_currencies": sorted(config.allowed_currencies),
+        },
     )
 
 
@@ -103,7 +106,10 @@ def check_invoice_not_future(
     return RuleResult(
         rule_code=RuleCode.INVOICE_DATE_NOT_IN_FUTURE,
         outcome=RuleOutcome.FAIL,
-        message=f"Invoice date {extracted_voice.invoice_date} is after today ({today})",
+        evidence={
+            "invoice_date": extracted_voice.invoice_date,
+            "evaluated_on": today,
+        },
     )
 
 
@@ -120,8 +126,8 @@ def check_invoice_submission_window(
     return RuleResult(
         rule_code=RuleCode.EXPENSE_WITHIN_SUBMISSION_WINDOW,
         outcome=RuleOutcome.FAIL,
-        message=(
-            f"Invoice is {age_days} days old, beyond the "
-            f"{config.max_expense_age_days}-day submission window"
-        ),
+        evidence={
+            "invoice_age_days": age_days,
+            "max_expense_age_days": config.max_expense_age_days,
+        },
     )

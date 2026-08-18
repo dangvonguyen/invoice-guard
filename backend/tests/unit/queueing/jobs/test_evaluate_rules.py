@@ -25,7 +25,6 @@ async def should_evaluate_the_fields_and_replace_the_invoices_rule_results() -> 
         RuleResult(
             rule_code=RuleCode.EXPENSE_WITHIN_AMOUNT_LIMIT,
             outcome=RuleOutcome.PASS,
-            message=None,
         )
     ]
     rule_engine.evaluate.return_value = evaluation

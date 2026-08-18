@@ -57,12 +57,12 @@ RESULTS = [
     RuleResult(
         rule_code=RuleCode.LINE_ITEM_TOTAL_CONSISTENCY,
         outcome=RuleOutcome.NOT_APPLICABLE,
-        message="No line items were extracted to reconcile against the total",
+        evidence={},
     ),
     RuleResult(
         rule_code=RuleCode.CURRENCY_ALLOWED,
         outcome=RuleOutcome.FAIL,
-        message="Currency CHF is not in the allowed set: EUR, GBP, USD",
+        evidence={"currency": "CHF", "allowed_currencies": ["EUR", "GBP", "USD"]},
     ),
     RuleResult(
         rule_code=RuleCode.INVOICE_DATE_NOT_IN_FUTURE,

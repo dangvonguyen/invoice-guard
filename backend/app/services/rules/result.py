@@ -1,11 +1,17 @@
 """Rule codes and the always-present per-rule result each check returns."""
 
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+from datetime import date
+from decimal import Decimal
 from enum import StrEnum
+from uuid import UUID
 
 from app.database.models.rule_result import RuleOutcome
 
-__all__ = ["RuleCode", "RuleOutcome", "RuleResult"]
+__all__ = ["EvidenceValue", "RuleCode", "RuleOutcome", "RuleResult"]
+
+type EvidenceValue = str | int | Decimal | date | UUID | Sequence[str]
 
 
 class RuleCode(StrEnum):
@@ -24,4 +30,4 @@ class RuleResult:
 
     rule_code: RuleCode
     outcome: RuleOutcome
-    message: str | None = None
+    evidence: dict[str, EvidenceValue] = field(default_factory=dict)

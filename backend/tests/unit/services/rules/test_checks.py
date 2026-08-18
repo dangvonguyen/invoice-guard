@@ -42,18 +42,6 @@ class TestMaxExpenseAmount:
         assert result.outcome == RuleOutcome.FAIL
         assert result.rule_code == RuleCode.EXPENSE_WITHIN_AMOUNT_LIMIT
 
-    def should_name_the_total_and_the_limit_in_the_failure_message(self) -> None:
-        """Surface both figures so the reviewer never has to look them up."""
-        invoice = COMPLIANT_INVOICE.model_copy(
-            update={"total_amount": Decimal("1480.00")}
-        )
-
-        result = check_max_expense_amount(invoice, RULE_CONFIG, TODAY)
-
-        assert result.message is not None
-        assert "1480.00" in result.message
-        assert "1000.00" in result.message
-
     def should_never_return_not_applicable_for_the_spending_limit(self) -> None:
         """Always decide pass/fail - the spending limit is always applicable."""
         under = check_max_expense_amount(
@@ -145,11 +133,6 @@ class TestCurrencyAllowed:
         result = check_currency_allowed(invoice, RULE_CONFIG, TODAY)
 
         assert result.outcome == RuleOutcome.FAIL
-        assert result.message is not None
-        assert "JPY" in result.message
-        assert "USD" in result.message
-        assert "EUR" in result.message
-        assert "GBP" in result.message
 
     def should_never_return_not_applicable_for_currency_allowed(self) -> None:
         """Always decide pass/fail - currency is always applicable."""

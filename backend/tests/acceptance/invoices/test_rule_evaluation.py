@@ -157,7 +157,7 @@ async def should_record_all_check_pass_for_a_compliant_invoice(
 
 
 @pytest.mark.parametrize(
-    ("new_fields", "expected_failed_code", "expected_message_parts"),
+    ("new_fields", "expected_failed_code", "expected_evidence"),
     [
         (
             {
@@ -168,7 +168,11 @@ async def should_record_all_check_pass_for_a_compliant_invoice(
                 ],
             },
             RuleCode.EXPENSE_WITHIN_AMOUNT_LIMIT,
-            ("1200.00", "1000.00"),
+            {
+                "invoice_total": "1200.00",
+                "max_expense_amount": "1000.00",
+                "currency": "USD",
+            },
         ),
         (
             {
@@ -180,28 +184,41 @@ async def should_record_all_check_pass_for_a_compliant_invoice(
                 ],
             },
             RuleCode.LINE_ITEM_TOTAL_CONSISTENCY,
-            ("110.00", "200.00"),
+            {
+                "invoice_total": "200.00",
+                "reconciled_total": "110.00",
+                "reconciliation_tolerance": "0.01",
+            },
         ),
         (
             {
                 "currency": "JPY",
             },
             RuleCode.CURRENCY_ALLOWED,
-            ("JPY", "EUR, GBP, USD"),
+            {
+                "currency": "JPY",
+                "allowed_currencies": ["EUR", "GBP", "USD"],
+            },
         ),
         (
             {
                 "invoice_date": (TODAY + timedelta(days=1)).isoformat(),
             },
             RuleCode.INVOICE_DATE_NOT_IN_FUTURE,
-            (TODAY.isoformat(), (TODAY + timedelta(days=1)).isoformat()),
+            {
+                "invoice_date": (TODAY + timedelta(days=1)).isoformat(),
+                "evaluated_on": TODAY.isoformat(),
+            },
         ),
         (
             {
                 "invoice_date": (TODAY - timedelta(days=91)).isoformat(),
             },
             RuleCode.EXPENSE_WITHIN_SUBMISSION_WINDOW,
-            ("91", "90"),
+            {
+                "invoice_age_days": 91,
+                "max_expense_age_days": 90,
+            },
         ),
     ],
 )
@@ -212,7 +229,7 @@ async def should_flag_each_individual_policy_violation(
     employee_headers: dict[str, str],
     new_fields: dict[str, Any],
     expected_failed_code: RuleCode,
-    expected_message_parts: tuple[str, ...],
+    expected_evidence: dict[str, Any],
 ) -> None:
     """Fail only the rule targeted by each individual policy violation."""
     extracted_fields = {**RAW_INVOICE_DATA, **new_fields}
@@ -231,7 +248,7 @@ async def should_flag_each_individual_policy_violation(
     for row in rows:
         if row.rule_code == expected_failed_code.value:
             assert row.outcome == RuleOutcome.FAIL
-            assert all(part in (row.message or "") for part in expected_message_parts)
+            assert row.evidence == expected_evidence
         else:
             assert row.outcome == RuleOutcome.PASS
 
