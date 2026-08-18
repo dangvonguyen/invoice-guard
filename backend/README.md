@@ -91,7 +91,7 @@ uv run rq worker extraction --with-scheduler
 
 Authenticated users can upload invoices as multipart form data through `POST /invoices`. The `file` field currently accepts non-empty PDF content whose filename ends in `.pdf`.
 
-Accepted uploads are stored and queued for asynchronous extraction. They return `201` with an invoice ID and usually a `pending` status. The service creates the database record before writing the file. If storage fails, it marks the record as `upload_failed` and returns `503` so the request can be retried safely. If queueing fails, the upload remains accepted but is returned with an `extraction_failed` status.
+Accepted uploads are stored and queued for asynchronous extraction. They return `201` with an invoice ID and usually a `processing` status. The service creates the database record before writing the file. If storage fails, it marks the record as `upload_failed` and returns `503` so the request can be retried safely. If queueing fails, the upload remains accepted but is returned with a `processing_error` status.
 
 Upload behavior is configured in `backend/.env`:
 
@@ -117,7 +117,7 @@ The raw `POST /invoices` request body is capped before multipart parsing at `UPL
 
 ## Invoice extraction
 
-The RQ worker reads an uploaded PDF, extracts its text layer, and sends that text to the configured OpenAI model for structured extraction. Returned values are checked against the source text before the invoice is saved with an `extracted` status and `high` or `low` confidence. PDFs without a text layer and jobs that exhaust their retries are marked `extraction_failed`.
+The RQ worker reads an uploaded PDF, extracts its text layer, and sends that text to the configured OpenAI model for structured extraction. Returned values are checked against the source text before the extracted fields and `high`/`low` confidence are persisted; the invoice stays `processing` until rule evaluation also completes. PDFs without a text layer are marked `processing_error`.
 
 Authenticated users can retrieve an invoice they own through `GET /invoices/{invoice_id}`. The response contains its current status and, when extraction succeeds, the extracted fields, confidence, and confidence reason. Missing invoices and invoices owned by another user both return `404`.
 
@@ -128,6 +128,12 @@ Once extraction succeeds, the same RQ job evaluates the extracted fields against
 Every rule always produces a result for an evaluated invoice - `pass`, `fail`, or `not_applicable` - and the full set is persisted to `invoice_rule_results`, replacing any prior results for that invoice so a retried job never duplicates rows.
 
 Rule thresholds are configured in `backend/.env`: `RULE_MAX_EXPENSE_AMOUNT`, `RULE_MAX_EXPENSE_AGE_DAYS`, `RULE_ALLOWED_CURRENCIES`, and `RULE_RECONCILIATION_TOLERANCE`.
+
+## Invoice review queue
+
+Once rule evaluation completes, the invoice moves to `awaiting_review`. A job that raises and exhausts its RQ retries also moves the invoice to `awaiting_review`, so an invoice stuck mid-pipeline still reaches a reviewer instead of stalling in `processing`.
+
+Note: a PDF with no text layer or a model that keeps returning invalid output is marked `processing_error` directly by the extraction job (without raising), so it does not go through the RQ retry/failure path and is not moved to `awaiting_review`.
 
 ## Project structure
 
@@ -148,8 +154,8 @@ app/
     session.py          # Engine, session factories
   queueing/
     jobs/               # Queue-owned job payloads
-    extraction.py       # Extraction enqueueing and worker lifecycle
-    reconcile.py        # Recovery of stale pending extractions
+    invoice_processing.py  # Extraction, rule evaluation, review-queue transition, worker lifecycle
+    reconcile.py        # Recovery of stale processing invoices
   schemas/              # Pydantic request/response models
   services/
     extraction/         # Model extraction pipeline
