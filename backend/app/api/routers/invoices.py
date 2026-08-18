@@ -79,8 +79,8 @@ async def upload_invoice(
                 "context": {"invoice_id": str(invoice.id)},
             },
         )
-        await invoices.mark_extraction_failed(invoice_id=invoice.id)
-        invoice.status = InvoiceStatus.EXTRACTION_FAILED
+        await invoices.mark_processing_error(invoice_id=invoice.id)
+        invoice.status = InvoiceStatus.PROCESSING_ERROR
 
     logger.info(
         "Invoice upload accepted",

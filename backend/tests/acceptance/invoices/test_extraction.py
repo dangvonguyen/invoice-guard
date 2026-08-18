@@ -61,7 +61,7 @@ async def store_invoice(
     repository = InvoiceRepository(session=test_db)
 
     async def store(content: bytes) -> StoredInvoice:
-        invoice = await repository.create_pending(
+        invoice = await repository.create_processing(
             owner_id=employee.id,
             storage_key=storage.generate_key(),
             original_filename="invoice.pdf",
@@ -177,7 +177,7 @@ async def should_extract_fields_from_a_text_native_pdf_on_first_valid_response(
     store_invoice: StoreInvoice,
     employee_headers: dict[str, str],
 ) -> None:
-    """Convert a text-native pending invoice into grounded structured fields."""
+    """Convert a text-native processing invoice into grounded structured fields."""
     stored = await store_invoice(text_native_pdf_bytes())
     await run_extraction(
         stored,
@@ -193,7 +193,7 @@ async def should_extract_fields_from_a_text_native_pdf_on_first_valid_response(
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()["data"]
-    assert body["status"] == "extracted"
+    assert body["status"] == "processing"
     assert body["extracted_fields"]["vendor_name"] == VENDOR_NAME
     assert body["extracted_fields"]["total_amount"] == str(TOTAL_AMOUNT)
     assert body["extracted_fields"]["currency"] == CURRENCY
@@ -206,7 +206,7 @@ async def should_fail_fast_for_a_pdf_without_a_text_layer(
     store_invoice: StoreInvoice,
     employee_headers: dict[str, str],
 ) -> None:
-    """Route a scanned/image-only PDF to extraction_failed with no model call."""
+    """Route a scanned/image-only PDF to processing_error with no model call."""
     stored = await store_invoice(image_only_pdf_bytes())
     await run_extraction(
         stored,
@@ -223,7 +223,7 @@ async def should_fail_fast_for_a_pdf_without_a_text_layer(
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()["data"]
-    assert body["status"] == "extraction_failed"
+    assert body["status"] == "processing_error"
 
 
 async def should_route_to_review_after_exhausting_validation_retries(
@@ -249,7 +249,7 @@ async def should_route_to_review_after_exhausting_validation_retries(
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()["data"]
-    assert body["status"] == "extraction_failed"
+    assert body["status"] == "processing_error"
     assert body["extracted_fields"] is None
     assert model.call_count == 3
 
@@ -277,7 +277,7 @@ async def should_flag_ungrounded_field_as_low_confidence(
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()["data"]
-    assert body["status"] == "extracted"
+    assert body["status"] == "processing"
     assert body["extracted_fields"]["total_amount"] == "999.00"  # persisted as-is
     assert body["confidence"] == "low"
     assert "total_amount" in body["confidence_reason"]

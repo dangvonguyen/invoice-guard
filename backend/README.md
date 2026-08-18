@@ -91,7 +91,7 @@ uv run rq worker extraction --with-scheduler
 
 Authenticated users can upload invoices as multipart form data through `POST /invoices`. The `file` field currently accepts non-empty PDF content whose filename ends in `.pdf`.
 
-Accepted uploads are stored and queued for asynchronous extraction. They return `201` with an invoice ID and usually a `pending` status. The service creates the database record before writing the file. If storage fails, it marks the record as `upload_failed` and returns `503` so the request can be retried safely. If queueing fails, the upload remains accepted but is returned with an `extraction_failed` status.
+Accepted uploads are stored and queued for asynchronous extraction. They return `201` with an invoice ID and usually a `processing` status. The service creates the database record before writing the file. If storage fails, it marks the record as `upload_failed` and returns `503` so the request can be retried safely. If queueing fails, the upload remains accepted but is returned with a `processing_error` status.
 
 Upload behavior is configured in `backend/.env`:
 
@@ -117,7 +117,7 @@ The raw `POST /invoices` request body is capped before multipart parsing at `UPL
 
 ## Invoice extraction
 
-The RQ worker reads an uploaded PDF, extracts its text layer, and sends that text to the configured OpenAI model for structured extraction. Returned values are checked against the source text before the invoice is saved with an `extracted` status and `high` or `low` confidence. PDFs without a text layer and jobs that exhaust their retries are marked `extraction_failed`.
+The RQ worker reads an uploaded PDF, extracts its text layer, and sends that text to the configured OpenAI model for structured extraction. Returned values are checked against the source text before the extracted fields are saved with `high` or `low` confidence; the invoice stays `processing` until rule evaluation also completes. PDFs without a text layer and jobs that exhaust their retries are marked `processing_error`.
 
 Authenticated users can retrieve an invoice they own through `GET /invoices/{invoice_id}`. The response contains its current status and, when extraction succeeds, the extracted fields, confidence, and confidence reason. Missing invoices and invoices owned by another user both return `404`.
 
@@ -149,7 +149,7 @@ app/
   queueing/
     jobs/               # Queue-owned job payloads
     extraction.py       # Extraction enqueueing and worker lifecycle
-    reconcile.py        # Recovery of stale pending extractions
+    reconcile.py        # Recovery of stale processing extractions
   schemas/              # Pydantic request/response models
   services/
     extraction/         # Model extraction pipeline

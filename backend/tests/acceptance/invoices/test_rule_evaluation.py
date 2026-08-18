@@ -79,7 +79,7 @@ async def store_invoice(
     repository = InvoiceRepository(session=test_db)
 
     async def store(content: bytes) -> StoredInvoice:
-        invoice = await repository.create_pending(
+        invoice = await repository.create_processing(
             owner_id=employee.id,
             storage_key=storage.generate_key(),
             original_filename="invoice.pdf",
@@ -151,7 +151,7 @@ async def should_record_all_check_pass_for_a_compliant_invoice(
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()["data"]
-    assert body["status"] == "extracted"
+    assert body["status"] == "processing"
 
     # Database-level rule code assertion
     assert {row.rule_code for row in rows} == {code.value for code in RuleCode}
@@ -229,7 +229,7 @@ async def should_flag_each_individual_policy_violation(
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()["data"]
-    assert body["status"] == "extracted"
+    assert body["status"] == "processing"
 
     assert len(rows) == len(RuleCode)
     for row in rows:
@@ -259,7 +259,7 @@ async def should_record_not_applicable_with_no_line_items(
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()["data"]
-    assert body["status"] == "extracted"
+    assert body["status"] == "processing"
 
     assert len(rows) == len(RuleCode)
     for row in rows:
@@ -287,5 +287,5 @@ async def should_skip_evaluation_when_extraction_failed(
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()["data"]
-    assert body["status"] == "extraction_failed"
+    assert body["status"] == "processing_error"
     assert rows == []

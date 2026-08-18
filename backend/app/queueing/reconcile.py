@@ -1,4 +1,4 @@
-"""Recurring tick that re-enqueues extraction for stale pending invoices."""
+"""Recurring tick that re-enqueues extraction for stale processing invoices."""
 
 import logging
 import math
@@ -36,7 +36,7 @@ def next_tick(now: datetime, *, interval_seconds: int) -> datetime:
 
 def get_job_id(tick: datetime) -> str:
     """Return the deterministic RQ job id for a reconcile tick."""
-    return f"reconcile-pending-invoices-{int(tick.timestamp())}"
+    return f"reconcile-processing-invoices-{int(tick.timestamp())}"
 
 
 def schedule_next(queue: Queue) -> None:
@@ -85,11 +85,11 @@ def has_active_job(invoice_id: UUID, *, connection: Redis) -> bool:
 
 
 async def execute() -> None:
-    """Recurring job: re-enqueue pending invoices with no live extraction job.
+    """Recurring job: re-enqueue processing invoices with no live extraction job.
 
     Each eligible invoice gets a single enqueue attempt for this tick; an
-    invoice whose attempt does not succeed is marked extraction_failed
-    rather than left pending to be retried indefinitely by future ticks.
+    invoice whose attempt does not succeed is marked processing_error
+    rather than left processing to be retried indefinitely by future ticks.
     """
     queue = get_extraction_queue()
 
@@ -102,12 +102,12 @@ async def execute() -> None:
 
     async with get_session_factory()() as session, session.begin():
         invoices = InvoiceRepository(session=session)
-        stale_invoices = await invoices.list_old_pending(
+        stale_invoices = await invoices.list_old_processing(
             cutoff=stale_cutoff, limit=settings.EXTRACTION_RECONCILE_BATCH_LIMIT
         )
 
         logger.info(
-            "Extraction reconcile tick scanning stale pending invoices",
+            "Extraction reconcile tick scanning stale processing invoices",
             extra={
                 "event": "invoice.extraction.reconcile.tick_started",
                 "context": {"candidate_count": len(stale_invoices)},
@@ -121,7 +121,7 @@ async def execute() -> None:
             try:
                 extraction.enqueue(queue, invoice.id)
             except extraction.ExtractionEnqueueError:
-                await invoices.mark_extraction_failed(invoice_id=invoice.id)
+                await invoices.mark_processing_error(invoice_id=invoice.id)
                 logger.warning(
                     "Reconciler failed to re-enqueue a stuck invoice; marked failed",
                     extra={

@@ -48,12 +48,12 @@ class JobContext:
 
 @pytest.fixture
 def stored_invoice() -> Invoice:
-    """Build the pending invoice loaded by the extraction job."""
+    """Build the processing invoice loaded by the extraction job."""
     timestamp = datetime(2000, 1, 1, tzinfo=UTC)
     return Invoice(
         id=INVOICE_ID,
         owner_id=OWNER_ID,
-        status=InvoiceStatus.PENDING,
+        status=InvoiceStatus.PROCESSING,
         storage_key=STORAGE_KEY,
         original_filename="invoice.pdf",
         created_at=timestamp,
@@ -122,10 +122,10 @@ async def should_reject_an_unknown_invoice_before_reading_storage(
     context.invoices.mark_extracted.assert_not_awaited()
 
 
-async def should_mark_extraction_failed_without_calling_the_model_when_pdf_has_no_text_layer(
+async def should_mark_processing_error_without_calling_the_model_when_pdf_has_no_text_layer(
     context: JobContext,
 ) -> None:
-    """Route a scanned/image-only PDF to extraction_failed before any model call."""
+    """Route a scanned/image-only PDF to processing_error before any model call."""
     context.text_extractor.extract_text.side_effect = NoTextLayerError(
         "PDF has no extractable text layer"
     )
@@ -134,14 +134,14 @@ async def should_mark_extraction_failed_without_calling_the_model_when_pdf_has_n
 
     context.text_extractor.extract_text.assert_called_once_with(content=PDF_CONTENT)
     context.extraction_pipeline.run.assert_not_awaited()
-    context.invoices.mark_extraction_failed.assert_awaited_once_with(
+    context.invoices.mark_processing_error.assert_awaited_once_with(
         invoice_id=INVOICE_ID
     )
     context.invoices.mark_extracted.assert_not_awaited()
     assert extracted_invoice is None
 
 
-async def should_mark_extraction_failed_when_validation_retries_are_exhausted(
+async def should_mark_processing_error_when_validation_retries_are_exhausted(
     context: JobContext,
 ) -> None:
     """Route to review when the model never returns a schema-valid response."""
@@ -152,7 +152,7 @@ async def should_mark_extraction_failed_when_validation_retries_are_exhausted(
     context.extraction_pipeline.run.assert_awaited_once_with(
         document_text=DOCUMENT_TEXT
     )
-    context.invoices.mark_extraction_failed.assert_awaited_once_with(
+    context.invoices.mark_processing_error.assert_awaited_once_with(
         invoice_id=INVOICE_ID
     )
     context.invoices.mark_extracted.assert_not_awaited()

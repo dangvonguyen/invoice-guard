@@ -30,13 +30,13 @@ async def extract_invoice(
     try:
         document_text = text_extractor.extract_text(content=pdf_content)
     except NoTextLayerError:
-        await invoices.mark_extraction_failed(invoice_id=invoice_id)
+        await invoices.mark_processing_error(invoice_id=invoice_id)
         return None
 
     try:
         result = await extraction_pipeline.run(document_text=document_text)
     except InvalidModelOutputError:
-        await invoices.mark_extraction_failed(invoice_id=invoice_id)
+        await invoices.mark_processing_error(invoice_id=invoice_id)
         return None
 
     await invoices.mark_extracted(

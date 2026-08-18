@@ -17,7 +17,7 @@ from app.services.upload.validation import UploadValidator
 from .sessions import RedisDep, SessionManualDep
 
 
-# Use SessionManualDep so the pending row survives a later storage failure;
+# Use SessionManualDep so the processing row survives a later storage failure;
 # SessionDep would roll back the whole request.
 def get_invoice_repository(session: SessionManualDep) -> InvoiceRepository:
     """Create an invoice repository configured with a manually-controlled session."""

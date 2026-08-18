@@ -52,11 +52,11 @@ def reconcile_queue(
     return queue
 
 
-async def _stuck_pending_invoice(test_db: AsyncSession, *, owner: User) -> Invoice:
-    """Persist a pending invoice well past the stale cutoff."""
+async def _stuck_processing_invoice(test_db: AsyncSession, *, owner: User) -> Invoice:
+    """Persist a processing invoice well past the stale cutoff."""
     invoice = Invoice(
         owner_id=owner.id,
-        storage_key="stuck-pending.pdf",
+        storage_key="stuck-processing.pdf",
         original_filename="invoice.pdf",
         created_at=datetime.now(UTC) - timedelta(seconds=STALE_AFTER_SECONDS + 60),
     )
@@ -65,11 +65,11 @@ async def _stuck_pending_invoice(test_db: AsyncSession, *, owner: User) -> Invoi
     return invoice
 
 
-async def should_enqueue_extraction_for_a_stuck_pending_invoice(
+async def should_enqueue_extraction_for_a_stuck_processing_invoice(
     test_db: AsyncSession, owner: User, reconcile_queue: Queue
 ) -> None:
-    """Give a pending invoice with no live job a fresh extraction job."""
-    invoice = await _stuck_pending_invoice(test_db, owner=owner)
+    """Give a processing invoice with no live job a fresh extraction job."""
+    invoice = await _stuck_processing_invoice(test_db, owner=owner)
 
     await reconcile.execute()
 
@@ -78,11 +78,11 @@ async def should_enqueue_extraction_for_a_stuck_pending_invoice(
     assert job.args == (str(invoice.id),)
 
 
-async def should_skip_a_pending_invoice_that_already_has_a_live_job(
+async def should_skip_a_processing_invoice_that_already_has_a_live_job(
     test_db: AsyncSession, owner: User, reconcile_queue: Queue
 ) -> None:
-    """Leave a pending invoice alone when its extraction job is still live."""
-    invoice = await _stuck_pending_invoice(test_db, owner=owner)
+    """Leave a processing invoice alone when its extraction job is still live."""
+    invoice = await _stuck_processing_invoice(test_db, owner=owner)
     extraction.enqueue(reconcile_queue, invoice.id)
 
     with patch("app.queueing.reconcile.extraction.enqueue") as enqueue:
@@ -91,13 +91,13 @@ async def should_skip_a_pending_invoice_that_already_has_a_live_job(
     enqueue.assert_not_called()
 
 
-async def should_skip_a_pending_invoice_younger_than_the_stale_cutoff(
+async def should_skip_a_processing_invoice_younger_than_the_stale_cutoff(
     test_db: AsyncSession, owner: User, reconcile_queue: Queue
 ) -> None:
-    """Leave a freshly created pending invoice for its own upload request to enqueue."""
+    """Leave a freshly created processing invoice for its own upload request to enqueue."""
     invoice = Invoice(
         owner_id=owner.id,
-        storage_key="fresh-pending.pdf",
+        storage_key="fresh-processing.pdf",
         original_filename="invoice.pdf",
         created_at=datetime.now(UTC) - timedelta(seconds=STALE_AFTER_SECONDS - 60),
     )
@@ -110,11 +110,11 @@ async def should_skip_a_pending_invoice_younger_than_the_stale_cutoff(
 
 
 @pytest.mark.usefixtures("reconcile_queue")
-async def should_mark_extraction_failed_when_the_reenqueue_attempt_does_not_succeed(
+async def should_mark_processing_error_when_the_reenqueue_attempt_does_not_succeed(
     test_db: AsyncSession, owner: User
 ) -> None:
     """Stop retrying an invoice forever once a reconcile enqueue attempt fails."""
-    invoice = await _stuck_pending_invoice(test_db, owner=owner)
+    invoice = await _stuck_processing_invoice(test_db, owner=owner)
 
     with patch(
         "app.queueing.reconcile.extraction.enqueue",
@@ -123,7 +123,7 @@ async def should_mark_extraction_failed_when_the_reenqueue_attempt_does_not_succ
         await reconcile.execute()
 
     await test_db.refresh(invoice)
-    assert invoice.status == InvoiceStatus.EXTRACTION_FAILED
+    assert invoice.status == InvoiceStatus.PROCESSING_ERROR
 
 
 async def should_reschedule_the_next_tick_after_running(

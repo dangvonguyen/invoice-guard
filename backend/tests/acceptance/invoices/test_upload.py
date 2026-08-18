@@ -36,13 +36,13 @@ def pdf_bytes(size: int) -> bytes:
     return (header + padding)[:size]
 
 
-async def should_accept_authenticated_employees_valid_pdf_as_pending_invoice(
+async def should_accept_authenticated_employees_valid_pdf_as_processing_invoice(
     client: AsyncClient,
     test_db: AsyncSession,
     employee: User,
     employee_headers: dict[str, str],
 ) -> None:
-    """Accept a size-compliant PDF and return its pending invoice identity."""
+    """Accept a size-compliant PDF and return its processing invoice identity."""
     response = await client.post(
         "/invoices",
         headers=employee_headers,
@@ -52,13 +52,13 @@ async def should_accept_authenticated_employees_valid_pdf_as_pending_invoice(
     assert response.status_code == status.HTTP_201_CREATED
     body = response.json()
     assert body["success"] is True
-    assert body["data"]["status"] == "pending"
+    assert body["data"]["status"] == "processing"
     invoice_id = UUID(body["data"]["invoice_id"])
 
     stored = await test_db.get(Invoice, invoice_id)
     assert stored is not None
     assert stored.owner_id == employee.id
-    assert stored.status == InvoiceStatus.PENDING
+    assert stored.status == InvoiceStatus.PROCESSING
     assert stored.storage_key
 
 
@@ -247,8 +247,8 @@ async def should_accept_the_upload_even_when_enqueueing_fails(
 
     assert response.status_code == status.HTTP_201_CREATED
     response_body = response.json()["data"]
-    assert response_body["status"] == "extraction_failed"
+    assert response_body["status"] == "processing_error"
     invoice_id = UUID(response_body["invoice_id"])
     stored = await test_db.get(Invoice, invoice_id)
     assert stored is not None
-    assert stored.status == InvoiceStatus.EXTRACTION_FAILED
+    assert stored.status == InvoiceStatus.PROCESSING_ERROR

@@ -92,7 +92,7 @@ async def execute(invoice_id: str) -> None:
             extracted_invoice: ExtractedInvoice | None
             if (
                 invoice is not None
-                and invoice.status == InvoiceStatus.EXTRACTED
+                and invoice.status == InvoiceStatus.PROCESSING
                 and invoice.extracted_fields is not None
             ):
                 # An RQ retry after evaluation failed must resume from the
@@ -166,7 +166,7 @@ def handle_failure(
 
     async def mark_failed() -> None:
         async with get_session_factory()() as session, session.begin():
-            await InvoiceRepository(session=session).mark_extraction_failed(
+            await InvoiceRepository(session=session).mark_processing_error(
                 invoice_id=invoice_id
             )
 

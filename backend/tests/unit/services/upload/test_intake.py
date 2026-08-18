@@ -47,7 +47,7 @@ def stored_invoice() -> Invoice:
     return Invoice(
         id=INVOICE_ID,
         owner_id=OWNER_ID,
-        status=InvoiceStatus.PENDING,
+        status=InvoiceStatus.PROCESSING,
         storage_key=STORAGE_KEY,
         original_filename=FILENAME,
         created_at=timestamp,
@@ -77,13 +77,13 @@ def context() -> IntakeContext:
     )
 
 
-async def should_accept_valid_pdf_as_pending_invoice(
+async def should_accept_valid_pdf_as_processing_invoice(
     context: IntakeContext, stored_invoice: Invoice
 ) -> None:
     """Validate, reserve, and store an authenticated employee's PDF."""
     context.rate_limiter.allow.return_value = True
     context.storage.generate_key.return_value = STORAGE_KEY
-    context.invoices.create_pending.return_value = stored_invoice
+    context.invoices.create_processing.return_value = stored_invoice
 
     result = await context.service.accept(
         owner_id=OWNER_ID,
@@ -104,7 +104,7 @@ async def should_accept_valid_pdf_as_pending_invoice(
         key=OWNER_ID, scope="invoice-upload"
     )
     context.storage.generate_key.assert_called_once_with()
-    context.invoices.create_pending.assert_awaited_once_with(
+    context.invoices.create_processing.assert_awaited_once_with(
         owner_id=OWNER_ID, storage_key=STORAGE_KEY, original_filename=FILENAME
     )
     context.storage.save.assert_awaited_once_with(key=STORAGE_KEY, content=PDF_CONTENT)
@@ -116,8 +116,8 @@ async def should_write_storage_only_after_the_row_is_created(
     """Never attempt a storage write before the row is durably persisted."""
     call_order: list[str] = []
     context.rate_limiter.allow.return_value = True
-    context.invoices.create_pending.side_effect = lambda **_: call_order.append(
-        "create_pending"
+    context.invoices.create_processing.side_effect = lambda **_: call_order.append(
+        "create_processing"
     )
     context.storage.save.side_effect = lambda **_: call_order.append("save")
 
@@ -129,7 +129,7 @@ async def should_write_storage_only_after_the_row_is_created(
         content=PDF_CONTENT,
     )
 
-    assert call_order == ["create_pending", "save"]
+    assert call_order == ["create_processing", "save"]
 
 
 async def should_reject_upload_when_rate_limit_denies_it(
@@ -148,7 +148,7 @@ async def should_reject_upload_when_rate_limit_denies_it(
         )
 
     context.validator.validate.assert_called_once()
-    context.invoices.create_pending.assert_not_awaited()
+    context.invoices.create_processing.assert_not_awaited()
     context.storage.save.assert_not_awaited()
 
 
@@ -169,7 +169,7 @@ async def should_reject_upload_when_validation_fails_without_persisting(
             content=b"x",
         )
 
-    context.invoices.create_pending.assert_not_awaited()
+    context.invoices.create_processing.assert_not_awaited()
     context.storage.save.assert_not_awaited()
     context.rate_limiter.allow.assert_not_awaited()
 
@@ -187,7 +187,7 @@ async def should_generate_a_storage_key_never_derived_from_the_filename(
         content=PDF_CONTENT,
     )
 
-    _, kwargs = context.invoices.create_pending.await_args
+    _, kwargs = context.invoices.create_processing.await_args
     assert kwargs["storage_key"] != "invoice.pdf"
     assert kwargs["original_filename"] == "invoice.pdf"
 
@@ -198,7 +198,7 @@ async def should_mark_reservation_failed_when_storage_write_fails(
     """Translate storage failure and durably mark the reserved row failed."""
     context.rate_limiter.allow.return_value = True
     context.storage.generate_key.return_value = STORAGE_KEY
-    context.invoices.create_pending.return_value = stored_invoice
+    context.invoices.create_processing.return_value = stored_invoice
     context.storage.save.side_effect = StorageWriteError("disk unavailable")
 
     with pytest.raises(UploadStorageUnavailableError):

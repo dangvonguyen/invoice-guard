@@ -1,6 +1,6 @@
 """Database model for uploaded invoices.
 
-Scope note: intake records distinguish pending uploads from failed storage writes.
+Scope note: intake records distinguish processing uploads from failed storage writes.
 """
 
 from datetime import datetime
@@ -18,10 +18,12 @@ from app.database.base import Base
 class InvoiceStatus(StrEnum):
     """Lifecycle states for an invoice."""
 
-    PENDING = "pending"
     UPLOAD_FAILED = "upload_failed"
-    EXTRACTED = "extracted"
-    EXTRACTION_FAILED = "extraction_failed"
+    PROCESSING = "processing"
+    PROCESSING_ERROR = "processing_error"
+    AWAITING_REVIEW = "awaiting_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
 
 
 class ExtractionConfidence(StrEnum):
@@ -52,7 +54,7 @@ class Invoice(Base):
             name="invoice_status",
             values_callable=lambda statuses: [s.value for s in statuses],
         ),
-        server_default=InvoiceStatus.PENDING.value,
+        server_default=InvoiceStatus.PROCESSING.value,
         index=True,
     )
     storage_key: Mapped[str] = mapped_column(String(255), unique=True)
