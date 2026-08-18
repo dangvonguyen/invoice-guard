@@ -95,9 +95,7 @@ async def upload_invoice(
             "context": {"status_code": status.HTTP_201_CREATED},
         },
     )
-    return ResponseEnvelope(
-        data=InvoiceUploadResponse(invoice_id=invoice.id, status=invoice.status)
-    )
+    return ResponseEnvelope(data=InvoiceUploadResponse.model_validate(invoice))
 
 
 @router.get("")
@@ -125,16 +123,7 @@ async def get_invoice(
     invoice = await invoices.get_by_id(invoice_id)
     if invoice is None or invoice.owner_id != current_user.id:
         raise NotFoundError("Invoice not found")
-
-    return ResponseEnvelope(
-        data=InvoiceDetailResponse(
-            invoice_id=invoice.id,
-            status=invoice.status,
-            extracted_fields=invoice.extracted_fields,
-            confidence=invoice.confidence,
-            confidence_reason=invoice.confidence_reason,
-        )
-    )
+    return ResponseEnvelope(data=InvoiceDetailResponse.model_validate(invoice))
 
 
 def _log_rejection(*, code: str, status_code: int, **context: object) -> None:

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.database.models.invoice import ExtractionConfidence, InvoiceStatus
 
@@ -14,10 +14,9 @@ class InvoiceResponseBase(BaseModel):
 
     model_config = {
         "from_attributes": True,
-        "validate_by_name": True,
     }
 
-    invoice_id: UUID = Field(validation_alias="id")
+    id: UUID
     status: InvoiceStatus
 
 

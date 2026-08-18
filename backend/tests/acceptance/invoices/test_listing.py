@@ -53,7 +53,7 @@ async def should_list_the_authenticated_employees_own_invoice(
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
     assert body["success"] is True
-    assert [item["invoice_id"] for item in body["data"]] == [str(invoice.id)]
+    assert [item["id"] for item in body["data"]] == [str(invoice.id)]
 
 
 async def should_let_a_finance_reviewer_list_only_their_own_submissions(
@@ -73,7 +73,7 @@ async def should_let_a_finance_reviewer_list_only_their_own_submissions(
     response = await client.get("/invoices", headers=reviewer_headers)
 
     body = response.json()
-    assert [item["invoice_id"] for item in body["data"]] == [str(reviewer_invoice.id)]
+    assert [item["id"] for item in body["data"]] == [str(reviewer_invoice.id)]
 
 
 async def should_reject_unauthenticated_listing(client: AsyncClient) -> None:
@@ -114,7 +114,7 @@ async def should_order_invoices_newest_first(
     response = await client.get("/invoices", headers=employee_headers)
 
     body = response.json()
-    assert [item["invoice_id"] for item in body["data"]] == [
+    assert [item["id"] for item in body["data"]] == [
         str(newest.id),
         str(middle.id),
         str(oldest.id),
@@ -144,4 +144,4 @@ async def should_exclude_invoices_with_a_failed_upload(
     response = await client.get("/invoices", headers=employee_headers)
 
     body = response.json()
-    assert [item["invoice_id"] for item in body["data"]] == [str(visible.id)]
+    assert [item["id"] for item in body["data"]] == [str(visible.id)]

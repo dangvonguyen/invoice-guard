@@ -61,7 +61,7 @@ async def upload_policy_document(
     )
     return ResponseEnvelope(
         data=PolicyDocumentUploadResponse(
-            policy_document_id=result.document_id,
+            id=result.document_id,
             status=result.status,
             chunk_count=result.chunk_count,
         )
@@ -76,7 +76,7 @@ async def list_policy_documents(
     documents = await policy_documents.list_all()
     items = [
         PolicyDocumentListItem(
-            policy_document_id=document.id,
+            id=document.id,
             status=document.status,
             original_filename=document.original_filename,
             chunk_count=chunk_count,
