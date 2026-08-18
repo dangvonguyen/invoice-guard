@@ -117,7 +117,7 @@ The raw `POST /invoices` request body is capped before multipart parsing at `UPL
 
 ## Invoice extraction
 
-The RQ worker reads an uploaded PDF, extracts its text layer, and sends that text to the configured OpenAI model for structured extraction. Returned values are checked against the source text before the extracted fields and `high`/`low` confidence are persisted; the invoice stays `processing` until rule evaluation also completes. PDFs without a text layer are marked `processing_error`.
+The RQ worker reads an uploaded PDF, extracts its text layer, and sends that text to the configured OpenAI model for structured extraction. Returned values are checked against the source text before the extracted fields are saved with `high` or `low` confidence; the invoice stays `processing` until rule evaluation also completes. PDFs without a text layer and jobs that exhaust their retries are marked `processing_error`.
 
 Authenticated users can retrieve an invoice they own through `GET /invoices/{invoice_id}`. The response contains its current status and, when extraction succeeds, the extracted fields, confidence, and confidence reason. Missing invoices and invoices owned by another user both return `404`.
 
