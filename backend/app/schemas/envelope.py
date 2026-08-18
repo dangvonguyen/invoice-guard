@@ -7,7 +7,7 @@ class PaginationMeta(BaseModel):
     """Pagination metadata attached to list responses."""
 
     total: int
-    page: int
+    offset: int
     limit: int
 
 
@@ -27,7 +27,7 @@ class ErrorInfo(BaseModel):
     details: list[ErrorDetail] | None = None
 
 
-class ResponseEnvelope[DataT, MetaT: BaseModel | None = None](BaseModel):
+class ResponseEnvelope[DataT, MetaT: BaseModel](BaseModel):
     """Standard envelope for API responses."""
 
     data: DataT | None = None

@@ -36,7 +36,7 @@ async def upload_invoice(
     extraction_queue: ExtractionQueueDep,
     invoices: InvoiceRepositoryDep,
     file: Annotated[UploadFile, File()],
-) -> ResponseEnvelope[InvoiceUploadResponse]:
+) -> ResponseEnvelope[InvoiceUploadResponse, None]:
     """Accept an invoice document and enqueue it for processing."""
     settings = get_settings()
     content = await file.read(settings.UPLOAD_MAX_BYTES + 1)
@@ -101,7 +101,7 @@ async def get_invoice(
     invoice_id: UUID,
     current_user: CurrentUser,
     invoices: InvoiceRepositoryDep,
-) -> ResponseEnvelope[InvoiceDetailResponse]:
+) -> ResponseEnvelope[InvoiceDetailResponse, None]:
     """Return an invoice owned by the authenticated user."""
     invoice = await invoices.get_by_id(invoice_id)
     if invoice is None or invoice.owner_id != current_user.id:

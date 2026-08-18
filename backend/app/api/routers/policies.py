@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def upload_policy_document(
     ingestion: PolicyIngestionServiceDep, file: Annotated[UploadFile, File()]
-) -> ResponseEnvelope[PolicyDocumentUploadResponse]:
+) -> ResponseEnvelope[PolicyDocumentUploadResponse, None]:
     """Ingest a policy handbook PDF and activate it as the current policy."""
     settings = get_settings()
     content = await file.read(settings.POLICY_DOCUMENT_MAX_BYTES + 1)
