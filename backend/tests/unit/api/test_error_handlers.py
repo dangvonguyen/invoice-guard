@@ -1,6 +1,7 @@
 """Tests for the shared exception handlers and their envelope shape."""
 
 from collections.abc import AsyncGenerator
+from typing import Any
 
 import pytest
 import pytest_asyncio
@@ -41,7 +42,7 @@ def test_app() -> FastAPI:
         raise RuntimeError("db connection reset")
 
     @app.post("/validate")
-    async def validate_body(payload: Payload) -> None:
+    async def validate_body(payload: Payload) -> dict[str, Any]:
         return {"amount": payload.amount}
 
     @app.get("/raw-http")
@@ -82,7 +83,7 @@ async def test_domain_forbidden_returns_envelope_shape(client: AsyncClient) -> N
 
 
 async def test_pydantic_body_validation_returns_envelope_with_field_details(
-    client,
+    client: AsyncClient,
 ) -> None:
     """Verify that body validation errors include structured field details."""
     resp = await client.post("/validate", json={"amount": "not-a-number"})
