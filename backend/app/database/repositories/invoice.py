@@ -14,6 +14,7 @@ from uuid import UUID
 
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.rule_result import InvoiceRuleResult, RuleOutcome
@@ -46,6 +47,15 @@ class InvoiceRepository:
     async def get_by_id(self, invoice_id: UUID) -> Invoice | None:
         """Return the invoice associated with an ID, if one exists."""
         return await self._session.get(Invoice, invoice_id)
+
+    async def get_for_review(self, invoice_id: UUID) -> Invoice | None:
+        """Return an invoice with its owner and rule results loaded."""
+        result = await self._session.execute(
+            select(Invoice)
+            .where(Invoice.id == invoice_id)
+            .options(selectinload(Invoice.owner), selectinload(Invoice.rule_results))
+        )
+        return result.scalar_one_or_none()
 
     async def list_for_owner(
         self, owner_id: UUID, offset: int, limit: int

@@ -38,10 +38,31 @@ def employee_headers(employee: User) -> dict[str, str]:
 
 
 @pytest_asyncio.fixture
+async def other_employee(test_db: AsyncSession) -> User:
+    """Persist a second, distinct employee."""
+    user = User(
+        id=UUID("00000000-0000-0000-0000-000000000002"),
+        email="jane@example.com",
+        hashed_password="unused-password-hash",
+        name="Jane",
+        role=UserRole.EMPLOYEE,
+    )
+    test_db.add(user)
+    await test_db.flush()
+    return user
+
+
+@pytest.fixture
+def other_employee_headers(other_employee: User) -> dict[str, str]:
+    """Bearer header authenticating as the other employee."""
+    return _bearer_headers(other_employee)
+
+
+@pytest_asyncio.fixture
 async def finance_reviewer(test_db: AsyncSession) -> User:
     """Persist a finance reviewer."""
     user = User(
-        id=UUID("00000000-0000-0000-0000-000000000002"),
+        id=UUID("00000000-0000-0000-0000-000000000010"),
         email="alice@example.com",
         hashed_password="unused-password-hash",
         name="Alice",

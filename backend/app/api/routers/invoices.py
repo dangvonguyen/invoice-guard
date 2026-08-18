@@ -16,6 +16,7 @@ from app.api.deps import (
 from app.core.config import get_settings
 from app.core.errors import NotFoundError
 from app.database.models.invoice import InvoiceStatus
+from app.database.models.user import UserRole
 from app.queueing import invoice_processing
 from app.schemas.envelope import PaginationMeta, ResponseEnvelope
 from app.schemas.invoice import (
@@ -23,7 +24,8 @@ from app.schemas.invoice import (
     InvoiceListItem,
     InvoiceUploadResponse,
 )
-from app.services.invoices.views import employee_view
+from app.schemas.review import ReviewerInvoiceDetailResponse
+from app.services.invoices.views import employee_view, reviewer_view
 from app.services.upload.intake import (
     UploadRateLimitExceededError,
     UploadStorageUnavailableError,
@@ -119,11 +121,21 @@ async def get_invoice(
     invoice_id: UUID,
     current_user: CurrentUser,
     invoices: InvoiceRepositoryDep,
-) -> ResponseEnvelope[InvoiceDetailResponse, None]:
-    """Return an invoice owned by the authenticated user."""
-    invoice = await invoices.get_by_id(invoice_id)
-    if invoice is None or invoice.owner_id != current_user.id:
+) -> ResponseEnvelope[InvoiceDetailResponse | ReviewerInvoiceDetailResponse, None]:
+    """Return an invoice the caller owns, or - for a reviewer - any invoice.
+
+    A non-owner, non-reviewer gets 404, never 403, so ownership is never
+    confirmed to a caller who shouldn't have it. A reviewer reading their
+    own invoice gets the normal employee view, not the reviewer view.
+    """
+    is_reviewer = current_user.role == UserRole.FINANCE_REVIEWER
+    invoice = await invoices.get_for_review(invoice_id)
+
+    if invoice is None or (invoice.owner_id != current_user.id and not is_reviewer):
         raise NotFoundError("Invoice not found")
+
+    if is_reviewer and invoice.owner_id != current_user.id:
+        return ResponseEnvelope(data=reviewer_view(invoice))
     return ResponseEnvelope(data=employee_view(invoice))
 
 
