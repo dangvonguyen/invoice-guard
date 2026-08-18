@@ -44,3 +44,11 @@ class InvoiceDetailResponse(InvoiceResponseBase):
 
     invoice_summary: InvoiceSummary | None
     decision: None = None
+
+
+class ReviewQueueItem(InvoiceResponseBase):
+    """Response for one invoice in the finance reviewer's review queue."""
+
+    submitted_at: datetime
+    invoice_summary: InvoiceSummary | None
+    flag_count: int

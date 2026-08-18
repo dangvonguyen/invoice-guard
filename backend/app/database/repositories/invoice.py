@@ -12,10 +12,11 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.invoice import Invoice, InvoiceStatus
+from app.database.models.rule_result import InvoiceRuleResult, RuleOutcome
 
 
 class InvoiceRepository:
@@ -61,6 +62,29 @@ class InvoiceRepository:
             .limit(limit)
         )
         return result.scalars().all()
+
+    async def list_awaiting_review(
+        self, offset: int, limit: int
+    ) -> Sequence[tuple[Invoice, int]]:
+        """Return awaiting-review invoices with their flag count, oldest first."""
+        flag_counts = (
+            select(
+                InvoiceRuleResult.invoice_id,
+                func.count().label("flag_count"),
+            )
+            .where(InvoiceRuleResult.outcome == RuleOutcome.FAIL)
+            .group_by(InvoiceRuleResult.invoice_id)
+            .subquery()
+        )
+        result = await self._session.execute(
+            select(Invoice, func.coalesce(flag_counts.c.flag_count, 0))
+            .outerjoin(flag_counts, flag_counts.c.invoice_id == Invoice.id)
+            .where(Invoice.status == InvoiceStatus.AWAITING_REVIEW)
+            .order_by(Invoice.created_at.asc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return [(invoice, count) for invoice, count in result.all()]
 
     async def list_old_processing(
         self, *, cutoff: datetime, limit: int = 100
