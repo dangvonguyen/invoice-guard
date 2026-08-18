@@ -13,11 +13,15 @@ from app.schemas.envelope import ErrorDetail, ErrorInfo, ResponseEnvelope
 logger = logging.getLogger(__name__)
 
 
-def envelope_response(status_code: int, error: ErrorInfo) -> JSONResponse:
+def envelope_response(
+    status_code: int, error: ErrorInfo, headers: dict[str, str] | None = None
+) -> JSONResponse:
     """Create a JSON response containing the given error in the shared envelope."""
     envelope: ResponseEnvelope[None] = ResponseEnvelope(error=error)
     return JSONResponse(
-        status_code=status_code, content=envelope.model_dump(mode="json")
+        status_code=status_code,
+        content=envelope.model_dump(mode="json"),
+        headers=headers,
     )
 
 
@@ -27,7 +31,8 @@ async def domain_error_handler(_: Request, exc: Exception) -> JSONResponse:
 
     return envelope_response(
         exc.status_code,
-        ErrorInfo(code=exc.code, message=exc.message, details=exc.details),
+        error=ErrorInfo(code=exc.code, message=exc.message, details=exc.details),
+        headers=exc.headers,
     )
 
 

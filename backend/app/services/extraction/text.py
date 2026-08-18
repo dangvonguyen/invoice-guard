@@ -5,9 +5,14 @@ from typing import Protocol
 
 from pypdf import PdfReader
 
+from app.core.errors import DomainError
 
-class NoTextLayerError(Exception):
+
+class NoTextLayerError(DomainError):
     """Raised when a PDF has no extractable text on any page."""
+
+    code = "NO_TEXT_LAYER"
+    status_code = 422
 
 
 class TextExtractor(Protocol):

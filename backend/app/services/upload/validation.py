@@ -2,13 +2,21 @@
 
 from collections.abc import Mapping
 
+from app.core.errors import DomainError
 
-class InvalidUploadError(Exception):
+
+class InvalidUploadError(DomainError):
     """Base class for invoice upload validation failures."""
+
+    code = "INVALID_UPLOAD"
+    status_code = 400
 
 
 class PayloadTooLargeError(InvalidUploadError):
     """Raised when the file exceeds the configured size cap."""
+
+    code = "PAYLOAD_TOO_LARGE"
+    status_code = 413
 
 
 class InvalidPayloadError(InvalidUploadError):
@@ -21,6 +29,9 @@ class InvalidFilenameError(InvalidUploadError):
 
 class UnsupportedMediaTypeError(InvalidUploadError):
     """Raised when the declared type or extension isn't (yet) accepted."""
+
+    code = "UNSUPPORTED_MEDIA_TYPE"
+    status_code = 415
 
 
 _DEFAULT_ALLOWED_TYPES: Mapping[str, tuple[str, ...]] = {

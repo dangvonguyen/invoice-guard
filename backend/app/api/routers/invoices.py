@@ -1,7 +1,7 @@
 """Routes for invoice document intake."""
 
 import logging
-from typing import Annotated, NoReturn
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
@@ -14,6 +14,7 @@ from app.api.deps import (
     InvoiceRepositoryDep,
 )
 from app.core.config import get_settings
+from app.core.errors import NotFoundError
 from app.database.models.invoice import InvoiceStatus
 from app.queueing import extraction
 from app.schemas.envelope import ResponseEnvelope
@@ -22,12 +23,7 @@ from app.services.upload.intake import (
     UploadRateLimitExceededError,
     UploadStorageUnavailableError,
 )
-from app.services.upload.validation import (
-    InvalidPayloadError,
-    InvalidUploadError,
-    PayloadTooLargeError,
-    UnsupportedMediaTypeError,
-)
+from app.services.upload.validation import InvalidUploadError
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
 logger = logging.getLogger(__name__)
@@ -53,39 +49,25 @@ async def upload_invoice(
             content=content,
         )
     except UploadRateLimitExceededError as exc:
-        _reject_upload(
-            exc,
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            reason="rate_limited",
-            detail="Upload rate limit exceeded. Try again shortly.",
+        _log_rejection(
+            code=exc.code,
+            status_code=exc.status_code,
             limit=settings.UPLOAD_RATE_LIMIT,
             window_seconds=settings.UPLOAD_RATE_LIMIT_WINDOW_SECONDS,
         )
-    except PayloadTooLargeError as exc:
-        _reject_upload(
-            exc,
-            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            reason="payload_too_large",
-        )
-    except UnsupportedMediaTypeError as exc:
-        _reject_upload(
-            exc,
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            reason="unsupported_media_type",
-        )
-    except (InvalidPayloadError, InvalidUploadError) as exc:
-        _reject_upload(
-            exc,
-            status_code=status.HTTP_400_BAD_REQUEST,
-            reason="invalid_upload",
-        )
+        raise
+    except InvalidUploadError as exc:
+        _log_rejection(code=exc.code, status_code=exc.status_code)
+        raise
     except UploadStorageUnavailableError as exc:
-        _reject_upload(
-            exc,
+        _log_rejection(
+            code="STORAGE_UNAVAILABLE",
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            reason="storage_unavailable",
-            detail="Invoice storage is temporarily unavailable. Try again shortly.",
         )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Invoice storage is temporarily unavailable. Try again shortly.",
+        ) from exc
 
     try:
         await run_in_threadpool(extraction.enqueue, extraction_queue, invoice.id)
@@ -121,9 +103,7 @@ async def get_invoice(
     """Return an invoice owned by the authenticated user."""
     invoice = await invoices.get_by_id(invoice_id)
     if invoice is None or invoice.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
-        )
+        raise NotFoundError("Invoice not found")
 
     return ResponseEnvelope(
         data=InvoiceDetailResponse(
@@ -136,20 +116,11 @@ async def get_invoice(
     )
 
 
-def _reject_upload(
-    exc: Exception,
-    *,
-    status_code: int,
-    reason: str,
-    detail: str | None = None,
-    **context: object,
-) -> NoReturn:
+def _log_rejection(*, code: str, status_code: int, **context: object) -> None:
     logger.warning(
         "Invoice upload rejected",
         extra={
             "event": "invoice.upload.rejected",
-            "context": {"reason": reason, "status_code": status_code, **context},
+            "context": {"code": code, "status_code": status_code, **context},
         },
     )
-
-    raise HTTPException(status_code=status_code, detail=detail or str(exc)) from exc

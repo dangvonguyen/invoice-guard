@@ -9,9 +9,15 @@ class DomainError(Exception):
     code: str = "DOMAIN_ERROR"
     status_code: int = 400
 
-    def __init__(self, message: str, details: list[ErrorDetail] | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        details: list[ErrorDetail] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
         self.message = message
         self.details = details
+        self.headers = headers
         super().__init__(message)
 
 
@@ -23,6 +29,11 @@ class NotFoundError(DomainError):
 class ForbiddenError(DomainError):
     code = "FORBIDDEN"
     status_code = 403
+
+
+class UnauthorizedError(DomainError):
+    code = "UNAUTHORIZED"
+    status_code = 401
 
 
 class ValidationError(DomainError):

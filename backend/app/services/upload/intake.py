@@ -2,6 +2,7 @@
 
 from uuid import UUID
 
+from app.core.errors import DomainError
 from app.core.logging import bind_invoice_id
 from app.core.rate_limit import RateLimiter
 from app.core.storage import StorageClient, StorageWriteError
@@ -10,8 +11,11 @@ from app.database.repositories.invoice import InvoiceRepository
 from app.services.upload.validation import UploadValidator
 
 
-class UploadRateLimitExceededError(Exception):
+class UploadRateLimitExceededError(DomainError):
     """Raised when a caller has exceeded their upload rate limit."""
+
+    code = "RATE_LIMIT_EXCEEDED"
+    status_code = 429
 
 
 class UploadStorageUnavailableError(Exception):

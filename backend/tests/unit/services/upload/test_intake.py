@@ -156,7 +156,9 @@ async def should_reject_upload_when_validation_fails_without_persisting(
     context: IntakeContext,
 ) -> None:
     """Propagate validation errors and never create a row or write storage."""
-    context.validator.validate.side_effect = UnsupportedMediaTypeError()
+    context.validator.validate.side_effect = UnsupportedMediaTypeError(
+        "image/jpeg is not yet supported"
+    )
 
     with pytest.raises(UnsupportedMediaTypeError):
         await context.service.accept(
