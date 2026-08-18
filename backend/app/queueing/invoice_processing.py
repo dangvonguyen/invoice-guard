@@ -1,4 +1,4 @@
-"""Queue invoice extraction jobs and handle their worker lifecycle."""
+"""Queue and run invoice analysis end to end, and handle its worker lifecycle."""
 
 import asyncio
 import logging
@@ -40,17 +40,17 @@ ACTIVE_STATUSES = frozenset(
 logger = logging.getLogger(__name__)
 
 
-class ExtractionEnqueueError(Exception):
-    """Raised when an invoice could not be scheduled for extraction."""
+class ProcessingEnqueueError(Exception):
+    """Raised when an invoice could not be scheduled for processing."""
 
 
 def get_job_id(invoice_id: UUID) -> str:
-    """Return the deterministic RQ job id used for one invoice's extraction."""
-    return f"extraction-{invoice_id}"
+    """Return the deterministic RQ job id used for one invoice's processing."""
+    return f"invoice-processing-{invoice_id}"
 
 
 def enqueue(queue: Queue, invoice_id: UUID) -> None:
-    """Schedule extraction for a stored invoice, translating broker failures."""
+    """Schedule processing for a stored invoice, translating broker failures."""
     job_id = get_job_id(invoice_id)
     try:
         if Job.exists(job_id, connection=queue.connection):
@@ -73,15 +73,15 @@ def enqueue(queue: Queue, invoice_id: UUID) -> None:
             ),
         )
     except RedisError as exc:
-        raise ExtractionEnqueueError(f"failed to enqueue invoice {invoice_id}") from exc
+        raise ProcessingEnqueueError(f"failed to enqueue invoice {invoice_id}") from exc
 
 
 async def execute(invoice_id: str) -> None:
     """Entry point: extract fields, evaluate policy rules, then open for review.
 
     Rule evaluation is a separate step that only runs once extraction has
-    successfully produced extracted fields to check. The invoice reaches
-    `awaiting_review` only once rule evaluation itself succeeds.
+    successfully produced extracted fields to check. The invoice opens
+    for review only once rule evaluation itself succeeds.
     """
     settings = get_settings()
     session_factory = get_session_factory()

@@ -1,4 +1,4 @@
-"""Specify extraction queue failure callback behavior."""
+"""Specify the invoice processing pipeline's session flow and worker failure behavior."""
 
 from types import TracebackType
 from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
@@ -9,7 +9,7 @@ from redis import Redis
 from rq.job import Job
 
 from app.database.models.invoice import Invoice, InvoiceStatus
-from app.queueing import extraction
+from app.queueing import invoice_processing
 from tests.support.constants import EXTRACTED_INVOICE
 
 pytestmark = pytest.mark.unit
@@ -35,9 +35,9 @@ def should_mark_awaiting_review_only_after_retries_are_exhausted(
     job.args = [str(INVOICE_ID)]
 
     with patch(
-        "app.queueing.extraction.InvoiceRepository.mark_awaiting_review"
+        "app.queueing.invoice_processing.InvoiceRepository.mark_awaiting_review"
     ) as mark_awaiting_review:
-        extraction.handle_failure(
+        invoice_processing.handle_failure(
             job=job,
             connection=Mock(spec=Redis),
             exc_type=RuntimeError,
@@ -68,16 +68,17 @@ async def should_evaluate_rules_in_a_fresh_session_after_extraction() -> None:
 
     with (
         patch(
-            "app.queueing.extraction.get_session_factory", return_value=session_factory
+            "app.queueing.invoice_processing.get_session_factory",
+            return_value=session_factory,
         ),
-        patch("app.queueing.extraction.InvoiceRepository") as invoices,
-        patch("app.queueing.extraction.RuleResultRepository") as rule_results,
-        patch("app.queueing.extraction.extract_invoice", AsyncMock()),
-        patch("app.queueing.extraction.evaluate_rules", AsyncMock()),
+        patch("app.queueing.invoice_processing.InvoiceRepository") as invoices,
+        patch("app.queueing.invoice_processing.RuleResultRepository") as rule_results,
+        patch("app.queueing.invoice_processing.extract_invoice", AsyncMock()),
+        patch("app.queueing.invoice_processing.evaluate_rules", AsyncMock()),
     ):
         invoices.return_value.get_by_id = AsyncMock(return_value=None)
         invoices.return_value.mark_awaiting_review = AsyncMock()
-        await extraction.execute(str(INVOICE_ID))
+        await invoice_processing.execute(str(INVOICE_ID))
 
     assert session_factory.call_args_list == [call(), call()]
     assert invoices.call_args_list == [
@@ -116,17 +117,20 @@ async def should_resume_from_persisted_fields_instead_of_recalling_the_model() -
 
     with (
         patch(
-            "app.queueing.extraction.get_session_factory", return_value=session_factory
+            "app.queueing.invoice_processing.get_session_factory",
+            return_value=session_factory,
         ),
-        patch("app.queueing.extraction.InvoiceRepository") as invoices,
+        patch("app.queueing.invoice_processing.InvoiceRepository") as invoices,
         patch(
-            "app.queueing.extraction.extract_invoice", AsyncMock()
+            "app.queueing.invoice_processing.extract_invoice", AsyncMock()
         ) as extract_invoice,
-        patch("app.queueing.extraction.evaluate_rules", AsyncMock()) as evaluate_rules,
+        patch(
+            "app.queueing.invoice_processing.evaluate_rules", AsyncMock()
+        ) as evaluate_rules,
     ):
         invoices.return_value.get_by_id = AsyncMock(return_value=stored_invoice)
         invoices.return_value.mark_awaiting_review = AsyncMock()
-        await extraction.execute(str(INVOICE_ID))
+        await invoice_processing.execute(str(INVOICE_ID))
 
     extract_invoice.assert_not_awaited()
     evaluate_rules.assert_awaited_once()
