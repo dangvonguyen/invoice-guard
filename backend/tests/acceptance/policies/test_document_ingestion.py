@@ -177,7 +177,7 @@ async def should_reject_a_non_pdf_upload(
     )
 
     assert response.status_code == status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
-    assert "PDF" in response.json()["detail"]
+    assert "PDF" in response.json()["error"]["message"]
 
 
 async def should_reject_a_pdf_with_no_text_layer(
@@ -192,7 +192,7 @@ async def should_reject_a_pdf_with_no_text_layer(
     )
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-    assert "text" in response.json()["detail"].lower()
+    assert "text" in response.json()["error"]["message"].lower()
 
 
 @pytest.mark.usefixtures("fake_embeddings")

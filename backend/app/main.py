@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.handlers import register_exception_handlers
 from app.api.middleware import RequestBodyLimitMiddleware, RequestLoggingMiddleware
 from app.api.router import api_router
 from app.core.config import get_settings
@@ -45,6 +46,9 @@ app = FastAPI(
 
 # Register the API routes
 app.include_router(api_router)
+
+# Convert domain errors and HTTP exceptions into the shared response envelope
+register_exception_handlers(app)
 
 # Register CORS middleware
 app.add_middleware(

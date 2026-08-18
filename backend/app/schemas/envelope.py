@@ -1,6 +1,6 @@
 """Generic response envelope shared by every API route."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 
 
 class PaginationMeta(BaseModel):
@@ -30,7 +30,11 @@ class ErrorInfo(BaseModel):
 class ResponseEnvelope[DataT, MetaT: BaseModel | None = None](BaseModel):
     """Standard envelope for API responses."""
 
-    success: bool = True
     data: DataT | None = None
     error: ErrorInfo | None = None
     meta: MetaT | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def success(self) -> bool:
+        return self.error is None
