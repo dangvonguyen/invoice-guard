@@ -23,6 +23,7 @@ from app.schemas.invoice import (
     InvoiceListItem,
     InvoiceUploadResponse,
 )
+from app.services.invoices.views import employee_view
 from app.services.upload.intake import (
     UploadRateLimitExceededError,
     UploadStorageUnavailableError,
@@ -123,7 +124,7 @@ async def get_invoice(
     invoice = await invoices.get_by_id(invoice_id)
     if invoice is None or invoice.owner_id != current_user.id:
         raise NotFoundError("Invoice not found")
-    return ResponseEnvelope(data=InvoiceDetailResponse.model_validate(invoice))
+    return ResponseEnvelope(data=employee_view(invoice))
 
 
 def _log_rejection(*, code: str, status_code: int, **context: object) -> None:

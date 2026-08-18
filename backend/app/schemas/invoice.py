@@ -1,12 +1,12 @@
 """Validation and transfer schemas for invoice API data."""
 
-from datetime import datetime
-from typing import Any
+from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.database.models.invoice import ExtractionConfidence, InvoiceStatus
+from app.database.models.invoice import InvoiceStatus
 
 
 class InvoiceResponseBase(BaseModel):
@@ -30,9 +30,17 @@ class InvoiceListItem(InvoiceResponseBase):
     created_at: datetime
 
 
-class InvoiceDetailResponse(InvoiceResponseBase):
-    """Response for reading once invoice's current state."""
+class InvoiceSummary(BaseModel):
+    """The plain-language invoice facts an employee is allowed to see."""
 
-    extracted_fields: dict[str, Any] | None
-    confidence: ExtractionConfidence | None
-    confidence_reason: str | None
+    vendor_name: str
+    invoice_date: date
+    total_amount: Decimal
+    currency: str
+
+
+class InvoiceDetailResponse(InvoiceResponseBase):
+    """Employee-facing view of one invoice's current state."""
+
+    invoice_summary: InvoiceSummary | None
+    decision: None = None
