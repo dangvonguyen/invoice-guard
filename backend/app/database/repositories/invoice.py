@@ -1,6 +1,6 @@
 """Database access operations for invoices.
 
-`create_pending` commits through a manually controlled session so the row is
+`create_processing` commits through a manually controlled session so the row is
 durable before object storage is written. If storage then fails, the invoice
 remains visible and queryable instead of being rolled back with the request.
 This deliberately favors a detectable missing object over an orphaned object
@@ -24,10 +24,10 @@ class InvoiceRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def create_pending(
+    async def create_processing(
         self, *, owner_id: UUID, storage_key: str, original_filename: str
     ) -> Invoice:
-        """Create a pending invoice row and durably commit it immediately.
+        """Create a processing invoice row and durably commit it immediately.
 
         The caller is expected to attempt the storage write only *after*
         this returns, so a storage failure never erases intake evidence.
@@ -46,14 +46,14 @@ class InvoiceRepository:
         """Return the invoice associated with an ID, if one exists."""
         return await self._session.get(Invoice, invoice_id)
 
-    async def list_old_pending(
+    async def list_old_processing(
         self, *, cutoff: datetime, limit: int = 100
     ) -> Sequence[Invoice]:
-        """Return pending invoices created before a cutoff, oldest first."""
+        """Return processing invoices created before a cutoff, oldest first."""
         result = await self._session.execute(
             select(Invoice)
             .where(
-                Invoice.status == InvoiceStatus.PENDING,
+                Invoice.status == InvoiceStatus.PROCESSING,
                 Invoice.created_at < cutoff,
             )
             .order_by(Invoice.created_at)
@@ -70,15 +70,18 @@ class InvoiceRepository:
         )
         await self._session.commit()
 
-    async def mark_extraction_failed(self, *, invoice_id: UUID) -> None:
+    async def mark_processing_error(self, *, invoice_id: UUID) -> None:
         """Durably record that extraction could not proceed for an invoice."""
         await self._session.execute(
             update(Invoice)
             .where(
                 Invoice.id == invoice_id,
-                Invoice.status == InvoiceStatus.PENDING,
+                Invoice.status == InvoiceStatus.PROCESSING,
+                # Guarded so a later retry/failure callback can never stomp
+                # on fields a prior attempt already persisted
+                Invoice.extracted_fields.is_(None),
             )
-            .values(status=InvoiceStatus.EXTRACTION_FAILED)
+            .values(status=InvoiceStatus.PROCESSING_ERROR)
         )
         await self._session.commit()
 
@@ -90,12 +93,15 @@ class InvoiceRepository:
         confidence: str,
         confidence_reason: str | None,
     ) -> None:
-        """Durably persist extracted fields and mark the invoice as extracted."""
+        """Durably persist extracted fields without changing invoice status.
+
+        The status transition off `processing` happens once rule
+        evaluation also completes, not here.
+        """
         await self._session.execute(
             update(Invoice)
             .where(Invoice.id == invoice_id)
             .values(
-                status=InvoiceStatus.EXTRACTED,
                 extracted_fields=fields,
                 confidence=confidence,
                 confidence_reason=confidence_reason,

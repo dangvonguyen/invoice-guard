@@ -38,7 +38,7 @@ async def owner(test_db: AsyncSession) -> User:
 async def invoice(test_db: AsyncSession, owner: User) -> Invoice:
     """Persist an invoice for rule results to attach to."""
     repository = InvoiceRepository(session=test_db)
-    return await repository.create_pending(
+    return await repository.create_processing(
         owner_id=owner.id, storage_key="rules-key.pdf", original_filename="invoice.pdf"
     )
 

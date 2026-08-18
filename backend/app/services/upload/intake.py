@@ -47,7 +47,7 @@ class UploadService:
         content_length: int | None,
         content: bytes,
     ) -> Invoice:
-        """Accept an invoice upload, return the persisted pending state."""
+        """Accept an invoice upload, return the persisted processing state."""
         self._validator.validate(
             filename=filename,
             content_type=content_type,
@@ -63,7 +63,7 @@ class UploadService:
             )
 
         storage_key = self._storage.generate_key()
-        invoice = await self._invoices.create_pending(
+        invoice = await self._invoices.create_processing(
             owner_id=owner_id, storage_key=storage_key, original_filename=filename or ""
         )
 
