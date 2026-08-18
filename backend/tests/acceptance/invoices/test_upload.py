@@ -18,7 +18,7 @@ from app.core.storage import StorageWriteError
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.user import User
 from app.main import app
-from app.queueing import extraction
+from app.queueing import invoice_processing
 
 pytestmark = [
     pytest.mark.acceptance,
@@ -223,7 +223,7 @@ async def should_enqueue_extraction_for_every_accepted_upload(
     invoice_id = response.json()["data"]["invoice_id"]
 
     queue = Queue(EXTRACTION_QUEUE_NAME, connection=sync_redis)
-    job = queue.fetch_job(extraction.get_job_id(UUID(invoice_id)))
+    job = queue.fetch_job(invoice_processing.get_job_id(UUID(invoice_id)))
     assert job is not None
     assert job.args == (invoice_id,)
 
@@ -236,7 +236,7 @@ async def should_accept_the_upload_even_when_enqueueing_fails(
     """Mark extraction failed when broker is unavailable, but keep upload accepted."""
 
     with patch(
-        "app.queueing.extraction.Queue.enqueue",
+        "app.queueing.invoice_processing.Queue.enqueue",
         side_effect=RedisError("broker unavailable"),
     ):
         response = await client.post(

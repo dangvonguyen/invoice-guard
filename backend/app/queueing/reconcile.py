@@ -13,7 +13,7 @@ from app.core.config import get_settings
 from app.core.queue import get_extraction_queue
 from app.database.repositories.invoice import InvoiceRepository
 from app.database.session import get_session_factory
-from app.queueing import extraction
+from app.queueing import invoice_processing
 
 # Keeps a failed tick's hash around briefly for debugging
 _RECONCILE_TICK_FAILURE_TTL_SECONDS = 3600
@@ -77,11 +77,11 @@ def schedule_next(queue: Queue) -> None:
 
 def has_active_job(invoice_id: UUID, *, connection: Redis) -> bool:
     """Return whether an invoice's extraction job is still expected to run."""
-    job_id = extraction.get_job_id(invoice_id)
+    job_id = invoice_processing.get_job_id(invoice_id)
     if not Job.exists(job_id, connection=connection):
         return False
     job = Job.fetch(job_id, connection=connection)
-    return job.get_status(refresh=False) in extraction.ACTIVE_STATUSES
+    return job.get_status(refresh=False) in invoice_processing.ACTIVE_STATUSES
 
 
 async def execute() -> None:
@@ -119,8 +119,8 @@ async def execute() -> None:
                 continue
 
             try:
-                extraction.enqueue(queue, invoice.id)
-            except extraction.ExtractionEnqueueError:
+                invoice_processing.enqueue(queue, invoice.id)
+            except invoice_processing.ProcessingEnqueueError:
                 await invoices.mark_processing_error(invoice_id=invoice.id)
                 logger.warning(
                     "Reconciler failed to re-enqueue a stuck invoice; marked failed",

@@ -16,7 +16,7 @@ from app.api.deps import (
 from app.core.config import get_settings
 from app.core.errors import NotFoundError
 from app.database.models.invoice import InvoiceStatus
-from app.queueing import extraction
+from app.queueing import invoice_processing
 from app.schemas.envelope import ResponseEnvelope
 from app.schemas.invoice import InvoiceDetailResponse, InvoiceUploadResponse
 from app.services.upload.intake import (
@@ -70,8 +70,10 @@ async def upload_invoice(
         ) from exc
 
     try:
-        await run_in_threadpool(extraction.enqueue, extraction_queue, invoice.id)
-    except extraction.ExtractionEnqueueError:
+        await run_in_threadpool(
+            invoice_processing.enqueue, extraction_queue, invoice.id
+        )
+    except invoice_processing.ProcessingEnqueueError:
         logger.warning(
             "Invoice extraction enqueue failed",
             extra={

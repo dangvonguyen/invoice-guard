@@ -14,7 +14,7 @@ from app.core.config import get_settings
 from app.core.queue import EXTRACTION_QUEUE_NAME
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.user import User, UserRole
-from app.queueing import extraction, reconcile
+from app.queueing import invoice_processing, reconcile
 
 pytestmark = [
     pytest.mark.integration,
@@ -73,7 +73,7 @@ async def should_enqueue_extraction_for_a_stuck_processing_invoice(
 
     await reconcile.execute()
 
-    job = reconcile_queue.fetch_job(extraction.get_job_id(invoice.id))
+    job = reconcile_queue.fetch_job(invoice_processing.get_job_id(invoice.id))
     assert job is not None
     assert job.args == (str(invoice.id),)
 
@@ -83,9 +83,9 @@ async def should_skip_a_processing_invoice_that_already_has_a_live_job(
 ) -> None:
     """Leave a processing invoice alone when its extraction job is still live."""
     invoice = await _stuck_processing_invoice(test_db, owner=owner)
-    extraction.enqueue(reconcile_queue, invoice.id)
+    invoice_processing.enqueue(reconcile_queue, invoice.id)
 
-    with patch("app.queueing.reconcile.extraction.enqueue") as enqueue:
+    with patch("app.queueing.reconcile.invoice_processing.enqueue") as enqueue:
         await reconcile.execute()
 
     enqueue.assert_not_called()
@@ -106,7 +106,7 @@ async def should_skip_a_processing_invoice_younger_than_the_stale_cutoff(
 
     await reconcile.execute()
 
-    assert reconcile_queue.fetch_job(extraction.get_job_id(invoice.id)) is None
+    assert reconcile_queue.fetch_job(invoice_processing.get_job_id(invoice.id)) is None
 
 
 @pytest.mark.usefixtures("reconcile_queue")
@@ -117,8 +117,8 @@ async def should_mark_processing_error_when_the_reenqueue_attempt_does_not_succe
     invoice = await _stuck_processing_invoice(test_db, owner=owner)
 
     with patch(
-        "app.queueing.reconcile.extraction.enqueue",
-        side_effect=extraction.ExtractionEnqueueError("broker unavailable"),
+        "app.queueing.reconcile.invoice_processing.enqueue",
+        side_effect=invoice_processing.ProcessingEnqueueError("broker unavailable"),
     ):
         await reconcile.execute()
 

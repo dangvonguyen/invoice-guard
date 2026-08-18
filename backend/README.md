@@ -129,6 +129,12 @@ Every rule always produces a result for an evaluated invoice - `pass`, `fail`, o
 
 Rule thresholds are configured in `backend/.env`: `RULE_MAX_EXPENSE_AMOUNT`, `RULE_MAX_EXPENSE_AGE_DAYS`, `RULE_ALLOWED_CURRENCIES`, and `RULE_RECONCILIATION_TOLERANCE`.
 
+## Invoice review queue
+
+Once rule evaluation completes, the invoice moves to `awaiting_review`. A job that raises and exhausts its RQ retries also moves the invoice to `awaiting_review`, so an invoice stuck mid-pipeline still reaches a reviewer instead of stalling in `processing`.
+
+Note: a PDF with no text layer or a model that keeps returning invalid output is marked `processing_error` directly by the extraction job (without raising), so it does not go through the RQ retry/failure path and is not moved to `awaiting_review`.
+
 ## Project structure
 
 ```
@@ -148,8 +154,8 @@ app/
     session.py          # Engine, session factories
   queueing/
     jobs/               # Queue-owned job payloads
-    extraction.py       # Extraction enqueueing and worker lifecycle
-    reconcile.py        # Recovery of stale processing extractions
+    invoice_processing.py  # Extraction, rule evaluation, review-queue transition, worker lifecycle
+    reconcile.py        # Recovery of stale processing invoices
   schemas/              # Pydantic request/response models
   services/
     extraction/         # Model extraction pipeline
