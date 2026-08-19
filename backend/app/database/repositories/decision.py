@@ -21,6 +21,10 @@ class DecisionAlreadyExistsError(Exception):
     """Raised when an invoice already has a decision recorded against it."""
 
 
+class InvoiceNotFoundError(Exception):
+    """Raised when the target invoice does not exist."""
+
+
 class InvoiceNotAwaitingReviewError(Exception):
     """Raised when the target invoice was not in `awaiting_review`."""
 
@@ -40,6 +44,9 @@ class DecisionRepository:
         decided_by_id: UUID,
     ) -> InvoiceDecision:
         """Insert a decision and transition the invoice status, atomically."""
+        if await self._session.get(Invoice, invoice_id) is None:
+            raise InvoiceNotFoundError(str(invoice_id))
+
         decision = InvoiceDecision(
             invoice_id=invoice_id,
             outcome=outcome,

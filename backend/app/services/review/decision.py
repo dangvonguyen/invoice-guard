@@ -2,12 +2,13 @@
 
 from uuid import UUID
 
-from app.core.errors import DomainError
+from app.core.errors import DomainError, NotFoundError
 from app.database.models.decision import InvoiceDecision, InvoiceDecisionOutcome
 from app.database.repositories.decision import (
     DecisionAlreadyExistsError,
     DecisionRepository,
     InvoiceNotAwaitingReviewError,
+    InvoiceNotFoundError,
 )
 
 
@@ -60,3 +61,5 @@ class DecisionService:
             raise NotAwaitingReviewError(
                 f"Invoice {invoice_id} is not awaiting review."
             ) from exc
+        except InvoiceNotFoundError as exc:
+            raise NotFoundError(f"Invoice {invoice_id} was not found.") from exc

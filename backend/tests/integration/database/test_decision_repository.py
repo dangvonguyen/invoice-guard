@@ -15,6 +15,7 @@ from app.database.repositories.decision import (
     DecisionAlreadyExistsError,
     DecisionRepository,
     InvoiceNotAwaitingReviewError,
+    InvoiceNotFoundError,
 )
 from tests.support.helpers import create_invoice, create_user
 
@@ -116,6 +117,21 @@ async def should_raise_when_the_invoice_is_not_awaiting_review(
     with pytest.raises(InvoiceNotAwaitingReviewError):
         await repository.record(
             invoice_id=invoice.id,
+            outcome=InvoiceDecisionOutcome.APPROVED,
+            reason="Within policy.",
+            decided_by_id=reviewer.id,
+        )
+
+
+async def should_raise_when_the_invoice_does_not_exist(
+    repository: DecisionRepository, reviewer: User
+) -> None:
+    """Refuse a decision against an invoice ID that was never created."""
+    missing_invoice_id = UUID("00000000-0000-0000-0000-000000000099")
+
+    with pytest.raises(InvoiceNotFoundError):
+        await repository.record(
+            invoice_id=missing_invoice_id,
             outcome=InvoiceDecisionOutcome.APPROVED,
             reason="Within policy.",
             decided_by_id=reviewer.id,
