@@ -5,7 +5,7 @@ from uuid import UUID
 
 import pytest
 from fastapi import status
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 from redis import Redis as SyncRedis
 from redis.exceptions import RedisError
 from rq import Queue
@@ -29,11 +29,29 @@ MAX_BYTES = 10 * 1024 * 1024
 RATE_LIMIT = 20
 
 
-def pdf_bytes(size: int) -> bytes:
+def padded_pdf_bytes(size: int) -> bytes:
     """Build a minimal PDF-shaped payload padded to an exact byte size."""
     header = b"%PDF-1.4\n"
     padding = b"0" * max(size - len(header), 0)
     return (header + padding)[:size]
+
+
+async def upload(
+    client: AsyncClient,
+    *,
+    headers: dict[str, str] | None = None,
+    filename: str = "invoice.pdf",
+    content: bytes | None = None,
+    size: int = 1024,
+    content_type: str = "application/pdf",
+) -> Response:
+    """POST a multipart invoice upload, defaulting to a valid, size-compliant PDF."""
+    body = content if content is not None else padded_pdf_bytes(size)
+    return await client.post(
+        "/invoices",
+        headers=headers,
+        files={"file": (filename, body, content_type)},
+    )
 
 
 async def should_accept_authenticated_employees_valid_pdf_as_processing_invoice(
@@ -43,11 +61,7 @@ async def should_accept_authenticated_employees_valid_pdf_as_processing_invoice(
     employee_headers: dict[str, str],
 ) -> None:
     """Accept a size-compliant PDF and return its processing invoice identity."""
-    response = await client.post(
-        "/invoices",
-        headers=employee_headers,
-        files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
-    )
+    response = await upload(client, headers=employee_headers)
 
     assert response.status_code == status.HTTP_201_CREATED
     body = response.json()
@@ -64,10 +78,7 @@ async def should_accept_authenticated_employees_valid_pdf_as_processing_invoice(
 
 async def should_reject_unauthenticated_upload(client: AsyncClient) -> None:
     """Require authentication before accepting an invoice upload."""
-    response = await client.post(
-        "/invoices",
-        files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
-    )
+    response = await upload(client)
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -76,15 +87,8 @@ async def should_reject_oversized_body_before_authentication(
     client: AsyncClient,
 ) -> None:
     """Bound unauthenticated multipart bodies before dependencies and parsing."""
-    response = await client.post(
-        "/invoices",
-        files={
-            "file": (
-                "huge-scan.pdf",
-                pdf_bytes(MAX_BYTES + 64 * 1024),
-                "application/pdf",
-            )
-        },
+    response = await upload(
+        client, filename="huge-scan.pdf", size=MAX_BYTES + 64 * 1024
     )
 
     assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE
@@ -94,10 +98,11 @@ async def should_reject_oversized_file_without_creating_a_row(
     client: AsyncClient, test_db: AsyncSession, employee_headers: dict[str, str]
 ) -> None:
     """Reject an oversized upload without persisting an invoice record."""
-    response = await client.post(
-        "/invoices",
+    response = await upload(
+        client,
         headers=employee_headers,
-        files={"file": ("huge-scan.pdf", pdf_bytes(MAX_BYTES + 1), "application/pdf")},
+        filename="huge-scan.pdf",
+        size=MAX_BYTES + 1,
     )
 
     assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE
@@ -108,10 +113,12 @@ async def should_reject_disallowed_mime_type_without_creating_a_row(
     client: AsyncClient, test_db: AsyncSession, employee_headers: dict[str, str]
 ) -> None:
     """Reject an unsupported media type without persisting an invoice record."""
-    response = await client.post(
-        "/invoices",
+    response = await upload(
+        client,
         headers=employee_headers,
-        files={"file": ("receipt.jpg", b"\xff\xd8\xff\xe0fake-jpeg", "image/jpeg")},
+        filename="receipt.jpg",
+        content=b"\xff\xd8\xff\xe0fake-jpeg",
+        content_type="image/jpeg",
     )
 
     assert response.status_code == status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
@@ -126,11 +133,7 @@ async def should_reject_pdf_metadata_with_invalid_content(
     content: bytes,
 ) -> None:
     """Require actual non-empty PDF-shaped content, not spoofable metadata."""
-    response = await client.post(
-        "/invoices",
-        headers=employee_headers,
-        files={"file": ("invoice.pdf", content, "application/pdf")},
-    )
+    response = await upload(client, headers=employee_headers, content=content)
 
     assert response.status_code in {
         status.HTTP_400_BAD_REQUEST,
@@ -144,18 +147,16 @@ async def should_not_charge_invalid_uploads_against_rate_limit(
 ) -> None:
     """Leave the full quota available after malformed requests."""
     for _ in range(RATE_LIMIT + 1):
-        rejected = await client.post(
-            "/invoices",
+        rejected = await upload(
+            client,
             headers=employee_headers,
-            files={"file": ("receipt.jpg", b"invalid", "image/jpeg")},
+            filename="receipt.jpg",
+            content=b"invalid",
+            content_type="image/jpeg",
         )
         assert rejected.status_code == status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
 
-    accepted = await client.post(
-        "/invoices",
-        headers=employee_headers,
-        files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
-    )
+    accepted = await upload(client, headers=employee_headers)
 
     assert accepted.status_code == status.HTTP_201_CREATED
 
@@ -165,18 +166,10 @@ async def should_reject_upload_once_rate_limit_is_exhausted(
 ) -> None:
     """Reject uploads beyond the rate limit."""
     for _ in range(RATE_LIMIT):
-        ok_response = await client.post(
-            "/invoices",
-            headers=employee_headers,
-            files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
-        )
+        ok_response = await upload(client, headers=employee_headers)
         assert ok_response.status_code == status.HTTP_201_CREATED
 
-    response = await client.post(
-        "/invoices",
-        headers=employee_headers,
-        files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
-    )
+    response = await upload(client, headers=employee_headers)
 
     assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
     stored_count = len((await test_db.scalars(select(Invoice))).all())
@@ -198,11 +191,7 @@ async def should_return_unavailable_and_mark_row_when_storage_fails(
 
     app.dependency_overrides[get_storage_client] = FailingStorage
 
-    response = await client.post(
-        "/invoices",
-        headers=employee_headers,
-        files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
-    )
+    response = await upload(client, headers=employee_headers)
 
     assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
@@ -213,11 +202,7 @@ async def should_enqueue_extraction_for_every_accepted_upload(
     sync_redis: SyncRedis,
 ) -> None:
     """Push a newly-accepted invoice onto the extraction queue."""
-    response = await client.post(
-        "/invoices",
-        headers=employee_headers,
-        files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
-    )
+    response = await upload(client, headers=employee_headers)
 
     assert response.status_code == status.HTTP_201_CREATED
     invoice_id = response.json()["data"]["id"]
@@ -239,11 +224,7 @@ async def should_accept_the_upload_even_when_enqueueing_fails(
         "app.queueing.invoice_processing.Queue.enqueue",
         side_effect=RedisError("broker unavailable"),
     ):
-        response = await client.post(
-            "/invoices",
-            headers=employee_headers,
-            files={"file": ("invoice.pdf", pdf_bytes(1024), "application/pdf")},
-        )
+        response = await upload(client, headers=employee_headers)
 
     assert response.status_code == status.HTTP_201_CREATED
     response_body = response.json()["data"]

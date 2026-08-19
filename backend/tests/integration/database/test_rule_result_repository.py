@@ -1,5 +1,6 @@
 """Specify SQL-backed rule-result persistence behavior."""
 
+from collections.abc import Sequence
 from uuid import UUID
 
 import pytest
@@ -72,23 +73,23 @@ RESULTS = [
 ]
 
 
+async def _stored_rows(
+    test_db: AsyncSession, invoice_id: UUID
+) -> Sequence[InvoiceRuleResult]:
+    """Read back the rule-result rows persisted for an invoice."""
+    result = await test_db.execute(
+        select(InvoiceRuleResult).where(InvoiceRuleResult.invoice_id == invoice_id)
+    )
+    return result.scalars().all()
+
+
 async def should_insert_one_row_per_rule_result_stamped_with_invoice_and_timestamp(
     test_db: AsyncSession, repository: RuleResultRepository, invoice: Invoice
 ) -> None:
     """Persist every rule's outcome, whatever it is, with the invoice's FK."""
     await repository.replace_for_invoice(invoice_id=invoice.id, results=RESULTS)
 
-    stored = (
-        (
-            await test_db.execute(
-                select(InvoiceRuleResult).where(
-                    InvoiceRuleResult.invoice_id == invoice.id
-                )
-            )
-        )
-        .scalars()
-        .all()
-    )
+    stored = await _stored_rows(test_db, invoice.id)
 
     assert len(stored) == len(RESULTS)
     assert all(row.invoice_id == invoice.id for row in stored)
@@ -106,17 +107,7 @@ async def should_delete_prior_rows_before_inserting_the_new_set(
     ]
     await repository.replace_for_invoice(invoice_id=invoice.id, results=updated_results)
 
-    stored = (
-        (
-            await test_db.execute(
-                select(InvoiceRuleResult).where(
-                    InvoiceRuleResult.invoice_id == invoice.id
-                )
-            )
-        )
-        .scalars()
-        .all()
-    )
+    stored = await _stored_rows(test_db, invoice.id)
 
     assert len(stored) == len(RESULTS)
     assert all(row.outcome == RuleOutcome.PASS for row in stored)
@@ -128,17 +119,7 @@ async def should_leave_zero_rows_when_handed_an_empty_list(
     """Persist nothing for an invoice that was never evaluated."""
     await repository.replace_for_invoice(invoice_id=invoice.id, results=[])
 
-    stored = (
-        (
-            await test_db.execute(
-                select(InvoiceRuleResult).where(
-                    InvoiceRuleResult.invoice_id == invoice.id
-                )
-            )
-        )
-        .scalars()
-        .all()
-    )
+    stored = await _stored_rows(test_db, invoice.id)
 
     assert stored == []
 
@@ -161,15 +142,5 @@ async def should_cascade_delete_rule_results_when_the_invoice_is_deleted(
     await test_db.delete(invoice)
     await test_db.flush()
 
-    stored = (
-        (
-            await test_db.execute(
-                select(InvoiceRuleResult).where(
-                    InvoiceRuleResult.invoice_id == invoice.id
-                )
-            )
-        )
-        .scalars()
-        .all()
-    )
+    stored = await _stored_rows(test_db, invoice.id)
     assert stored == []
