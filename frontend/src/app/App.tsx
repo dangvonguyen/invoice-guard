@@ -1,3 +1,5 @@
+import '@/app/api/middleware'
+
 import { RouterProvider } from 'react-router/dom'
 
 import { router } from '@/app/router/router'
