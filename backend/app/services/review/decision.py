@@ -7,6 +7,7 @@ from app.database.models.decision import InvoiceDecision, InvoiceDecisionOutcome
 from app.database.repositories.decision import (
     DecisionAlreadyExistsError,
     DecisionRepository,
+    InvoiceNotAwaitingReviewError,
 )
 
 
@@ -14,6 +15,13 @@ class AlreadyDecidedError(DomainError):
     """Raised when the invoice already carries a final decision."""
 
     code = "INVOICE_ALREADY_DECIDED"
+    status_code = 409
+
+
+class NotAwaitingReviewError(DomainError):
+    """Raised when the invoice is not currently open for a decision."""
+
+    code = "INVOICE_NOT_AWAITING_REVIEW"
     status_code = 409
 
 
@@ -48,3 +56,7 @@ class DecisionService:
                     f"by {existing.decided_by.name}."
                 )
             raise AlreadyDecidedError(message) from exc
+        except InvoiceNotAwaitingReviewError as exc:
+            raise NotAwaitingReviewError(
+                f"Invoice {invoice_id} is not awaiting review."
+            ) from exc

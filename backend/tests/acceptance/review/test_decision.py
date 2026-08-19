@@ -134,6 +134,28 @@ async def should_reject_a_second_decision_on_the_same_invoice(
     assert second.json()["error"]["code"] == "INVOICE_ALREADY_DECIDED"
 
 
+async def should_reject_deciding_an_invoice_that_is_not_awaiting_review(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    employee: User,
+    reviewer_headers: dict[str, str],
+) -> None:
+    """Refuse a decision on an invoice that never reached the review queue."""
+    invoice = await create_invoice(
+        test_db, owner_id=employee.id, status=InvoiceStatus.PROCESSING
+    )
+    await test_db.commit()
+
+    response = await client.post(
+        f"/invoices/{invoice.id}/decision",
+        headers=reviewer_headers,
+        json={"outcome": "approved", "reason": "Within policy."},
+    )
+
+    assert response.status_code == status.HTTP_409_CONFLICT
+    assert response.json()["error"]["code"] == "INVOICE_NOT_AWAITING_REVIEW"
+
+
 async def should_reject_employees_from_deciding(
     client: AsyncClient,
     test_db: AsyncSession,

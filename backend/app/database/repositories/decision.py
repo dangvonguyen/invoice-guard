@@ -1,8 +1,9 @@
 """Database access operations for invoice decisions."""
 
+from typing import cast
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import CursorResult, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -18,6 +19,10 @@ _OUTCOME_TO_STATUS = {
 
 class DecisionAlreadyExistsError(Exception):
     """Raised when an invoice already has a decision recorded against it."""
+
+
+class InvoiceNotAwaitingReviewError(Exception):
+    """Raised when the target invoice was not in `awaiting_review`."""
 
 
 class DecisionRepository:
@@ -49,7 +54,7 @@ class DecisionRepository:
             await self._session.rollback()
             raise DecisionAlreadyExistsError(str(invoice_id)) from exc
 
-        await self._session.execute(
+        result = await self._session.execute(
             update(Invoice)
             .where(
                 Invoice.id == invoice_id,
@@ -57,6 +62,9 @@ class DecisionRepository:
             )
             .values(status=_OUTCOME_TO_STATUS[outcome])
         )
+        if cast(CursorResult[None], result).rowcount == 0:
+            await self._session.rollback()
+            raise InvoiceNotAwaitingReviewError(str(invoice_id))
 
         await self._session.commit()
         await self._session.refresh(decision, attribute_names=["decided_by"])
