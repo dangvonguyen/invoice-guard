@@ -1,5 +1,6 @@
 """Database model definitions."""
 
+from .decision import InvoiceDecision, InvoiceDecisionOutcome
 from .invoice import Invoice, InvoiceStatus
 from .policy_document import PolicyDocChunk, PolicyDocument, PolicyDocumentStatus
 from .rule_result import InvoiceRuleResult, RuleOutcome
@@ -7,6 +8,8 @@ from .user import User, UserRole
 
 __all__ = [
     "Invoice",
+    "InvoiceDecision",
+    "InvoiceDecisionOutcome",
     "InvoiceRuleResult",
     "InvoiceStatus",
     "PolicyDocChunk",
