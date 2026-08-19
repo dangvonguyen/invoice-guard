@@ -1,41 +1,20 @@
 """Acceptance scenarios for listing an owner's invoices."""
 
 from datetime import UTC, datetime, timedelta
-from uuid import UUID
 
 import pytest
 from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models.invoice import Invoice, InvoiceStatus
+from app.database.models.invoice import InvoiceStatus
 from app.database.models.user import User
+from tests.support.helpers import create_invoice
 
 pytestmark = [
     pytest.mark.acceptance,
     pytest.mark.asyncio,
 ]
-
-
-async def create_invoice(
-    test_db: AsyncSession,
-    *,
-    owner_id: UUID,
-    storage_key: str = "invoice.pdf",
-    status: InvoiceStatus = InvoiceStatus.PROCESSING,
-    created_at: datetime | None = None,
-) -> Invoice:
-    """Insert an invoice row directly, bypassing upload and processing."""
-    invoice = Invoice(
-        owner_id=owner_id,
-        storage_key=storage_key,
-        original_filename=storage_key,
-        status=status,
-        **({"created_at": created_at} if created_at is not None else {}),
-    )
-    test_db.add(invoice)
-    await test_db.flush()
-    return invoice
 
 
 async def should_list_the_authenticated_employees_own_invoice(

@@ -16,6 +16,7 @@ from app.database.repositories.decision import (
     DecisionRepository,
     InvoiceNotAwaitingReviewError,
 )
+from tests.support.helpers import create_invoice, create_user
 
 pytestmark = [
     pytest.mark.integration,
@@ -32,45 +33,28 @@ def repository(test_db: AsyncSession) -> DecisionRepository:
 @pytest_asyncio.fixture
 async def owner(test_db: AsyncSession) -> User:
     """Persist the employee who owns invoices created in these scenarios."""
-    user = User(
+    return await create_user(
+        test_db,
         id=UUID("00000000-0000-0000-0000-000000000020"),
         email="decision-owner@example.com",
-        hashed_password="unused-hash",
-        name="Owner",
-        role=UserRole.EMPLOYEE,
     )
-    test_db.add(user)
-    await test_db.flush()
-    return user
 
 
 @pytest_asyncio.fixture
 async def reviewer(test_db: AsyncSession) -> User:
     """Persist the finance reviewer who decides invoices in these scenarios."""
-    user = User(
+    return await create_user(
+        test_db,
         id=UUID("00000000-0000-0000-0000-000000000021"),
         email="decision-reviewer@example.com",
-        hashed_password="unused-hash",
-        name="Reviewer",
         role=UserRole.FINANCE_REVIEWER,
     )
-    test_db.add(user)
-    await test_db.flush()
-    return user
 
 
 @pytest_asyncio.fixture
 async def invoice(test_db: AsyncSession, owner: User) -> Invoice:
     """Persist an invoice awaiting review."""
-    invoice = Invoice(
-        owner_id=owner.id,
-        storage_key="key.pdf",
-        original_filename="invoice.pdf",
-        status=InvoiceStatus.AWAITING_REVIEW,
-    )
-    test_db.add(invoice)
-    await test_db.flush()
-    return invoice
+    return await create_invoice(test_db, owner_id=owner.id, storage_key="key.pdf")
 
 
 async def should_record_a_decision_and_transition_the_invoice(
@@ -122,14 +106,12 @@ async def should_raise_when_the_invoice_is_not_awaiting_review(
     reviewer: User,
 ) -> None:
     """Refuse a decision on an invoice that never reached the review queue."""
-    invoice = Invoice(
+    invoice = await create_invoice(
+        test_db,
         owner_id=owner.id,
         storage_key="processing.pdf",
-        original_filename="processing.pdf",
         status=InvoiceStatus.PROCESSING,
     )
-    test_db.add(invoice)
-    await test_db.flush()
 
     with pytest.raises(InvoiceNotAwaitingReviewError):
         await repository.record(

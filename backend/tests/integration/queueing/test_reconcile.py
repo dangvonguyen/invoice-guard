@@ -13,8 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.core.config import get_settings
 from app.core.queue import EXTRACTION_QUEUE_NAME
 from app.database.models.invoice import Invoice, InvoiceStatus
-from app.database.models.user import User, UserRole
+from app.database.models.user import User
 from app.queueing import invoice_processing, reconcile
+from tests.support.helpers import create_invoice, create_user
 
 pytestmark = [
     pytest.mark.integration,
@@ -27,16 +28,11 @@ STALE_AFTER_SECONDS = get_settings().EXTRACTION_RECONCILE_STALE_AFTER_SECONDS
 @pytest_asyncio.fixture
 async def owner(test_db: AsyncSession) -> User:
     """Persist the user that owns invoices created in these scenarios."""
-    user = User(
+    return await create_user(
+        test_db,
         id=UUID("00000000-0000-0000-0000-000000000020"),
         email="reconcile-owner@example.com",
-        hashed_password="unused-hash",
-        name="Reconcile Owner",
-        role=UserRole.EMPLOYEE,
     )
-    test_db.add(user)
-    await test_db.flush()
-    return user
 
 
 @pytest.fixture
@@ -54,15 +50,13 @@ def reconcile_queue(
 
 async def _stuck_processing_invoice(test_db: AsyncSession, *, owner: User) -> Invoice:
     """Persist a processing invoice well past the stale cutoff."""
-    invoice = Invoice(
+    return await create_invoice(
+        test_db,
         owner_id=owner.id,
         storage_key="stuck-processing.pdf",
-        original_filename="invoice.pdf",
+        status=InvoiceStatus.PROCESSING,
         created_at=datetime.now(UTC) - timedelta(seconds=STALE_AFTER_SECONDS + 60),
     )
-    test_db.add(invoice)
-    await test_db.flush()
-    return invoice
 
 
 async def should_enqueue_extraction_for_a_stuck_processing_invoice(
@@ -95,14 +89,13 @@ async def should_skip_a_processing_invoice_younger_than_the_stale_cutoff(
     test_db: AsyncSession, owner: User, reconcile_queue: Queue
 ) -> None:
     """Leave a freshly created processing invoice for its own upload request to enqueue."""
-    invoice = Invoice(
+    invoice = await create_invoice(
+        test_db,
         owner_id=owner.id,
         storage_key="fresh-processing.pdf",
-        original_filename="invoice.pdf",
+        status=InvoiceStatus.PROCESSING,
         created_at=datetime.now(UTC) - timedelta(seconds=STALE_AFTER_SECONDS - 60),
     )
-    test_db.add(invoice)
-    await test_db.flush()
 
     await reconcile.execute()
 

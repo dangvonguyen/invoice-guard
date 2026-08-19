@@ -9,8 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.invoice import Invoice, InvoiceStatus
-from app.database.models.user import User, UserRole
+from app.database.models.user import User
 from app.database.repositories.invoice import InvoiceRepository
+from tests.support.helpers import create_user
 
 pytestmark = [
     pytest.mark.integration,
@@ -21,16 +22,11 @@ pytestmark = [
 @pytest_asyncio.fixture
 async def owner(test_db: AsyncSession) -> User:
     """Persist the user that owns invoices created in these scenarios."""
-    user = User(
+    return await create_user(
+        test_db,
         id=UUID("00000000-0000-0000-0000-000000000010"),
         email="owner@example.com",
-        hashed_password="unused-hash",
-        name="Owner",
-        role=UserRole.EMPLOYEE,
     )
-    test_db.add(user)
-    await test_db.flush()
-    return user
 
 
 @pytest.fixture

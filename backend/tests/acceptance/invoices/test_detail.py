@@ -1,45 +1,19 @@
 """Acceptance scenarios for reading a single invoice's detail."""
 
-from uuid import UUID
-
 import pytest
 from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models.invoice import ExtractionConfidence, Invoice, InvoiceStatus
-from app.database.models.rule_result import InvoiceRuleResult, RuleOutcome
+from app.database.models.invoice import ExtractionConfidence
+from app.database.models.rule_result import RuleOutcome
 from app.database.models.user import User
+from tests.support.helpers import add_rule_result, create_invoice
 
 pytestmark = [
     pytest.mark.acceptance,
     pytest.mark.asyncio,
 ]
-
-
-async def create_invoice(
-    test_db: AsyncSession,
-    *,
-    owner_id: UUID,
-    storage_key: str = "invoice.pdf",
-    status: InvoiceStatus = InvoiceStatus.AWAITING_REVIEW,
-    extracted_fields: dict[str, object] | None = None,
-    confidence: ExtractionConfidence | None = None,
-    confidence_reason: str | None = None,
-) -> Invoice:
-    """Insert an invoice row directly, bypassing upload and processing."""
-    invoice = Invoice(
-        owner_id=owner_id,
-        storage_key=storage_key,
-        original_filename=storage_key,
-        status=status,
-        extracted_fields=extracted_fields,
-        confidence=confidence,
-        confidence_reason=confidence_reason,
-    )
-    test_db.add(invoice)
-    await test_db.flush()
-    return invoice
 
 
 HIGH_CONFIDENCE_FIELDS: dict[str, object] = {
@@ -164,20 +138,18 @@ async def should_return_the_reviewer_projection_for_a_finance_reviewer(
         confidence=ExtractionConfidence.LOW,
         confidence_reason="not found in source text: total_amount",
     )
-    test_db.add(
-        InvoiceRuleResult(
-            invoice_id=invoice.id,
-            rule_code="currency_allowed",
-            outcome=RuleOutcome.FAIL,
-            evidence={"currency": "JPY"},
-        )
+    await add_rule_result(
+        test_db,
+        invoice_id=invoice.id,
+        rule_code="currency_allowed",
+        outcome=RuleOutcome.FAIL,
+        evidence={"currency": "JPY"},
     )
-    test_db.add(
-        InvoiceRuleResult(
-            invoice_id=invoice.id,
-            rule_code="invoice_date_not_in_future",
-            outcome=RuleOutcome.PASS,
-        )
+    await add_rule_result(
+        test_db,
+        invoice_id=invoice.id,
+        rule_code="invoice_date_not_in_future",
+        outcome=RuleOutcome.PASS,
     )
     await test_db.commit()
 

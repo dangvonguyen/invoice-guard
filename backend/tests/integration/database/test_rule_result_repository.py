@@ -13,6 +13,7 @@ from app.database.models.user import User
 from app.database.repositories.invoice import InvoiceRepository
 from app.database.repositories.rule_result import RuleResultRepository
 from app.services.rules.result import RuleCode, RuleResult
+from tests.support.helpers import create_user
 
 pytestmark = [
     pytest.mark.integration,
@@ -23,15 +24,11 @@ pytestmark = [
 @pytest_asyncio.fixture
 async def owner(test_db: AsyncSession) -> User:
     """Persist the user that owns the invoice used in these scenarios."""
-    user = User(
+    return await create_user(
+        test_db,
         id=UUID("00000000-0000-0000-0000-000000000020"),
         email="owner-rules@example.com",
-        hashed_password="unused-hash",
-        name="Owner",
     )
-    test_db.add(user)
-    await test_db.flush()
-    return user
 
 
 @pytest_asyncio.fixture

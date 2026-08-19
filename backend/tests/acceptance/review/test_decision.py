@@ -1,55 +1,43 @@
 """Acceptance scenarios for recording a finance reviewer's final decision."""
 
-from uuid import UUID
-
 import pytest
+import pytest_asyncio
 from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.user import User
+from tests.support.helpers import create_invoice
 
 pytestmark = [
     pytest.mark.acceptance,
     pytest.mark.asyncio,
 ]
 
+APPROVAL_PAYLOAD = {"outcome": "approved", "reason": "Within policy."}
 
-async def create_invoice(
-    test_db: AsyncSession,
-    *,
-    owner_id: UUID,
-    storage_key: str = "invoice.pdf",
-    status: InvoiceStatus = InvoiceStatus.AWAITING_REVIEW,
-) -> Invoice:
-    """Insert an invoice row directly, bypassing upload and processing."""
-    invoice = Invoice(
-        owner_id=owner_id,
-        storage_key=storage_key,
-        original_filename=storage_key,
-        status=status,
-    )
-    test_db.add(invoice)
-    await test_db.flush()
+
+@pytest_asyncio.fixture
+async def invoice(test_db: AsyncSession, employee: User) -> Invoice:
+    """Persist an invoice awaiting review, owned by the employee."""
+    invoice = await create_invoice(test_db, owner_id=employee.id)
+    await test_db.commit()
     return invoice
 
 
 async def should_record_an_approval_and_transition_the_invoice(
     client: AsyncClient,
     test_db: AsyncSession,
-    employee: User,
+    invoice: Invoice,
     reviewer_headers: dict[str, str],
     finance_reviewer: User,
 ) -> None:
     """Approve an invoice and durably move it to the approved status."""
-    invoice = await create_invoice(test_db, owner_id=employee.id)
-    await test_db.commit()
-
     response = await client.post(
         f"/invoices/{invoice.id}/decision",
         headers=reviewer_headers,
-        json={"outcome": "approved", "reason": "Within policy."},
+        json=APPROVAL_PAYLOAD,
     )
 
     assert response.status_code == status.HTTP_201_CREATED
@@ -65,13 +53,10 @@ async def should_record_an_approval_and_transition_the_invoice(
 async def should_record_a_rejection_and_transition_the_invoice(
     client: AsyncClient,
     test_db: AsyncSession,
-    employee: User,
+    invoice: Invoice,
     reviewer_headers: dict[str, str],
 ) -> None:
     """Reject an invoice and durably move it to the rejected status."""
-    invoice = await create_invoice(test_db, owner_id=employee.id)
-    await test_db.commit()
-
     response = await client.post(
         f"/invoices/{invoice.id}/decision",
         headers=reviewer_headers,
@@ -86,18 +71,15 @@ async def should_record_a_rejection_and_transition_the_invoice(
 
 async def should_let_the_employee_see_the_final_decision(
     client: AsyncClient,
-    test_db: AsyncSession,
-    employee: User,
+    invoice: Invoice,
     employee_headers: dict[str, str],
     reviewer_headers: dict[str, str],
 ) -> None:
     """Surface the reviewer's outcome and reason back to the invoice owner."""
-    invoice = await create_invoice(test_db, owner_id=employee.id)
-    await test_db.commit()
     await client.post(
         f"/invoices/{invoice.id}/decision",
         headers=reviewer_headers,
-        json={"outcome": "approved", "reason": "Within policy."},
+        json=APPROVAL_PAYLOAD,
     )
 
     response = await client.get(f"/invoices/{invoice.id}", headers=employee_headers)
@@ -110,17 +92,14 @@ async def should_let_the_employee_see_the_final_decision(
 
 async def should_reject_a_second_decision_on_the_same_invoice(
     client: AsyncClient,
-    test_db: AsyncSession,
-    employee: User,
+    invoice: Invoice,
     reviewer_headers: dict[str, str],
 ) -> None:
     """Return 409 when an invoice already carries a final decision."""
-    invoice = await create_invoice(test_db, owner_id=employee.id)
-    await test_db.commit()
     first = await client.post(
         f"/invoices/{invoice.id}/decision",
         headers=reviewer_headers,
-        json={"outcome": "approved", "reason": "Within policy."},
+        json=APPROVAL_PAYLOAD,
     )
     assert first.status_code == status.HTTP_201_CREATED
 
@@ -149,7 +128,7 @@ async def should_reject_deciding_an_invoice_that_is_not_awaiting_review(
     response = await client.post(
         f"/invoices/{invoice.id}/decision",
         headers=reviewer_headers,
-        json={"outcome": "approved", "reason": "Within policy."},
+        json=APPROVAL_PAYLOAD,
     )
 
     assert response.status_code == status.HTTP_409_CONFLICT
@@ -158,33 +137,26 @@ async def should_reject_deciding_an_invoice_that_is_not_awaiting_review(
 
 async def should_reject_employees_from_deciding(
     client: AsyncClient,
-    test_db: AsyncSession,
-    employee: User,
+    invoice: Invoice,
     employee_headers: dict[str, str],
 ) -> None:
     """Require the finance_reviewer role to record a decision."""
-    invoice = await create_invoice(test_db, owner_id=employee.id)
-    await test_db.commit()
-
     response = await client.post(
         f"/invoices/{invoice.id}/decision",
         headers=employee_headers,
-        json={"outcome": "approved", "reason": "Within policy."},
+        json=APPROVAL_PAYLOAD,
     )
 
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 async def should_reject_unauthenticated_decisions(
-    client: AsyncClient, test_db: AsyncSession, employee: User
+    client: AsyncClient, invoice: Invoice
 ) -> None:
     """Require authentication before recording a decision."""
-    invoice = await create_invoice(test_db, owner_id=employee.id)
-    await test_db.commit()
-
     response = await client.post(
         f"/invoices/{invoice.id}/decision",
-        json={"outcome": "approved", "reason": "Within policy."},
+        json=APPROVAL_PAYLOAD,
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
