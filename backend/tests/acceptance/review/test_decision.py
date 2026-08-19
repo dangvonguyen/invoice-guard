@@ -60,3 +60,83 @@ async def should_record_an_approval_and_transition_the_invoice(
 
     await test_db.refresh(invoice)
     assert invoice.status == InvoiceStatus.APPROVED
+
+
+async def should_record_a_rejection_and_transition_the_invoice(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    employee: User,
+    reviewer_headers: dict[str, str],
+) -> None:
+    """Reject an invoice and durably move it to the rejected status."""
+    invoice = await create_invoice(test_db, owner_id=employee.id)
+    await test_db.commit()
+
+    response = await client.post(
+        f"/invoices/{invoice.id}/decision",
+        headers=reviewer_headers,
+        json={"outcome": "rejected", "reason": "Missing receipt."},
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    await test_db.refresh(invoice)
+    assert invoice.status == InvoiceStatus.REJECTED
+
+
+async def should_let_the_employee_see_the_final_decision(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    employee: User,
+    employee_headers: dict[str, str],
+    reviewer_headers: dict[str, str],
+) -> None:
+    """Surface the reviewer's outcome and reason back to the invoice owner."""
+    invoice = await create_invoice(test_db, owner_id=employee.id)
+    await test_db.commit()
+    await client.post(
+        f"/invoices/{invoice.id}/decision",
+        headers=reviewer_headers,
+        json={"outcome": "approved", "reason": "Within policy."},
+    )
+
+    response = await client.get(f"/invoices/{invoice.id}", headers=employee_headers)
+
+    body = response.json()["data"]
+    assert body["status"] == "approved"
+    assert body["decision"]["outcome"] == "approved"
+    assert body["decision"]["reason"] == "Within policy."
+
+
+async def should_reject_employees_from_deciding(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    employee: User,
+    employee_headers: dict[str, str],
+) -> None:
+    """Require the finance_reviewer role to record a decision."""
+    invoice = await create_invoice(test_db, owner_id=employee.id)
+    await test_db.commit()
+
+    response = await client.post(
+        f"/invoices/{invoice.id}/decision",
+        headers=employee_headers,
+        json={"outcome": "approved", "reason": "Within policy."},
+    )
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+async def should_reject_unauthenticated_decisions(
+    client: AsyncClient, test_db: AsyncSession, employee: User
+) -> None:
+    """Require authentication before recording a decision."""
+    invoice = await create_invoice(test_db, owner_id=employee.id)
+    await test_db.commit()
+
+    response = await client.post(
+        f"/invoices/{invoice.id}/decision",
+        json={"outcome": "approved", "reason": "Within policy."},
+    )
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
