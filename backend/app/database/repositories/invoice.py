@@ -49,7 +49,7 @@ class InvoiceRepository:
         """Return the invoice associated with an ID, if one exists."""
         return await self._session.get(Invoice, invoice_id)
 
-    async def get_for_review(self, invoice_id: UUID) -> Invoice | None:
+    async def get_for_review_view(self, invoice_id: UUID) -> Invoice | None:
         """Return an invoice with its owner, rule results, and decision loaded."""
         result = await self._session.execute(
             select(Invoice)
@@ -58,6 +58,17 @@ class InvoiceRepository:
                 selectinload(Invoice.owner),
                 selectinload(Invoice.rule_results),
                 selectinload(Invoice.decision).selectinload(InvoiceDecision.decided_by),
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_for_employee_view(self, invoice_id: UUID) -> Invoice | None:
+        """Return an invoice with only its decision loaded, for the owner's view."""
+        result = await self._session.execute(
+            select(Invoice)
+            .where(Invoice.id == invoice_id)
+            .options(
+                selectinload(Invoice.decision).selectinload(InvoiceDecision.decided_by)
             )
         )
         return result.scalar_one_or_none()

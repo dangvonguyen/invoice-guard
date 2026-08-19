@@ -1,14 +1,13 @@
 """Map a persisted invoice into its role-specific API response shape."""
 
+from uuid import UUID
+
+from app.core.errors import NotFoundError
 from app.database.models.decision import InvoiceDecision
 from app.database.models.invoice import ExtractionConfidence, Invoice
 from app.schemas.decision import DecisionView
 from app.schemas.invoice import InvoiceDetailResponse, InvoiceSummary
-from app.schemas.review import (
-    EmployeeIdentity,
-    ReviewerInvoiceDetailResponse,
-    ReviewFlagView,
-)
+from app.schemas.review import EmployeeIdentity, ReviewerInvoiceDetailResponse
 from app.services.rules.flags import to_review_flags
 
 
@@ -46,7 +45,6 @@ def employee_view(invoice: Invoice) -> InvoiceDetailResponse:
 
 def reviewer_view(invoice: Invoice) -> ReviewerInvoiceDetailResponse:
     """Build the reviewer-facing detail view for any invoice."""
-    flags = to_review_flags(invoice.rule_results)
     return ReviewerInvoiceDetailResponse(
         id=invoice.id,
         status=invoice.status,
@@ -54,9 +52,22 @@ def reviewer_view(invoice: Invoice) -> ReviewerInvoiceDetailResponse:
         extracted_fields=invoice.extracted_fields,
         confidence=invoice.confidence,
         confidence_reason=invoice.confidence_reason,
-        review_flags=[
-            ReviewFlagView(code=flag.code, summary=flag.summary, evidence=flag.evidence)
-            for flag in flags
-        ],
+        review_flags=to_review_flags(invoice.rule_results),
         decision=build_decision_view(invoice.decision),
     )
+
+
+def resolve_invoice_view(
+    invoice: Invoice | None, *, current_user_id: UUID, is_reviewer: bool
+) -> InvoiceDetailResponse | ReviewerInvoiceDetailResponse:
+    """Pick and build the caller's view of an invoice, or reject access.
+
+    A non-owner, non-reviewer gets `NotFoundError`. A reviewer reading
+    their own invoice gets the employee view.
+    """
+    is_owner = invoice is not None and invoice.owner_id == current_user_id
+    if invoice is None or (not is_owner and not is_reviewer):
+        raise NotFoundError("Invoice not found")
+    if is_reviewer and not is_owner:
+        return reviewer_view(invoice)
+    return employee_view(invoice)

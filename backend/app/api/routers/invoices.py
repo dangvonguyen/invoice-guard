@@ -16,7 +16,6 @@ from app.api.deps import (
     InvoiceRepositoryDep,
 )
 from app.core.config import get_settings
-from app.core.errors import NotFoundError
 from app.database.models.invoice import InvoiceStatus
 from app.database.models.user import UserRole
 from app.queueing import invoice_processing
@@ -28,11 +27,7 @@ from app.schemas.invoice import (
     InvoiceUploadResponse,
 )
 from app.schemas.review import ReviewerInvoiceDetailResponse
-from app.services.invoices.views import (
-    build_decision_view,
-    employee_view,
-    reviewer_view,
-)
+from app.services.invoices.views import build_decision_view, resolve_invoice_view
 from app.services.upload.intake import (
     UploadRateLimitExceededError,
     UploadStorageUnavailableError,
@@ -129,21 +124,17 @@ async def get_invoice(
     current_user: CurrentUser,
     invoices: InvoiceRepositoryDep,
 ) -> ResponseEnvelope[InvoiceDetailResponse | ReviewerInvoiceDetailResponse, None]:
-    """Return an invoice the caller owns, or - for a reviewer - any invoice.
-
-    A non-owner, non-reviewer gets 404, never 403, so ownership is never
-    confirmed to a caller who shouldn't have it. A reviewer reading their
-    own invoice gets the normal employee view, not the reviewer view.
-    """
+    """Return an invoice the caller owns, or - for a reviewer - any invoice."""
     is_reviewer = current_user.role == UserRole.FINANCE_REVIEWER
-    invoice = await invoices.get_for_review(invoice_id)
-
-    if invoice is None or (invoice.owner_id != current_user.id and not is_reviewer):
-        raise NotFoundError("Invoice not found")
-
-    if is_reviewer and invoice.owner_id != current_user.id:
-        return ResponseEnvelope(data=reviewer_view(invoice))
-    return ResponseEnvelope(data=employee_view(invoice))
+    invoice = (
+        await invoices.get_for_review_view(invoice_id)
+        if is_reviewer
+        else await invoices.get_for_employee_view(invoice_id)
+    )
+    view = resolve_invoice_view(
+        invoice, current_user_id=current_user.id, is_reviewer=is_reviewer
+    )
+    return ResponseEnvelope(data=view)
 
 
 @router.post("/{invoice_id}/decision", status_code=status.HTTP_201_CREATED)
