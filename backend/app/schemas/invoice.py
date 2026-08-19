@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from app.database.models.invoice import InvoiceStatus
+from app.schemas.decision import DecisionView
 
 
 class InvoiceResponseBase(BaseModel):
@@ -43,7 +44,7 @@ class InvoiceDetailResponse(InvoiceResponseBase):
     """Employee-facing view of one invoice's current state."""
 
     invoice_summary: InvoiceSummary | None
-    decision: None = None
+    decision: DecisionView | None
 
 
 class ReviewQueueItem(InvoiceResponseBase):

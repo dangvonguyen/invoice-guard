@@ -47,5 +47,5 @@ class DecisionRepository:
         )
 
         await self._session.commit()
-        await self._session.refresh(decision)
+        await self._session.refresh(decision, attribute_names=["decided_by"])
         return decision

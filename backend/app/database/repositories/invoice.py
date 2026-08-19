@@ -16,6 +16,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.database.models.decision import InvoiceDecision
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.rule_result import InvoiceRuleResult, RuleOutcome
 
@@ -49,11 +50,15 @@ class InvoiceRepository:
         return await self._session.get(Invoice, invoice_id)
 
     async def get_for_review(self, invoice_id: UUID) -> Invoice | None:
-        """Return an invoice with its owner and rule results loaded."""
+        """Return an invoice with its owner, rule results, and decision loaded."""
         result = await self._session.execute(
             select(Invoice)
             .where(Invoice.id == invoice_id)
-            .options(selectinload(Invoice.owner), selectinload(Invoice.rule_results))
+            .options(
+                selectinload(Invoice.owner),
+                selectinload(Invoice.rule_results),
+                selectinload(Invoice.decision).selectinload(InvoiceDecision.decided_by),
+            )
         )
         return result.scalar_one_or_none()
 

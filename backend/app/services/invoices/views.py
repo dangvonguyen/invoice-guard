@@ -1,6 +1,8 @@
 """Map a persisted invoice into its role-specific API response shape."""
 
+from app.database.models.decision import InvoiceDecision
 from app.database.models.invoice import ExtractionConfidence, Invoice
+from app.schemas.decision import DecisionView
 from app.schemas.invoice import InvoiceDetailResponse, InvoiceSummary
 from app.schemas.review import (
     EmployeeIdentity,
@@ -8,6 +10,18 @@ from app.schemas.review import (
     ReviewFlagView,
 )
 from app.services.rules.flags import to_review_flags
+
+
+def build_decision_view(decision: InvoiceDecision | None) -> DecisionView | None:
+    """Build the decision view shown to both the employee and the reviewer."""
+    if decision is None:
+        return None
+    return DecisionView(
+        outcome=decision.outcome,
+        reason=decision.reason,
+        decided_by=decision.decided_by.name,
+        decided_at=decision.decided_at,
+    )
 
 
 def build_invoice_summary(invoice: Invoice) -> InvoiceSummary | None:
@@ -26,6 +40,7 @@ def employee_view(invoice: Invoice) -> InvoiceDetailResponse:
         id=invoice.id,
         status=invoice.status,
         invoice_summary=build_invoice_summary(invoice),
+        decision=build_decision_view(invoice.decision),
     )
 
 
@@ -43,4 +58,5 @@ def reviewer_view(invoice: Invoice) -> ReviewerInvoiceDetailResponse:
             ReviewFlagView(code=flag.code, summary=flag.summary, evidence=flag.evidence)
             for flag in flags
         ],
+        decision=build_decision_view(invoice.decision),
     )

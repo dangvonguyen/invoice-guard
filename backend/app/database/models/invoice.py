@@ -13,6 +13,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
+from app.database.models.decision import InvoiceDecision
 from app.database.models.rule_result import InvoiceRuleResult
 from app.database.models.user import User
 
@@ -81,5 +82,8 @@ class Invoice(Base):
     # Rely on the FK's ON DELETE CASCADE instead of the ORM nulling out
     # invoice_id first
     rule_results: Mapped[list[InvoiceRuleResult]] = relationship(
-        lazy="raise", order_by="InvoiceRuleResult.rule_code", passive_deletes=True
+        lazy="raise", passive_deletes=True, order_by="InvoiceRuleResult.rule_code"
+    )
+    decision: Mapped[InvoiceDecision | None] = relationship(
+        lazy="raise", passive_deletes=True
     )

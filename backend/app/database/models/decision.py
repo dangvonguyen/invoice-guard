@@ -5,9 +5,10 @@ from enum import StrEnum
 from uuid import UUID
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Text, Uuid, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
+from app.database.models.user import User
 
 
 class InvoiceDecisionOutcome(StrEnum):
@@ -21,7 +22,8 @@ class InvoiceDecision(Base):
     """Record the one final decision made on an invoice.
 
     `invoice_id` is unique so the database itself enforces "exactly one
-    decision per invoice".
+    decision per invoice" - the unique constraint is the sole authority
+    for rejecting a second, concurrent decision attempt.
     """
 
     __tablename__ = "invoice_decisions"
@@ -48,3 +50,5 @@ class InvoiceDecision(Base):
     decided_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+    decided_by: Mapped[User] = relationship(lazy="raise")

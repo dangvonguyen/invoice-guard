@@ -8,7 +8,9 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 
 from app.api.deps import (
+    CurrentFinanceReviewer,
     CurrentUser,
+    DecisionServiceDep,
     ExtractionQueueDep,
     InvoiceIntakeServiceDep,
     InvoiceRepositoryDep,
@@ -18,6 +20,7 @@ from app.core.errors import NotFoundError
 from app.database.models.invoice import InvoiceStatus
 from app.database.models.user import UserRole
 from app.queueing import invoice_processing
+from app.schemas.decision import DecisionRequest, DecisionView
 from app.schemas.envelope import PaginationMeta, ResponseEnvelope
 from app.schemas.invoice import (
     InvoiceDetailResponse,
@@ -25,7 +28,11 @@ from app.schemas.invoice import (
     InvoiceUploadResponse,
 )
 from app.schemas.review import ReviewerInvoiceDetailResponse
-from app.services.invoices.views import employee_view, reviewer_view
+from app.services.invoices.views import (
+    build_decision_view,
+    employee_view,
+    reviewer_view,
+)
 from app.services.upload.intake import (
     UploadRateLimitExceededError,
     UploadStorageUnavailableError,
@@ -137,6 +144,23 @@ async def get_invoice(
     if is_reviewer and invoice.owner_id != current_user.id:
         return ResponseEnvelope(data=reviewer_view(invoice))
     return ResponseEnvelope(data=employee_view(invoice))
+
+
+@router.post("/{invoice_id}/decision", status_code=status.HTTP_201_CREATED)
+async def decide_invoice(
+    invoice_id: UUID,
+    payload: DecisionRequest,
+    reviewer: CurrentFinanceReviewer,
+    decision_service: DecisionServiceDep,
+) -> ResponseEnvelope[DecisionView, None]:
+    """Record a finance reviewer's one final decision on an invoice."""
+    decision = await decision_service.decide(
+        invoice_id=invoice_id,
+        outcome=payload.outcome,
+        reason=payload.reason,
+        decided_by_id=reviewer.id,
+    )
+    return ResponseEnvelope(data=build_decision_view(decision))
 
 
 def _log_rejection(*, code: str, status_code: int, **context: object) -> None:

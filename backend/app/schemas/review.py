@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from app.database.models.invoice import ExtractionConfidence, InvoiceStatus
+from app.schemas.decision import DecisionView
 
 
 class EmployeeIdentity(BaseModel):
@@ -36,4 +37,4 @@ class ReviewerInvoiceDetailResponse(BaseModel):
     confidence: ExtractionConfidence | None
     confidence_reason: str | None
     review_flags: list[ReviewFlagView]
-    decision: None = None
+    decision: DecisionView | None
