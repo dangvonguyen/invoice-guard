@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.database.base import Base
 from app.database.models import (  # noqa: F401
+    decision,
     invoice,
     policy_document,
     rule_result,
