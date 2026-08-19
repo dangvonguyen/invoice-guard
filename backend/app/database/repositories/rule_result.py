@@ -1,13 +1,16 @@
 """Database access operations for invoice rule-evaluation results."""
 
 from collections.abc import Sequence
+from datetime import date
+from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.rule_result import InvoiceRuleResult
-from app.services.rules.result import RuleResult
+from app.services.rules.result import EvidenceValue, RuleResult
 
 
 class RuleResultRepository:
@@ -29,7 +32,7 @@ class RuleResultRepository:
                     invoice_id=invoice_id,
                     rule_code=result.rule_code.value,
                     outcome=result.outcome,
-                    message=result.message,
+                    evidence=self._to_json(result.evidence),
                 )
                 for result in results
             ]
@@ -44,3 +47,16 @@ class RuleResultRepository:
             .order_by(InvoiceRuleResult.rule_code)
         )
         return result.scalars().all()
+
+    @staticmethod
+    def _to_json(evidence: dict[str, EvidenceValue]) -> dict[str, Any]:
+        """Convert types into JSON-safe values for storage."""
+        serialized: dict[str, Any] = {}
+        for key, value in evidence.items():
+            if isinstance(value, str | int):
+                serialized[key] = value
+            elif isinstance(value, Decimal | date | UUID):
+                serialized[key] = str(value)
+            else:
+                serialized[key] = list(value)
+        return serialized

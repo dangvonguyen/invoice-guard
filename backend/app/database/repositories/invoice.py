@@ -12,10 +12,13 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from app.database.models.decision import InvoiceDecision
 from app.database.models.invoice import Invoice, InvoiceStatus
+from app.database.models.rule_result import InvoiceRuleResult, RuleOutcome
 
 
 class InvoiceRepository:
@@ -45,6 +48,96 @@ class InvoiceRepository:
     async def get_by_id(self, invoice_id: UUID) -> Invoice | None:
         """Return the invoice associated with an ID, if one exists."""
         return await self._session.get(Invoice, invoice_id)
+
+    async def get_for_review_view(self, invoice_id: UUID) -> Invoice | None:
+        """Return an invoice with its owner, rule results, and decision loaded."""
+        result = await self._session.execute(
+            select(Invoice)
+            .where(Invoice.id == invoice_id)
+            .options(
+                selectinload(Invoice.owner),
+                selectinload(Invoice.rule_results),
+                selectinload(Invoice.decision).selectinload(InvoiceDecision.decided_by),
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_for_employee_view(self, invoice_id: UUID) -> Invoice | None:
+        """Return an invoice with only its decision loaded, for the owner's view."""
+        result = await self._session.execute(
+            select(Invoice)
+            .where(Invoice.id == invoice_id)
+            .options(
+                selectinload(Invoice.decision).selectinload(InvoiceDecision.decided_by)
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_for_owner(
+        self, owner_id: UUID, offset: int, limit: int
+    ) -> tuple[Sequence[Invoice], int]:
+        """Return a page of an owner's invoices and the total count.
+
+        Newest first. Excludes failed uploads
+        """
+        owner_filter = (
+            Invoice.owner_id == owner_id,
+            Invoice.status != InvoiceStatus.UPLOAD_FAILED,
+        )
+        result = await self._session.execute(
+            select(Invoice, func.count().over().label("total"))
+            .where(*owner_filter)
+            .order_by(Invoice.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        rows = result.all()
+        if rows:
+            return [invoice for invoice, _ in rows], rows[0].total
+
+        total = await self._session.scalar(
+            select(func.count()).select_from(Invoice).where(*owner_filter)
+        )
+        return [], total or 0
+
+    async def list_awaiting_review(
+        self, offset: int, limit: int
+    ) -> tuple[Sequence[tuple[Invoice, int]], int]:
+        """Return a page of awaiting-review invoices with flag counts, and the total.
+
+        Oldest first. The total reflects the full matching set, not just the
+        page, computed via a window function alongside the page query.
+        """
+        flag_counts = (
+            select(
+                InvoiceRuleResult.invoice_id,
+                func.count().label("flag_count"),
+            )
+            .where(InvoiceRuleResult.outcome == RuleOutcome.FAIL)
+            .group_by(InvoiceRuleResult.invoice_id)
+            .subquery()
+        )
+        awaiting_review = Invoice.status == InvoiceStatus.AWAITING_REVIEW
+        result = await self._session.execute(
+            select(
+                Invoice,
+                func.coalesce(flag_counts.c.flag_count, 0),
+                func.count().over().label("total"),
+            )
+            .outerjoin(flag_counts, flag_counts.c.invoice_id == Invoice.id)
+            .where(awaiting_review)
+            .order_by(Invoice.created_at.asc())
+            .offset(offset)
+            .limit(limit)
+        )
+        rows = result.all()
+        if rows:
+            return [(invoice, count) for invoice, count, _ in rows], rows[0].total
+
+        total = await self._session.scalar(
+            select(func.count()).select_from(Invoice).where(awaiting_review)
+        )
+        return [], total or 0
 
     async def list_old_processing(
         self, *, cutoff: datetime, limit: int = 100

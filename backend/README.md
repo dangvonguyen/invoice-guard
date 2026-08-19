@@ -119,7 +119,7 @@ The raw `POST /invoices` request body is capped before multipart parsing at `UPL
 
 The RQ worker reads an uploaded PDF, extracts its text layer, and sends that text to the configured OpenAI model for structured extraction. Returned values are checked against the source text before the extracted fields are saved with `high` or `low` confidence; the invoice stays `processing` until rule evaluation also completes. PDFs without a text layer and jobs that exhaust their retries are marked `processing_error`.
 
-Authenticated users can retrieve an invoice they own through `GET /invoices/{invoice_id}`. The response contains its current status and, when extraction succeeds, the extracted fields, confidence, and confidence reason. Missing invoices and invoices owned by another user both return `404`.
+Authenticated users can retrieve an invoice through `GET /invoices/{invoice_id}`. Missing invoices and invoices owned by another user both return `404`. Finance reviewers can retrieve any invoice and receive a reviewer-facing view instead, which additionally includes the submitting employee's identity, structured review flags, and the invoice's final decision if one exists.
 
 ## Invoice rule evaluation
 
@@ -134,6 +134,12 @@ Rule thresholds are configured in `backend/.env`: `RULE_MAX_EXPENSE_AMOUNT`, `RU
 Once rule evaluation completes, the invoice moves to `awaiting_review`. A job that raises and exhausts its RQ retries also moves the invoice to `awaiting_review`, so an invoice stuck mid-pipeline still reaches a reviewer instead of stalling in `processing`.
 
 Note: a PDF with no text layer or a model that keeps returning invalid output is marked `processing_error` directly by the extraction job (without raising), so it does not go through the RQ retry/failure path and is not moved to `awaiting_review`.
+
+Finance reviewers can list invoices `awaiting_review`, oldest first, through `GET /review-queue`. Each item includes an invoice summary and the number of review flags raised by rule evaluation.
+
+## Invoice decisions
+
+Finance reviewers record an invoice's final outcome through `POST /invoices/{invoice_id}/decision`. A unique database constraint on `invoice_id` enforces exactly one decision per invoice, so the endpoint returns `409` for a decision against an invoice that isn't `awaiting_review` or that already has one, and `404` for an invoice that doesn't exist. The recorded decision is then visible to both the employee and the reviewer through `GET /invoices/{invoice_id}`.
 
 ## Project structure
 
@@ -159,7 +165,9 @@ app/
   schemas/              # Pydantic request/response models
   services/
     extraction/         # Model extraction pipeline
-    rules/              # Deterministic policy rule checks and engine
+    invoices/           # Role-based invoice detail/summary view building
+    review/             # Reviewer decision use case
+    rules/              # Policy rule checks, engine, and review flags
     upload/             # Upload intake and validation
     auth.py             # Authentication use cases
 scripts/                # Operational commands, including local user seeding

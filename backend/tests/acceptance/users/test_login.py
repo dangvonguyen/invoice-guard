@@ -11,6 +11,7 @@ from pwdlib.hashers.argon2 import Argon2Hasher
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.user import User
+from tests.support.helpers import create_user
 
 pytestmark = [
     pytest.mark.acceptance,
@@ -21,15 +22,12 @@ pytestmark = [
 @pytest_asyncio.fixture
 async def registered_user(test_db: AsyncSession) -> User:
     """Persist an account with credentials known to the scenarios."""
-    user = User(
+    return await create_user(
+        test_db,
         id=UUID("00000000-0000-0000-0000-000000000001"),
-        name="Example User",
         email="user@example.com",
         hashed_password=Argon2Hasher().hash("secret123"),
     )
-    test_db.add(user)
-    await test_db.flush()
-    return user
 
 
 async def should_issue_access_token_when_registered_credentials_are_valid(

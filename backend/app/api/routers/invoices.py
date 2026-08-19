@@ -8,17 +8,26 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 
 from app.api.deps import (
+    CurrentFinanceReviewer,
     CurrentUser,
+    DecisionServiceDep,
     ExtractionQueueDep,
     InvoiceIntakeServiceDep,
     InvoiceRepositoryDep,
 )
 from app.core.config import get_settings
-from app.core.errors import NotFoundError
 from app.database.models.invoice import InvoiceStatus
+from app.database.models.user import UserRole
 from app.queueing import invoice_processing
-from app.schemas.envelope import ResponseEnvelope
-from app.schemas.invoice import InvoiceDetailResponse, InvoiceUploadResponse
+from app.schemas.decision import DecisionRequest, DecisionView
+from app.schemas.envelope import PaginationMeta, ResponseEnvelope
+from app.schemas.invoice import (
+    InvoiceDetailResponse,
+    InvoiceListItem,
+    InvoiceUploadResponse,
+)
+from app.schemas.review import ReviewerInvoiceDetailResponse
+from app.services.invoices.views import build_decision_view, resolve_invoice_view
 from app.services.upload.intake import (
     UploadRateLimitExceededError,
     UploadStorageUnavailableError,
@@ -36,7 +45,7 @@ async def upload_invoice(
     extraction_queue: ExtractionQueueDep,
     invoices: InvoiceRepositoryDep,
     file: Annotated[UploadFile, File()],
-) -> ResponseEnvelope[InvoiceUploadResponse]:
+) -> ResponseEnvelope[InvoiceUploadResponse, None]:
     """Accept an invoice document and enqueue it for processing."""
     settings = get_settings()
     content = await file.read(settings.UPLOAD_MAX_BYTES + 1)
@@ -91,8 +100,21 @@ async def upload_invoice(
             "context": {"status_code": status.HTTP_201_CREATED},
         },
     )
+    return ResponseEnvelope(data=InvoiceUploadResponse.model_validate(invoice))
+
+
+@router.get("")
+async def list_invoices(
+    current_user: CurrentUser,
+    repository: InvoiceRepositoryDep,
+    offset: int = 0,
+    limit: int = 10,
+) -> ResponseEnvelope[list[InvoiceListItem], PaginationMeta]:
+    """List invoices owned by the authenticated user, newest first."""
+    invoices, total = await repository.list_for_owner(current_user.id, offset, limit)
     return ResponseEnvelope(
-        data=InvoiceUploadResponse(invoice_id=invoice.id, status=invoice.status)
+        data=[InvoiceListItem.model_validate(inv) for inv in invoices],
+        meta=PaginationMeta(total=total, offset=offset, limit=limit),
     )
 
 
@@ -101,21 +123,35 @@ async def get_invoice(
     invoice_id: UUID,
     current_user: CurrentUser,
     invoices: InvoiceRepositoryDep,
-) -> ResponseEnvelope[InvoiceDetailResponse]:
-    """Return an invoice owned by the authenticated user."""
-    invoice = await invoices.get_by_id(invoice_id)
-    if invoice is None or invoice.owner_id != current_user.id:
-        raise NotFoundError("Invoice not found")
-
-    return ResponseEnvelope(
-        data=InvoiceDetailResponse(
-            invoice_id=invoice.id,
-            status=invoice.status,
-            extracted_fields=invoice.extracted_fields,
-            confidence=invoice.confidence,
-            confidence_reason=invoice.confidence_reason,
-        )
+) -> ResponseEnvelope[InvoiceDetailResponse | ReviewerInvoiceDetailResponse, None]:
+    """Return an invoice the caller owns, or - for a reviewer - any invoice."""
+    is_reviewer = current_user.role == UserRole.FINANCE_REVIEWER
+    invoice = (
+        await invoices.get_for_review_view(invoice_id)
+        if is_reviewer
+        else await invoices.get_for_employee_view(invoice_id)
     )
+    view = resolve_invoice_view(
+        invoice, current_user_id=current_user.id, is_reviewer=is_reviewer
+    )
+    return ResponseEnvelope(data=view)
+
+
+@router.post("/{invoice_id}/decision", status_code=status.HTTP_201_CREATED)
+async def decide_invoice(
+    invoice_id: UUID,
+    payload: DecisionRequest,
+    reviewer: CurrentFinanceReviewer,
+    decision_service: DecisionServiceDep,
+) -> ResponseEnvelope[DecisionView, None]:
+    """Record a finance reviewer's one final decision on an invoice."""
+    decision = await decision_service.decide(
+        invoice_id=invoice_id,
+        outcome=payload.outcome,
+        reason=payload.reason,
+        decided_by_id=reviewer.id,
+    )
+    return ResponseEnvelope(data=build_decision_view(decision))
 
 
 def _log_rejection(*, code: str, status_code: int, **context: object) -> None:

@@ -1,5 +1,6 @@
 """Specify SQL-backed rule-result persistence behavior."""
 
+from collections.abc import Sequence
 from uuid import UUID
 
 import pytest
@@ -13,6 +14,7 @@ from app.database.models.user import User
 from app.database.repositories.invoice import InvoiceRepository
 from app.database.repositories.rule_result import RuleResultRepository
 from app.services.rules.result import RuleCode, RuleResult
+from tests.support.helpers import create_user
 
 pytestmark = [
     pytest.mark.integration,
@@ -23,15 +25,11 @@ pytestmark = [
 @pytest_asyncio.fixture
 async def owner(test_db: AsyncSession) -> User:
     """Persist the user that owns the invoice used in these scenarios."""
-    user = User(
+    return await create_user(
+        test_db,
         id=UUID("00000000-0000-0000-0000-000000000020"),
         email="owner-rules@example.com",
-        hashed_password="unused-hash",
-        name="Owner",
     )
-    test_db.add(user)
-    await test_db.flush()
-    return user
 
 
 @pytest_asyncio.fixture
@@ -57,12 +55,12 @@ RESULTS = [
     RuleResult(
         rule_code=RuleCode.LINE_ITEM_TOTAL_CONSISTENCY,
         outcome=RuleOutcome.NOT_APPLICABLE,
-        message="No line items were extracted to reconcile against the total",
+        evidence={},
     ),
     RuleResult(
         rule_code=RuleCode.CURRENCY_ALLOWED,
         outcome=RuleOutcome.FAIL,
-        message="Currency CHF is not in the allowed set: EUR, GBP, USD",
+        evidence={"currency": "CHF", "allowed_currencies": ["EUR", "GBP", "USD"]},
     ),
     RuleResult(
         rule_code=RuleCode.INVOICE_DATE_NOT_IN_FUTURE,
@@ -75,23 +73,23 @@ RESULTS = [
 ]
 
 
+async def _stored_rows(
+    test_db: AsyncSession, invoice_id: UUID
+) -> Sequence[InvoiceRuleResult]:
+    """Read back the rule-result rows persisted for an invoice."""
+    result = await test_db.execute(
+        select(InvoiceRuleResult).where(InvoiceRuleResult.invoice_id == invoice_id)
+    )
+    return result.scalars().all()
+
+
 async def should_insert_one_row_per_rule_result_stamped_with_invoice_and_timestamp(
     test_db: AsyncSession, repository: RuleResultRepository, invoice: Invoice
 ) -> None:
     """Persist every rule's outcome, whatever it is, with the invoice's FK."""
     await repository.replace_for_invoice(invoice_id=invoice.id, results=RESULTS)
 
-    stored = (
-        (
-            await test_db.execute(
-                select(InvoiceRuleResult).where(
-                    InvoiceRuleResult.invoice_id == invoice.id
-                )
-            )
-        )
-        .scalars()
-        .all()
-    )
+    stored = await _stored_rows(test_db, invoice.id)
 
     assert len(stored) == len(RESULTS)
     assert all(row.invoice_id == invoice.id for row in stored)
@@ -109,17 +107,7 @@ async def should_delete_prior_rows_before_inserting_the_new_set(
     ]
     await repository.replace_for_invoice(invoice_id=invoice.id, results=updated_results)
 
-    stored = (
-        (
-            await test_db.execute(
-                select(InvoiceRuleResult).where(
-                    InvoiceRuleResult.invoice_id == invoice.id
-                )
-            )
-        )
-        .scalars()
-        .all()
-    )
+    stored = await _stored_rows(test_db, invoice.id)
 
     assert len(stored) == len(RESULTS)
     assert all(row.outcome == RuleOutcome.PASS for row in stored)
@@ -131,17 +119,7 @@ async def should_leave_zero_rows_when_handed_an_empty_list(
     """Persist nothing for an invoice that was never evaluated."""
     await repository.replace_for_invoice(invoice_id=invoice.id, results=[])
 
-    stored = (
-        (
-            await test_db.execute(
-                select(InvoiceRuleResult).where(
-                    InvoiceRuleResult.invoice_id == invoice.id
-                )
-            )
-        )
-        .scalars()
-        .all()
-    )
+    stored = await _stored_rows(test_db, invoice.id)
 
     assert stored == []
 
@@ -164,15 +142,5 @@ async def should_cascade_delete_rule_results_when_the_invoice_is_deleted(
     await test_db.delete(invoice)
     await test_db.flush()
 
-    stored = (
-        (
-            await test_db.execute(
-                select(InvoiceRuleResult).where(
-                    InvoiceRuleResult.invoice_id == invoice.id
-                )
-            )
-        )
-        .scalars()
-        .all()
-    )
+    stored = await _stored_rows(test_db, invoice.id)
     assert stored == []

@@ -8,7 +8,7 @@ from app.api.deps import get_embedding_client
 from app.core.config import get_settings
 from app.main import app
 from app.services.embeddings.client import EMBEDDING_DIMENSIONS
-from tests.support.pdf import pdf_bytes
+from tests.support.helpers import pdf_bytes
 
 pytestmark = [
     pytest.mark.acceptance,
@@ -80,7 +80,7 @@ async def should_supersede_the_previous_active_document(
         },
     )
     assert first.status_code == status.HTTP_201_CREATED
-    first_id = first.json()["data"]["policy_document_id"]
+    first_id = first.json()["data"]["id"]
 
     second = await client.post(
         "/policies/documents",
@@ -99,9 +99,9 @@ async def should_supersede_the_previous_active_document(
     documents = listing.json()["data"]
     assert len(documents) == 2
 
-    by_id = {document["policy_document_id"]: document for document in documents}
+    by_id = {document["id"]: document for document in documents}
     assert by_id[first_id]["status"] == "superseded"
-    assert by_id[second_body["policy_document_id"]]["status"] == "active"
+    assert by_id[second_body["id"]]["status"] == "active"
 
 
 async def should_reject_an_upload_from_a_non_reviewer(

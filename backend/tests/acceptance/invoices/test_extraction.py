@@ -35,7 +35,7 @@ from tests.support.constants import (
     TOTAL_AMOUNT,
     VENDOR_NAME,
 )
-from tests.support.pdf import pdf_bytes
+from tests.support.helpers import pdf_bytes
 
 pytestmark = [
     pytest.mark.acceptance,
@@ -194,10 +194,10 @@ async def should_extract_fields_from_a_text_native_pdf_on_first_valid_response(
     assert response.status_code == status.HTTP_200_OK
     body = response.json()["data"]
     assert body["status"] == "processing"
-    assert body["extracted_fields"]["vendor_name"] == VENDOR_NAME
-    assert body["extracted_fields"]["total_amount"] == str(TOTAL_AMOUNT)
-    assert body["extracted_fields"]["currency"] == CURRENCY
-    assert body["confidence"] == "high"
+    assert body["invoice_summary"]["vendor_name"] == VENDOR_NAME
+    assert body["invoice_summary"]["total_amount"] == str(TOTAL_AMOUNT)
+    assert body["invoice_summary"]["currency"] == CURRENCY
+    assert body["decision"] is None
 
 
 async def should_fail_fast_for_a_pdf_without_a_text_layer(
@@ -224,6 +224,7 @@ async def should_fail_fast_for_a_pdf_without_a_text_layer(
     assert response.status_code == status.HTTP_200_OK
     body = response.json()["data"]
     assert body["status"] == "processing_error"
+    assert body["invoice_summary"] is None
 
 
 async def should_route_to_review_after_exhausting_validation_retries(
@@ -250,7 +251,7 @@ async def should_route_to_review_after_exhausting_validation_retries(
     assert response.status_code == status.HTTP_200_OK
     body = response.json()["data"]
     assert body["status"] == "processing_error"
-    assert body["extracted_fields"] is None
+    assert body["invoice_summary"] is None
     assert model.call_count == 3
 
 
@@ -278,6 +279,13 @@ async def should_flag_ungrounded_field_as_low_confidence(
     assert response.status_code == status.HTTP_200_OK
     body = response.json()["data"]
     assert body["status"] == "processing"
-    assert body["extracted_fields"]["total_amount"] == "999.00"  # persisted as-is
-    assert body["confidence"] == "low"
-    assert "total_amount" in body["confidence_reason"]
+    # An employee never sees a summary condensed from ungrounded extraction
+    assert body["invoice_summary"] is None
+
+    persisted = await test_db.get(Invoice, stored.invoice.id)
+    assert persisted is not None
+    assert persisted.extracted_fields is not None
+    assert persisted.extracted_fields["total_amount"] == "999.00"  # persisted as-is
+    assert persisted.confidence == "low"
+    assert persisted.confidence_reason is not None
+    assert "total_amount" in persisted.confidence_reason

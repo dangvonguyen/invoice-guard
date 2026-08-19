@@ -8,19 +8,26 @@ from pydantic import BaseModel
 from app.database.models.policy_document import PolicyDocumentStatus
 
 
-class PolicyDocumentUploadResponse(BaseModel):
+class PolicyDocumentResponseBase(BaseModel):
+    """Common fields shared by every policy document response shape."""
+
+    model_config = {
+        "from_attributes": True,
+    }
+
+    id: UUID
+    status: PolicyDocumentStatus
+
+
+class PolicyDocumentUploadResponse(PolicyDocumentResponseBase):
     """Response for a successful policy document upload."""
 
-    policy_document_id: UUID
-    status: PolicyDocumentStatus
     chunk_count: int
 
 
-class PolicyDocumentListItem(BaseModel):
+class PolicyDocumentListItem(PolicyDocumentResponseBase):
     """One document entry in the policy document listing."""
 
-    policy_document_id: UUID
-    status: PolicyDocumentStatus
     original_filename: str
     chunk_count: int
     created_at: datetime

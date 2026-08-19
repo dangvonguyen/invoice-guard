@@ -15,6 +15,12 @@ from .auth import (
     get_user_repository,
     raise_unauthorized,
 )
+from .decision import (
+    DecisionRepositoryDep,
+    DecisionServiceDep,
+    get_decision_repository,
+    get_decision_service,
+)
 from .invoices import (
     ExtractionQueueDep,
     InvoiceIntakeServiceDep,
@@ -53,6 +59,8 @@ __all__ = [
     "ChunkerDep",
     "CurrentFinanceReviewer",
     "CurrentUser",
+    "DecisionRepositoryDep",
+    "DecisionServiceDep",
     "EmbeddingClientDep",
     "ExtractionQueueDep",
     "InvoiceIntakeServiceDep",
@@ -75,6 +83,8 @@ __all__ = [
     "get_chunker",
     "get_current_finance_reviewer",
     "get_current_user",
+    "get_decision_repository",
+    "get_decision_service",
     "get_embedding_client",
     "get_invoice_intake_service",
     "get_invoice_repository",

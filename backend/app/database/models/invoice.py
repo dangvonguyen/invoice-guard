@@ -10,9 +10,12 @@ from uuid import UUID
 
 from sqlalchemy import DateTime, Enum, ForeignKey, String, Text, Uuid, func
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
+from app.database.models.decision import InvoiceDecision
+from app.database.models.rule_result import InvoiceRuleResult
+from app.database.models.user import User
 
 
 class InvoiceStatus(StrEnum):
@@ -73,4 +76,14 @@ class Invoice(Base):
     confidence_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+
+    owner: Mapped[User] = relationship(lazy="raise")
+    # Rely on the FK's ON DELETE CASCADE instead of the ORM nulling out
+    # invoice_id first
+    rule_results: Mapped[list[InvoiceRuleResult]] = relationship(
+        lazy="raise", passive_deletes=True, order_by="InvoiceRuleResult.rule_code"
+    )
+    decision: Mapped[InvoiceDecision | None] = relationship(
+        lazy="raise", passive_deletes=True
     )

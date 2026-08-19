@@ -11,7 +11,7 @@ from app.api.deps import (
     get_current_finance_reviewer,
 )
 from app.core.config import get_settings
-from app.schemas.envelope import PaginationMeta, ResponseEnvelope
+from app.schemas.envelope import ResponseEnvelope
 from app.schemas.policy_document import (
     PolicyDocumentListItem,
     PolicyDocumentUploadResponse,
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def upload_policy_document(
     ingestion: PolicyIngestionServiceDep, file: Annotated[UploadFile, File()]
-) -> ResponseEnvelope[PolicyDocumentUploadResponse]:
+) -> ResponseEnvelope[PolicyDocumentUploadResponse, None]:
     """Ingest a policy handbook PDF and activate it as the current policy."""
     settings = get_settings()
     content = await file.read(settings.POLICY_DOCUMENT_MAX_BYTES + 1)
@@ -61,7 +61,7 @@ async def upload_policy_document(
     )
     return ResponseEnvelope(
         data=PolicyDocumentUploadResponse(
-            policy_document_id=result.document_id,
+            id=result.document_id,
             status=result.status,
             chunk_count=result.chunk_count,
         )
@@ -71,12 +71,12 @@ async def upload_policy_document(
 @router.get("")
 async def list_policy_documents(
     policy_documents: PolicyDocumentRepositoryDep,
-) -> ResponseEnvelope[list[PolicyDocumentListItem], PaginationMeta]:
+) -> ResponseEnvelope[list[PolicyDocumentListItem], None]:
     """List every ingested policy document and its current status."""
     documents = await policy_documents.list_all()
     items = [
         PolicyDocumentListItem(
-            policy_document_id=document.id,
+            id=document.id,
             status=document.status,
             original_filename=document.original_filename,
             chunk_count=chunk_count,

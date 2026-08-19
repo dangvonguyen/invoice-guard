@@ -17,7 +17,7 @@ def envelope_response(
     status_code: int, error: ErrorInfo, headers: dict[str, str] | None = None
 ) -> JSONResponse:
     """Create a JSON response containing the given error in the shared envelope."""
-    envelope: ResponseEnvelope[None] = ResponseEnvelope(error=error)
+    envelope: ResponseEnvelope[None, None] = ResponseEnvelope(error=error)
     return JSONResponse(
         status_code=status_code,
         content=envelope.model_dump(mode="json"),
