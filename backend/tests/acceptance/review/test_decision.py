@@ -108,6 +108,32 @@ async def should_let_the_employee_see_the_final_decision(
     assert body["decision"]["reason"] == "Within policy."
 
 
+async def should_reject_a_second_decision_on_the_same_invoice(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    employee: User,
+    reviewer_headers: dict[str, str],
+) -> None:
+    """Return 409 when an invoice already carries a final decision."""
+    invoice = await create_invoice(test_db, owner_id=employee.id)
+    await test_db.commit()
+    first = await client.post(
+        f"/invoices/{invoice.id}/decision",
+        headers=reviewer_headers,
+        json={"outcome": "approved", "reason": "Within policy."},
+    )
+    assert first.status_code == status.HTTP_201_CREATED
+
+    second = await client.post(
+        f"/invoices/{invoice.id}/decision",
+        headers=reviewer_headers,
+        json={"outcome": "rejected", "reason": "Changed my mind."},
+    )
+
+    assert second.status_code == status.HTTP_409_CONFLICT
+    assert second.json()["error"]["code"] == "INVOICE_ALREADY_DECIDED"
+
+
 async def should_reject_employees_from_deciding(
     client: AsyncClient,
     test_db: AsyncSession,

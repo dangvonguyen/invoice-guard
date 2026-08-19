@@ -10,7 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models.decision import InvoiceDecisionOutcome
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.user import User, UserRole
-from app.database.repositories.decision import DecisionRepository
+from app.database.repositories.decision import (
+    DecisionAlreadyExistsError,
+    DecisionRepository,
+)
 
 pytestmark = [
     pytest.mark.integration,
@@ -88,3 +91,23 @@ async def should_record_a_decision_and_transition_the_invoice(
     stored = await test_db.scalar(select(Invoice).where(Invoice.id == invoice.id))
     assert stored is not None
     assert stored.status == InvoiceStatus.APPROVED
+
+
+async def should_raise_when_the_invoice_already_has_a_decision(
+    repository: DecisionRepository, invoice: Invoice, reviewer: User
+) -> None:
+    """Refuse a second decision on the same invoice."""
+    await repository.record(
+        invoice_id=invoice.id,
+        outcome=InvoiceDecisionOutcome.APPROVED,
+        reason="Within policy.",
+        decided_by_id=reviewer.id,
+    )
+
+    with pytest.raises(DecisionAlreadyExistsError):
+        await repository.record(
+            invoice_id=invoice.id,
+            outcome=InvoiceDecisionOutcome.REJECTED,
+            reason="Changed my mind.",
+            decided_by_id=reviewer.id,
+        )
