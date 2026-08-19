@@ -111,10 +111,10 @@ async def list_invoices(
     limit: int = 10,
 ) -> ResponseEnvelope[list[InvoiceListItem], PaginationMeta]:
     """List invoices owned by the authenticated user, newest first."""
-    invoices = await repository.list_for_owner(current_user.id, offset, limit)
+    invoices, total = await repository.list_for_owner(current_user.id, offset, limit)
     return ResponseEnvelope(
         data=[InvoiceListItem.model_validate(inv) for inv in invoices],
-        meta=PaginationMeta(total=len(invoices), offset=offset, limit=limit),
+        meta=PaginationMeta(total=total, offset=offset, limit=limit),
     )
 
 

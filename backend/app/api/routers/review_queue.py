@@ -21,7 +21,7 @@ async def list_review_queue(
     limit: int = 100,
 ) -> ResponseEnvelope[list[ReviewQueueItem], PaginationMeta]:
     """List invoices awaiting review, oldest first."""
-    rows = await invoices.list_awaiting_review(offset, limit)
+    rows, total = await invoices.list_awaiting_review(offset, limit)
     items = [
         ReviewQueueItem(
             id=invoice.id,
@@ -34,5 +34,5 @@ async def list_review_queue(
     ]
     return ResponseEnvelope(
         data=items,
-        meta=PaginationMeta(total=len(items), offset=offset, limit=limit),
+        meta=PaginationMeta(total=total, offset=offset, limit=limit),
     )
