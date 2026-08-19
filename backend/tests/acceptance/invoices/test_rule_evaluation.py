@@ -35,7 +35,7 @@ from app.services.extraction.text import PdfTextExtractor
 from app.services.rules.engine import RuleEngine
 from app.services.rules.result import RuleCode
 from tests.support.constants import LINE_ITEMS, RAW_INVOICE_DATA, RULE_CONFIG, TODAY
-from tests.support.pdf import pdf_bytes
+from tests.support.helpers import pdf_bytes
 
 pytestmark = [
     pytest.mark.acceptance,

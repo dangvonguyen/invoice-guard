@@ -35,7 +35,7 @@ from tests.support.constants import (
     TOTAL_AMOUNT,
     VENDOR_NAME,
 )
-from tests.support.pdf import pdf_bytes
+from tests.support.helpers import pdf_bytes
 
 pytestmark = [
     pytest.mark.acceptance,

@@ -4,11 +4,22 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+from fpdf import FPDF
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.invoice import ExtractionConfidence, Invoice, InvoiceStatus
 from app.database.models.rule_result import InvoiceRuleResult, RuleOutcome
 from app.database.models.user import User, UserRole
+
+
+def pdf_bytes(text: str = "") -> bytes:
+    """Build a real, parseable single-page PDF containing the given text."""
+    pdf = FPDF()
+    pdf.add_page()
+    if text:
+        pdf.set_font("Helvetica", size=12)
+        pdf.multi_cell(0, 10, text=text)
+    return bytes(pdf.output())
 
 
 async def create_user(

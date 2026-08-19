@@ -8,7 +8,7 @@ from app.api.deps import get_embedding_client
 from app.core.config import get_settings
 from app.main import app
 from app.services.embeddings.client import EMBEDDING_DIMENSIONS
-from tests.support.pdf import pdf_bytes
+from tests.support.helpers import pdf_bytes
 
 pytestmark = [
     pytest.mark.acceptance,

@@ -3,7 +3,7 @@
 import pytest
 
 from app.services.extraction.text import NoTextLayerError, PdfTextExtractor
-from tests.support.pdf import pdf_bytes
+from tests.support.helpers import pdf_bytes
 
 pytestmark = pytest.mark.unit
 
