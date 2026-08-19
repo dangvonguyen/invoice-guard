@@ -11,7 +11,7 @@ from app.api.deps import (
     get_current_finance_reviewer,
 )
 from app.core.config import get_settings
-from app.schemas.envelope import PaginationMeta, ResponseEnvelope
+from app.schemas.envelope import ResponseEnvelope
 from app.schemas.policy_document import (
     PolicyDocumentListItem,
     PolicyDocumentUploadResponse,
@@ -71,7 +71,7 @@ async def upload_policy_document(
 @router.get("")
 async def list_policy_documents(
     policy_documents: PolicyDocumentRepositoryDep,
-) -> ResponseEnvelope[list[PolicyDocumentListItem], PaginationMeta]:
+) -> ResponseEnvelope[list[PolicyDocumentListItem], None]:
     """List every ingested policy document and its current status."""
     documents = await policy_documents.list_all()
     items = [

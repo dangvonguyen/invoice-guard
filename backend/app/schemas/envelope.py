@@ -27,7 +27,7 @@ class ErrorInfo(BaseModel):
     details: list[ErrorDetail] | None = None
 
 
-class ResponseEnvelope[DataT, MetaT: BaseModel](BaseModel):
+class ResponseEnvelope[DataT, MetaT](BaseModel):
     """Standard envelope for API responses."""
 
     data: DataT | None = None
