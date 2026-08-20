@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { sessionStore } from '@/entities/session'
 import { API_BASE_URL } from '@/shared/config/env'
-import { paths } from '@/shared/shared/paths'
+import { paths } from '@/shared/config/paths'
 
 import { server } from '../../../../tests/mocks/server'
 

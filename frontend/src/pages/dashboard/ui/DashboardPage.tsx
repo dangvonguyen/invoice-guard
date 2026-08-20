@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 
 import { sessionStore, useSession } from '@/entities/session'
-import { paths } from '@/shared/shared/paths'
+import { paths } from '@/shared/config/paths'
 import { buttonVariants } from '@/shared/ui/button'
 
 export function DashboardPage() {

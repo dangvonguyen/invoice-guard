@@ -2,7 +2,7 @@ import { Navigate } from 'react-router'
 
 import { sessionStore, useSession } from '@/entities/session'
 import { LoginForm } from '@/features/login'
-import { paths } from '@/shared/shared/paths'
+import { paths } from '@/shared/config/paths'
 
 export function LoginPage() {
   const { isAuthenticated } = useSession(sessionStore)

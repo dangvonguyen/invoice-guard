@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
 
-import { paths } from '@/shared/shared/paths'
+import { paths } from '@/shared/config/paths'
 import { buttonVariants } from '@/shared/ui/button'
 
 export function NotFoundPage() {
