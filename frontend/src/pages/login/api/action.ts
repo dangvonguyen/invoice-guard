@@ -1,6 +1,6 @@
 import { type ActionFunctionArgs, redirect } from 'react-router'
 
-import { sessionStore } from '@/entities/session'
+import { login } from '@/entities/session'
 import { paths } from '@/shared/config/paths'
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -8,7 +8,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const email = formData.get('email')
   const password = formData.get('password')
 
-  const result = await sessionStore.loginWithCredentials(
+  const result = await login(
     typeof email === 'string' ? email : '',
     typeof password === 'string' ? password : '',
   )

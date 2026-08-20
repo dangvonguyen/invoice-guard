@@ -17,7 +17,7 @@ export const router = createBrowserRouter([
       },
       {
         path: paths.invoices,
-        lazy: () => import('@/pages/invoices'),
+        lazy: () => import('@/pages/invoice-list'),
       },
       {
         path: '*',

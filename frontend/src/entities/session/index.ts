@@ -1,4 +1,5 @@
-export type { LoginErrorKind } from './model/sessionStore'
-export { SessionStore, sessionStore } from './model/sessionStore'
+export type { LoginErrorKind, LoginResult } from './api/login'
+export { login } from './api/login'
 export type { SessionSnapshot } from './model/useSession'
 export { useSession } from './model/useSession'
+export { tokenStorage } from '@/shared/lib/tokenStorage'

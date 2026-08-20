@@ -1,19 +1,22 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { API_BASE_URL } from '@/shared/config/env'
+import { TokenStorage, tokenStorage } from '@/shared/lib/tokenStorage'
 
 import { server } from '../../../../tests/mocks/server'
+import { login } from '../api/login'
 
-import { SessionStore } from './sessionStore'
 import { useSession } from './useSession'
 
 const LOGIN_URL = `${API_BASE_URL}/auth/login`
 
 describe('useSession', () => {
+  afterEach(() => tokenStorage.clear())
+
   it('should report unauthenticated initially', () => {
-    const store = new SessionStore()
+    const store = new TokenStorage()
 
     const { result } = renderHook(() => useSession(store))
 
@@ -29,28 +32,25 @@ describe('useSession', () => {
         ),
       ),
     )
-    const store = new SessionStore()
-    const { result } = renderHook(() => useSession(store))
+    const { result } = renderHook(() => useSession(tokenStorage))
 
     await act(async () => {
-      await store.loginWithCredentials('user@example.com', 'secret123')
+      await login('user@example.com', 'secret123')
     })
 
     await waitFor(() => expect(result.current.isAuthenticated).toBe(true))
   })
 
-  it('should rerender with login error after failed login', async () => {
+  it('should remain unauthenticated after failed login', async () => {
     server.use(
       http.post(LOGIN_URL, () => HttpResponse.json({ detail: 'Invalid' }, { status: 401 })),
     )
-    const store = new SessionStore()
-    const { result } = renderHook(() => useSession(store))
+    const { result } = renderHook(() => useSession(tokenStorage))
 
     await act(async () => {
-      await store.loginWithCredentials('user@example.com', 'wrong')
+      await login('user@example.com', 'wrong')
     })
 
-    await waitFor(() => expect(result.current.lastLoginError).toBe('invalid_credentials'))
     expect(result.current.isAuthenticated).toBe(false)
   })
 })

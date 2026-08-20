@@ -19,7 +19,7 @@ export function HydrateFallback() {
   )
 }
 
-export function InvoicesPage() {
+export function InvoiceListPage() {
   const result = useLoaderData<typeof loader>()
   const revalidator = useRevalidator()
 
@@ -58,7 +58,9 @@ export function InvoicesPage() {
       {result.kind === 'ok' && result.invoices.length > 0 && (
         <ul aria-label="Invoices" className="flex flex-col gap-3">
           {result.invoices.map((invoice, index) => (
-            <InvoiceRow key={invoice.id} invoice={invoice} index={index + 1} />
+            <li>
+              <InvoiceRow key={invoice.id} invoice={invoice} index={index + 1} />
+            </li>
           ))}
         </ul>
       )}

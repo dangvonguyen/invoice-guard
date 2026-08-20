@@ -1,6 +1,7 @@
 import createClient from 'openapi-fetch'
 
 import { API_BASE_URL } from '../config/env'
+import { tokenStorage } from '../lib/tokenStorage'
 
 import type { paths } from './schema'
 
@@ -13,4 +14,14 @@ import type { paths } from './schema'
 export const apiClient = createClient<paths>({
   baseUrl: API_BASE_URL,
   fetch: (...args) => globalThis.fetch(...args),
+})
+
+apiClient.use({
+  onRequest({ request }) {
+    const accessToken = tokenStorage.getAccessToken()
+    if (accessToken === null) return
+
+    request.headers.set('Authorization', `Bearer ${accessToken}`)
+    return request
+  },
 })

@@ -4,14 +4,15 @@ import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { sessionStore } from '@/entities/session'
+import { tokenStorage } from '@/entities/session'
 import { API_BASE_URL } from '@/shared/config/env'
+import { paths } from '@/shared/config/paths'
 
 import { server } from '../../../../tests/mocks/server'
 import { action } from '../api/action'
 import { loader } from '../api/loader'
 
-import { HydrateFallback, InvoicesPage } from './InvoicesPage'
+import { HydrateFallback, InvoiceListPage } from './InvoiceListPage'
 
 const INVOICES_URL = `${API_BASE_URL}/invoices`
 
@@ -36,19 +37,19 @@ function uploadEnvelope(id: string, status: InvoiceListItem['status']) {
 
 function renderPage() {
   const Stub = createRoutesStub([
-    { path: '/invoices', Component: InvoicesPage, HydrateFallback, loader, action },
+    { path: '/invoices', Component: InvoiceListPage, HydrateFallback, loader, action },
     { path: '/invoices/:id', Component: () => <p>Invoice detail placeholder</p> },
   ])
 
   render(<Stub initialEntries={['/invoices']} />)
 }
 
-describe('InvoicesPage', () => {
-  beforeEach(async () => {
-    await sessionStore.loginWithCredentials('user@example.com', 'secret123')
+describe('InvoiceListPage', () => {
+  beforeEach(() => {
+    tokenStorage.setAccessToken('signed.jwt.token')
   })
 
-  afterEach(() => sessionStore.logout())
+  afterEach(() => tokenStorage.clear())
 
   it('should show a loading state while invoices are being fetched', async () => {
     server.use(
@@ -176,5 +177,18 @@ describe('InvoicesPage', () => {
 
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(/something went wrong/i)
     expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+})
+
+describe('InvoicesPage access control', () => {
+  it('should redirect unauthenticated users to login', async () => {
+    const Stub = createRoutesStub([
+      { path: paths.invoices, Component: InvoiceListPage, HydrateFallback, loader, action },
+      { path: paths.login, Component: () => <p>Login</p> },
+    ])
+
+    render(<Stub initialEntries={[paths.invoices]} />)
+
+    expect(await screen.findByText('Login')).toBeInTheDocument()
   })
 })
