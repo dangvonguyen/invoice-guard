@@ -1,9 +1,9 @@
-import { type SubmitEvent, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
+import { useFetcher } from 'react-router'
 import { UploadCloud } from 'lucide-react'
 
-import type { InvoiceUploadResponse } from '@/entities/invoice'
-import { uploadInvoice } from '@/entities/invoice'
+import type { UploadInvoiceResult } from '@/entities/invoice'
 import { formatFileSize } from '@/shared/lib/formatFileSize'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
@@ -18,15 +18,11 @@ import {
 } from '@/shared/ui/dialog'
 import { Field, FieldError, FieldGroup } from '@/shared/ui/field'
 
-export interface UploadInvoiceDialogProps {
-  onUploaded: (invoice: InvoiceUploadResponse) => void
-}
-
-export function UploadInvoiceDialog({ onUploaded }: UploadInvoiceDialogProps) {
+export function UploadInvoiceDialog() {
   const [open, setOpen] = useState(false)
   const [file, setFile] = useState<File | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [hasError, setHasError] = useState(false)
+  const fetcher = useFetcher<UploadInvoiceResult>()
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { 'application/pdf': ['.pdf'] },
@@ -44,28 +40,24 @@ export function UploadInvoiceDialog({ onUploaded }: UploadInvoiceDialogProps) {
     }
   }
 
-  async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault()
-    if (!file) return
+  useEffect(() => {
+    if (fetcher.state !== 'idle' || fetcher.data === undefined) return
 
-    setIsSubmitting(true)
-    setHasError(false)
-    const result = await uploadInvoice(file)
-    setIsSubmitting(false)
-
-    if (result.kind === 'error') {
+    if (fetcher.data.kind === 'ok') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOpen(false)
+    } else {
       setHasError(true)
-      return
     }
-    onUploaded(result.invoice)
-    handleOpenChange(false)
-  }
+  }, [fetcher.state, fetcher.data])
+
+  const isSubmitting = fetcher.state !== 'idle'
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<Button />}>Upload Invoice</DialogTrigger>
       <DialogContent>
-        <form onSubmit={(event) => void handleSubmit(event)}>
+        <fetcher.Form method="post" encType="multipart/form-data">
           <DialogHeader>
             <DialogTitle className="font-semibold">Upload Invoice</DialogTitle>
           </DialogHeader>
@@ -98,7 +90,7 @@ export function UploadInvoiceDialog({ onUploaded }: UploadInvoiceDialogProps) {
                   PDF only, up to 10MB.
                 </span>
               </div>
-              <input {...getInputProps({ id: 'invoice-file' })} />
+              <input {...getInputProps({ id: 'invoice-file', name: 'file' })} />
             </Field>
 
             <FieldError>{hasError ? 'Something went wrong. Please try again.' : null}</FieldError>
@@ -110,7 +102,7 @@ export function UploadInvoiceDialog({ onUploaded }: UploadInvoiceDialogProps) {
               Upload
             </Button>
           </DialogFooter>
-        </form>
+        </fetcher.Form>
       </DialogContent>
     </Dialog>
   )

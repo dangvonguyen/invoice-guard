@@ -1,4 +1,4 @@
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { createRoutesStub } from 'react-router'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
@@ -8,8 +8,10 @@ import { sessionStore } from '@/entities/session'
 import { API_BASE_URL } from '@/shared/config/env'
 
 import { server } from '../../../../tests/mocks/server'
+import { action } from '../api/action'
+import { loader } from '../api/loader'
 
-import { InvoicesPage } from './InvoicesPage'
+import { HydrateFallback, InvoicesPage } from './InvoicesPage'
 
 const INVOICES_URL = `${API_BASE_URL}/invoices`
 
@@ -33,14 +35,12 @@ function uploadEnvelope(id: string, status: InvoiceListItem['status']) {
 }
 
 function renderPage() {
-  render(
-    <MemoryRouter initialEntries={['/invoices']}>
-      <Routes>
-        <Route path="/invoices" element={<InvoicesPage />} />
-        <Route path="/invoices/:id" element={<p>Invoice detail placeholder</p>} />
-      </Routes>
-    </MemoryRouter>,
-  )
+  const Stub = createRoutesStub([
+    { path: '/invoices', Component: InvoicesPage, HydrateFallback, loader, action },
+    { path: '/invoices/:id', Component: () => <p>Invoice detail placeholder</p> },
+  ])
+
+  render(<Stub initialEntries={['/invoices']} />)
 }
 
 describe('InvoicesPage', () => {
