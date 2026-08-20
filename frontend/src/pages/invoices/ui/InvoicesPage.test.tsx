@@ -1,0 +1,180 @@
+import { MemoryRouter, Route, Routes } from 'react-router'
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { delay, http, HttpResponse } from 'msw'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+
+import { sessionStore } from '@/entities/session'
+import { API_BASE_URL } from '@/shared/config/env'
+
+import { server } from '../../../../tests/mocks/server'
+
+import { InvoicesPage } from './InvoicesPage'
+
+const INVOICES_URL = `${API_BASE_URL}/invoices`
+
+interface InvoiceListItem {
+  id: string
+  status: 'processing' | 'processing_error' | 'awaiting_review' | 'approved' | 'rejected'
+  created_at: string
+}
+
+function listEnvelope(data: InvoiceListItem[]) {
+  return {
+    success: true,
+    data,
+    error: null,
+    meta: { total: data.length, offset: 0, limit: 10 },
+  }
+}
+
+function uploadEnvelope(id: string, status: InvoiceListItem['status']) {
+  return { success: true, data: { id, status }, error: null, meta: null }
+}
+
+function renderPage() {
+  render(
+    <MemoryRouter initialEntries={['/invoices']}>
+      <Routes>
+        <Route path="/invoices" element={<InvoicesPage />} />
+        <Route path="/invoices/:id" element={<p>Invoice detail placeholder</p>} />
+      </Routes>
+    </MemoryRouter>,
+  )
+}
+
+describe('InvoicesPage', () => {
+  beforeEach(async () => {
+    await sessionStore.loginWithCredentials('user@example.com', 'secret123')
+  })
+
+  afterEach(() => sessionStore.logout())
+
+  it('should show a loading state while invoices are being fetched', async () => {
+    server.use(
+      http.get(INVOICES_URL, async () => {
+        await delay(50)
+        return HttpResponse.json(listEnvelope([]))
+      }),
+    )
+
+    renderPage()
+
+    expect(screen.getByRole('status')).toBeInTheDocument()
+    await screen.findByRole('button', { name: /upload invoice/i })
+  })
+
+  it('should show an empty state when the employee has no invoices', async () => {
+    server.use(http.get(INVOICES_URL, () => HttpResponse.json(listEnvelope([]))))
+
+    renderPage()
+
+    expect(await screen.findByText(/no invoices yet/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /upload invoice/i })).toBeEnabled()
+  })
+
+  it('should render fetched invoices newest first with their status', async () => {
+    server.use(
+      http.get(INVOICES_URL, () =>
+        HttpResponse.json(
+          listEnvelope([
+            { id: 'inv-3', status: 'awaiting_review', created_at: '2026-08-18T09:55:00Z' },
+            { id: 'inv-2', status: 'approved', created_at: '2026-08-15T10:00:00Z' },
+            { id: 'inv-1', status: 'processing_error', created_at: '2026-08-10T16:20:00Z' },
+          ]),
+        ),
+      ),
+    )
+
+    renderPage()
+
+    const list = await screen.findByRole('list', { name: /invoices/i })
+    const rows = within(list).getAllByRole('link')
+
+    expect(rows).toHaveLength(3)
+    expect(rows[0]).toHaveTextContent(/awaiting review/i)
+    expect(rows[0]).toHaveAttribute('href', '/invoices/inv-3')
+    expect(rows[1]).toHaveTextContent(/approved/i)
+    expect(rows[2]).toHaveTextContent(/processing error/i)
+  })
+
+  it('should show a retry affordance when the list fails to load, and recover on retry', async () => {
+    server.use(http.get(INVOICES_URL, () => HttpResponse.json({ detail: 'boom' }, { status: 500 })))
+
+    renderPage()
+
+    const retryButton = await screen.findByRole('button', { name: /retry/i })
+    expect(screen.getByText(/couldn.?t load/i)).toBeInTheDocument()
+
+    server.use(
+      http.get(INVOICES_URL, () =>
+        HttpResponse.json(
+          listEnvelope([{ id: 'inv-1', status: 'processing', created_at: '2026-08-19T10:02:00Z' }]),
+        ),
+      ),
+    )
+    await userEvent.setup().click(retryButton)
+
+    expect(await screen.findByText(/processing/i)).toBeInTheDocument()
+  })
+
+  it('should let an employee upload an invoice and see it appear in the list', async () => {
+    let invoices: InvoiceListItem[] = []
+    server.use(
+      http.get(INVOICES_URL, () => HttpResponse.json(listEnvelope(invoices))),
+      http.post(INVOICES_URL, () => {
+        invoices = [{ id: 'new-id', status: 'processing', created_at: '2026-08-19T12:00:00Z' }]
+        return HttpResponse.json(uploadEnvelope('new-id', 'processing'), { status: 201 })
+      }),
+    )
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText(/no invoices yet/i)
+
+    await user.click(screen.getByRole('button', { name: /upload invoice/i }))
+    const dialog = await screen.findByRole('dialog', { name: /upload invoice/i })
+    const file = new File(['%PDF-1.4'], 'invoice.pdf', { type: 'application/pdf' })
+    await user.upload(within(dialog).getByLabelText(/file/i), file)
+    await user.click(within(dialog).getByRole('button', { name: /^upload$/i }))
+
+    await screen.findByRole('list', { name: /invoices/i })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText(/processing/i)).toBeInTheDocument()
+  })
+
+  it('should disable submit until a file is selected', async () => {
+    server.use(http.get(INVOICES_URL, () => HttpResponse.json(listEnvelope([]))))
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText(/no invoices yet/i)
+
+    await user.click(screen.getByRole('button', { name: /upload invoice/i }))
+    const dialog = await screen.findByRole('dialog', { name: /upload invoice/i })
+
+    expect(within(dialog).getByRole('button', { name: /^upload$/i })).toBeDisabled()
+
+    const file = new File(['%PDF-1.4'], 'invoice.pdf', { type: 'application/pdf' })
+    await user.upload(within(dialog).getByLabelText(/file/i), file)
+
+    expect(within(dialog).getByRole('button', { name: /^upload$/i })).toBeEnabled()
+  })
+
+  it('should show an inline error and keep the dialog open when upload fails', async () => {
+    server.use(
+      http.get(INVOICES_URL, () => HttpResponse.json(listEnvelope([]))),
+      http.post(INVOICES_URL, () => HttpResponse.json({ detail: 'boom' }, { status: 500 })),
+    )
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText(/no invoices yet/i)
+
+    await user.click(screen.getByRole('button', { name: /upload invoice/i }))
+    const dialog = await screen.findByRole('dialog', { name: /upload invoice/i })
+    const file = new File(['%PDF-1.4'], 'invoice.pdf', { type: 'application/pdf' })
+    await user.upload(within(dialog).getByLabelText(/file/i), file)
+    await user.click(within(dialog).getByRole('button', { name: /^upload$/i }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/something went wrong/i)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+})

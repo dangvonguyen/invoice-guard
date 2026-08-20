@@ -8,7 +8,7 @@ export function LoginPage() {
   const { isAuthenticated } = useSession(sessionStore)
 
   if (isAuthenticated) {
-    return <Navigate to={paths.home} replace />
+    return <Navigate to={paths.invoices} replace />
   }
 
   return (

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { sessionStore } from '@/entities/session'
 import { API_BASE_URL } from '@/shared/config/env'
+import { paths } from '@/shared/shared/paths'
 
 import { server } from '../../../../tests/mocks/server'
 
@@ -16,8 +17,8 @@ async function submitLogin(email: string, password: string): Promise<void> {
   render(
     <MemoryRouter initialEntries={['/login']}>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={<p>Home</p>} />
+        <Route path={paths.login} element={<LoginPage />} />
+        <Route path={paths.invoices} element={<p>Home</p>} />
       </Routes>
     </MemoryRouter>,
   )
