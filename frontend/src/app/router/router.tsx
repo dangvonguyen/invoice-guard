@@ -20,6 +20,10 @@ export const router = createBrowserRouter([
         lazy: () => import('@/pages/invoice-list'),
       },
       {
+        path: paths.invoiceDetail,
+        lazy: () => import('@/pages/invoice-detail'),
+      },
+      {
         path: '*',
         lazy: () => import('@/pages/not-found'),
       },
