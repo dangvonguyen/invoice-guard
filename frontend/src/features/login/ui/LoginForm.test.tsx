@@ -1,46 +1,37 @@
-import { render, screen } from '@testing-library/react'
+import { type ActionFunctionArgs, createRoutesStub } from 'react-router'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
-
-import { SessionStore } from '@/entities/session'
-import { API_BASE_URL } from '@/shared/config/env'
-
-import { server } from '../../../../tests/mocks/server'
 
 import { LoginForm } from './LoginForm'
 
-const LOGIN_URL = `${API_BASE_URL}/auth/login`
+function renderForm(action: (args: ActionFunctionArgs) => unknown) {
+  const Stub = createRoutesStub([{ path: '/login', Component: LoginForm, action }])
+  render(<Stub initialEntries={['/login']} />)
+}
 
 describe('LoginForm', () => {
-  it('should call loginWithCredentials with typed values on submit', async () => {
-    server.use(
-      http.post(LOGIN_URL, () =>
-        HttpResponse.json(
-          { access_token: 'signed.jwt.token', token_type: 'bearer' },
-          { status: 200 },
-        ),
-      ),
-    )
-    const store = new SessionStore()
-    const loginSpy = vi.spyOn(store, 'loginWithCredentials')
+  it('should submit the entered email and password as form data', async () => {
+    let submittedFormData: FormData | undefined
+    const action = vi.fn(async ({ request }: ActionFunctionArgs) => {
+      submittedFormData = await request.formData()
+      return null
+    })
     const user = userEvent.setup()
-    render(<LoginForm store={store} />)
+    renderForm(action)
 
     await user.type(screen.getByLabelText(/email/i), 'user@example.com')
     await user.type(screen.getByLabelText(/password/i), 'secret123')
     await user.click(screen.getByRole('button', { name: /log in/i }))
 
-    expect(loginSpy).toHaveBeenCalledWith('user@example.com', 'secret123')
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(1))
+    expect(submittedFormData?.get('email')).toBe('user@example.com')
+    expect(submittedFormData?.get('password')).toBe('secret123')
   })
 
-  it('should render invalid credentials message on 401', async () => {
-    server.use(
-      http.post(LOGIN_URL, () => HttpResponse.json({ detail: 'Invalid' }, { status: 401 })),
-    )
-    const store = new SessionStore()
+  it('should render invalid credentials message when the action reports invalid credentials', async () => {
     const user = userEvent.setup()
-    render(<LoginForm store={store} />)
+    renderForm(() => ({ kind: 'invalid_credentials' }))
 
     await user.type(screen.getByLabelText(/email/i), 'user@example.com')
     await user.type(screen.getByLabelText(/password/i), 'wrong-password')
@@ -49,11 +40,9 @@ describe('LoginForm', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/invalid email or password/i)
   })
 
-  it('should render generic message on network error', async () => {
-    server.use(http.post(LOGIN_URL, () => HttpResponse.error()))
-    const store = new SessionStore()
+  it('should render generic message when the action reports a network error', async () => {
     const user = userEvent.setup()
-    render(<LoginForm store={store} />)
+    renderForm(() => ({ kind: 'network_error' }))
 
     await user.type(screen.getByLabelText(/email/i), 'user@example.com')
     await user.type(screen.getByLabelText(/password/i), 'secret123')

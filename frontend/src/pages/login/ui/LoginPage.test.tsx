@@ -1,4 +1,4 @@
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { createRoutesStub } from 'react-router'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
@@ -9,21 +9,21 @@ import { API_BASE_URL } from '@/shared/config/env'
 import { paths } from '@/shared/config/paths'
 
 import { server } from '../../../../tests/mocks/server'
+import { action } from '../api/action'
+import { loader } from '../api/loader'
 
 import { LoginPage } from './LoginPage'
 
 async function submitLogin(email: string, password: string): Promise<void> {
   const user = userEvent.setup()
-  render(
-    <MemoryRouter initialEntries={['/login']}>
-      <Routes>
-        <Route path={paths.login} element={<LoginPage />} />
-        <Route path={paths.invoices} element={<p>Home</p>} />
-      </Routes>
-    </MemoryRouter>,
-  )
+  const Stub = createRoutesStub([
+    { path: paths.login, Component: LoginPage, loader, action },
+    { path: paths.invoices, Component: () => <p>Home</p> },
+  ])
 
-  await user.type(screen.getByLabelText(/email/i), email)
+  render(<Stub initialEntries={[paths.login]} />)
+
+  await user.type(await screen.findByLabelText(/email/i), email)
   await user.type(screen.getByLabelText(/password/i), password)
   await user.click(screen.getByRole('button', { name: /log in/i }))
 }
