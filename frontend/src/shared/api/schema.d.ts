@@ -424,6 +424,15 @@ export interface components {
             /** Chunk Count */
             chunk_count: number;
         };
+        /** ResponseEnvelope[CurrentUserResponse, NoneType] */
+        ResponseEnvelope_CurrentUserResponse_NoneType_: {
+            data?: components["schemas"]["CurrentUserResponse"] | null;
+            error?: components["schemas"]["ErrorInfo"] | null;
+            /** Meta */
+            meta?: null;
+            /** Success */
+            readonly success: boolean;
+        };
         /** ResponseEnvelope[DecisionView, NoneType] */
         ResponseEnvelope_DecisionView_NoneType_: {
             data?: components["schemas"]["DecisionView"] | null;
@@ -436,6 +445,16 @@ export interface components {
         /** ResponseEnvelope[InvoiceUploadResponse, NoneType] */
         ResponseEnvelope_InvoiceUploadResponse_NoneType_: {
             data?: components["schemas"]["InvoiceUploadResponse"] | null;
+            error?: components["schemas"]["ErrorInfo"] | null;
+            /** Meta */
+            meta?: null;
+            /** Success */
+            readonly success: boolean;
+        };
+        /** ResponseEnvelope[NoneType, NoneType] */
+        ResponseEnvelope_NoneType_NoneType_: {
+            /** Data */
+            data?: null;
             error?: components["schemas"]["ErrorInfo"] | null;
             /** Meta */
             meta?: null;
@@ -645,7 +664,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CurrentUserResponse"];
+                    "application/json": components["schemas"]["ResponseEnvelope_CurrentUserResponse_NoneType_"];
+                };
+            };
+            /** @description Missing or invalid bearer token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_NoneType_NoneType_"];
                 };
             };
         };

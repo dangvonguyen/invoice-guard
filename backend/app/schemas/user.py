@@ -17,6 +17,8 @@ class UserLoginRequest(BaseModel):
 class CurrentUserResponse(BaseModel):
     """Response for users getting their own user data."""
 
+    model_config = {"from_attributes": True}
+
     id: UUID
     email: str
     name: str

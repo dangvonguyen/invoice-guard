@@ -42,7 +42,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CurrentUserResponse'
+                $ref: '#/components/schemas/ResponseEnvelope_CurrentUserResponse_NoneType_'
+        '401':
+          description: Missing or invalid bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEnvelope_NoneType_NoneType_'
       security:
         - HTTPBearer: []
   /invoices:
@@ -616,6 +622,27 @@ components:
         - chunk_count
       title: PolicyDocumentUploadResponse
       description: Response for a successful policy document upload.
+    ResponseEnvelope_CurrentUserResponse_NoneType_:
+      properties:
+        data:
+          anyOf:
+            - $ref: '#/components/schemas/CurrentUserResponse'
+            - type: 'null'
+        error:
+          anyOf:
+            - $ref: '#/components/schemas/ErrorInfo'
+            - type: 'null'
+        meta:
+          type: 'null'
+          title: Meta
+        success:
+          type: boolean
+          title: Success
+          readOnly: true
+      type: object
+      required:
+        - success
+      title: ResponseEnvelope[CurrentUserResponse, NoneType]
     ResponseEnvelope_DecisionView_NoneType_:
       properties:
         data:
@@ -658,6 +685,26 @@ components:
       required:
         - success
       title: ResponseEnvelope[InvoiceUploadResponse, NoneType]
+    ResponseEnvelope_NoneType_NoneType_:
+      properties:
+        data:
+          type: 'null'
+          title: Data
+        error:
+          anyOf:
+            - $ref: '#/components/schemas/ErrorInfo'
+            - type: 'null'
+        meta:
+          type: 'null'
+          title: Meta
+        success:
+          type: boolean
+          title: Success
+          readOnly: true
+      type: object
+      required:
+        - success
+      title: ResponseEnvelope[NoneType, NoneType]
     ResponseEnvelope_PolicyDocumentUploadResponse_NoneType_:
       properties:
         data:

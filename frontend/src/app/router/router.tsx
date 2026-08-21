@@ -1,11 +1,13 @@
 import { createBrowserRouter } from 'react-router';
 
+import { loader as appLayoutLoader } from '@/app/layout/api/loader';
 import { AppLayout } from '@/app/layout/AppLayout';
 import { paths } from '@/shared/config/paths';
 
 export const router = createBrowserRouter([
   {
     element: <AppLayout />,
+    loader: appLayoutLoader,
     children: [
       {
         path: paths.home,
