@@ -1,15 +1,12 @@
 import { Form, useActionData, useNavigation } from 'react-router';
 
-import type { LoginErrorKind } from '@/entities/session';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/shared/ui/field';
 import { Input } from '@/shared/ui/input';
 
-import { loginErrorMessage } from '../model/loginErrorMessage';
-
 export function LoginForm() {
-  const actionData = useActionData<{ kind: LoginErrorKind }>();
+  const actionData = useActionData<Error>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === 'submitting';
 
@@ -46,9 +43,7 @@ export function LoginForm() {
               />
             </Field>
 
-            <FieldError>
-              {actionData !== undefined ? loginErrorMessage(actionData.kind) : null}
-            </FieldError>
+            <FieldError>{actionData?.message ?? null}</FieldError>
 
             <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
               Log in

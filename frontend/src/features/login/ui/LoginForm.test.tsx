@@ -31,7 +31,7 @@ describe('LoginForm', () => {
 
   it('should render invalid credentials message when the action reports invalid credentials', async () => {
     const user = userEvent.setup();
-    renderForm(() => ({ kind: 'invalid_credentials' }));
+    renderForm(() => new Error('Invalid email or password'));
 
     await user.type(screen.getByLabelText(/email/i), 'user@example.com');
     await user.type(screen.getByLabelText(/password/i), 'wrong-password');
@@ -42,7 +42,7 @@ describe('LoginForm', () => {
 
   it('should render generic message when the action reports a network error', async () => {
     const user = userEvent.setup();
-    renderForm(() => ({ kind: 'network_error' }));
+    renderForm(() => new Error('Something went wrong. Please try again.'));
 
     await user.type(screen.getByLabelText(/email/i), 'user@example.com');
     await user.type(screen.getByLabelText(/password/i), 'secret123');

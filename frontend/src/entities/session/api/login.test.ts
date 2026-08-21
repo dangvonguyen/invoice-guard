@@ -6,14 +6,14 @@ import { useAuthStore } from '@/shared/lib/authStore';
 
 import { server } from '../../../../tests/mocks/server';
 
-import { login } from './login';
+import { InvalidCredentialsError, login } from './login';
 
 const LOGIN_URL = `${API_BASE_URL}/auth/login`;
 
 describe('login', () => {
   afterEach(() => useAuthStore.getState().setAccessToken(null));
 
-  it('should return ok result and store the access token when credentials are valid', async () => {
+  it('should store the access token when credentials are valid', async () => {
     server.use(
       http.post(LOGIN_URL, () =>
         HttpResponse.json(
@@ -23,42 +23,35 @@ describe('login', () => {
       ),
     );
 
-    const result = await login('user@example.com', 'secret123');
+    await login('user@example.com', 'secret123');
 
-    expect(result).toEqual({ kind: 'ok' });
     expect(useAuthStore.getState().accessToken).toBe('signed.jwt.token');
   });
 
-  it('should return invalid credentials result on 401 and clear the token', async () => {
+  it('should throw InvalidCredentialsError on 401 and clear the token', async () => {
     server.use(
       http.post(LOGIN_URL, () =>
         HttpResponse.json({ detail: 'Invalid email or password' }, { status: 401 }),
       ),
     );
 
-    const result = await login('user@example.com', 'wrong');
-
-    expect(result).toEqual({ kind: 'invalid_credentials' });
+    await expect(login('user@example.com', 'wrong')).rejects.toThrow(InvalidCredentialsError);
     expect(useAuthStore.getState().accessToken).toBeNull();
   });
 
-  it('should return network error result when request never reaches a server', async () => {
+  it('should throw when the request never reaches a server', async () => {
     server.use(http.post(LOGIN_URL, () => HttpResponse.error()));
 
-    const result = await login('user@example.com', 'secret123');
-
-    expect(result).toEqual({ kind: 'network_error' });
+    await expect(login('user@example.com', 'secret123')).rejects.toThrow();
     expect(useAuthStore.getState().accessToken).toBeNull();
   });
 
-  it('should return network error result on 5xx server error', async () => {
+  it('should throw on 5xx server error', async () => {
     server.use(
       http.post(LOGIN_URL, () => HttpResponse.json({ detail: 'internal error' }, { status: 500 })),
     );
 
-    const result = await login('user@example.com', 'secret123');
-
-    expect(result).toEqual({ kind: 'network_error' });
+    await expect(login('user@example.com', 'secret123')).rejects.toThrow();
   });
 
   it('should apply only the most recently initiated attempt when an earlier attempt resolves later', async () => {
@@ -92,11 +85,10 @@ describe('login', () => {
     expect(useAuthStore.getState().accessToken).toBe('correct.jwt.token');
 
     resolveFirstAttempt(); // now let the stale first attempt finish
-    const firstResult = await firstAttempt;
+    await expect(firstAttempt).rejects.toThrow(InvalidCredentialsError);
 
     // The store must still reflect attempt 2, unaffected by attempt 1
     // resolving afterward.
-    expect(firstResult).toEqual({ kind: 'invalid_credentials' });
     expect(useAuthStore.getState().accessToken).toBe('correct.jwt.token');
   });
 });
