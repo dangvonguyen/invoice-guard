@@ -20,12 +20,7 @@ export function HydrateFallback() {
 }
 
 export function InvoiceListPage() {
-  const result = useLoaderData<typeof loader>();
-  const revalidator = useRevalidator();
-
-  function refetch() {
-    void revalidator.revalidate();
-  }
+  const invoices = useLoaderData<typeof loader>();
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-5 py-10">
@@ -34,17 +29,7 @@ export function InvoiceListPage() {
         <UploadInvoiceDialog />
       </div>
 
-      {result.kind === 'error' && (
-        <Empty>
-          <EmptyHeader>
-            <EmptyTitle>Couldn't load your invoices</EmptyTitle>
-            <EmptyDescription>Something went wrong. Please try again.</EmptyDescription>
-          </EmptyHeader>
-          <Button onClick={refetch}>Retry</Button>
-        </Empty>
-      )}
-
-      {result.kind === 'ok' && result.invoices.length === 0 && (
+      {invoices.length === 0 && (
         <Empty>
           <EmptyHeader>
             <EmptyMedia>
@@ -55,15 +40,35 @@ export function InvoiceListPage() {
         </Empty>
       )}
 
-      {result.kind === 'ok' && result.invoices.length > 0 && (
+      {invoices.length > 0 && (
         <ul aria-label="Invoices" className="flex flex-col gap-3">
-          {result.invoices.map((invoice, index) => (
+          {invoices.map((invoice, index) => (
             <li>
               <InvoiceRow key={invoice.id} invoice={invoice} index={index + 1} />
             </li>
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+export function ErrorBoundary() {
+  const revalidator = useRevalidator();
+
+  function retry() {
+    void revalidator.revalidate();
+  }
+
+  return (
+    <div className="mx-auto flex max-w-3xl flex-col gap-6 px-5 py-10">
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle>Couldn't load your invoices</EmptyTitle>
+          <EmptyDescription>Something went wrong. Please try again.</EmptyDescription>
+        </EmptyHeader>
+        <Button onClick={retry}>Retry</Button>
+      </Empty>
     </div>
   );
 }

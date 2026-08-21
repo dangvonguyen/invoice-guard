@@ -1,21 +1,6 @@
 import { apiClient } from '@/shared/api/client';
 
-import type { InvoiceListItem, InvoiceUploadResponse } from '../model/types';
-
-export type ListInvoicesResult = { kind: 'ok'; invoices: InvoiceListItem[] } | { kind: 'error' };
-
-export async function listInvoices(): Promise<ListInvoicesResult> {
-  try {
-    const { data, error } = await apiClient.GET('/invoices');
-
-    if (error !== undefined || data?.data === null || data?.data === undefined) {
-      return { kind: 'error' };
-    }
-    return { kind: 'ok', invoices: data.data };
-  } catch {
-    return { kind: 'error' };
-  }
-}
+import type { InvoiceUploadResponse } from '../model/types';
 
 export type UploadInvoiceResult =
   { kind: 'ok'; invoice: InvoiceUploadResponse } | { kind: 'error' };

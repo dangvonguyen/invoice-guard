@@ -4,16 +4,14 @@ import { ChevronRight } from 'lucide-react';
 import { Badge } from '@/shared/ui/badge';
 
 import { invoiceStatusBadgeVariant, invoiceStatusLabel } from '../model/statusLabel';
-import type { InvoiceListItem } from '../model/types';
+import type { Invoice } from '../model/types';
 
 export interface InvoiceRowProps {
-  invoice: InvoiceListItem;
+  invoice: Invoice;
   index: number;
 }
 
 export function InvoiceRow({ invoice, index }: InvoiceRowProps) {
-  const submittedAt = new Date(invoice.created_at);
-
   return (
     <Link
       to={`/invoices/${invoice.id}`}
@@ -22,7 +20,7 @@ export function InvoiceRow({ invoice, index }: InvoiceRowProps) {
       <span className="w-2">{index}.</span>
       <span className="text-muted-foreground flex flex-1">
         Submitted{' '}
-        {submittedAt.toLocaleDateString(undefined, {
+        {invoice.createdAt.toLocaleDateString(undefined, {
           year: 'numeric',
           month: 'short',
           day: 'numeric',

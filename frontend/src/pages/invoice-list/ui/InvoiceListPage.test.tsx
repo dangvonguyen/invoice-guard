@@ -12,7 +12,7 @@ import { server } from '../../../../tests/mocks/server';
 import { action } from '../api/action';
 import { loader } from '../api/loader';
 
-import { HydrateFallback, InvoiceListPage } from './InvoiceListPage';
+import { ErrorBoundary, HydrateFallback, InvoiceListPage } from './InvoiceListPage';
 
 const INVOICES_URL = `${API_BASE_URL}/invoices`;
 
@@ -37,7 +37,14 @@ function uploadEnvelope(id: string, status: InvoiceListItem['status']) {
 
 function renderPage() {
   const Stub = createRoutesStub([
-    { path: '/invoices', Component: InvoiceListPage, HydrateFallback, loader, action },
+    {
+      path: '/invoices',
+      Component: InvoiceListPage,
+      HydrateFallback,
+      ErrorBoundary,
+      loader,
+      action,
+    },
     { path: '/invoices/:id', Component: () => <p>Invoice detail placeholder</p> },
   ]);
 

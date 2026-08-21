@@ -1,12 +1,13 @@
 export type { GetInvoiceResult } from './api/getInvoice';
 export { getInvoice } from './api/getInvoice';
-export type { ListInvoicesResult, UploadInvoiceResult } from './api/invoiceApi';
-export { listInvoices, uploadInvoice } from './api/invoiceApi';
+export type { UploadInvoiceResult } from './api/invoiceApi';
+export { uploadInvoice } from './api/invoiceApi';
+export { listInvoices } from './api/listInvoices';
 export { invoiceStatusBadgeVariant, invoiceStatusLabel } from './model/statusLabel';
 export type {
   DecisionView,
+  Invoice,
   InvoiceDetailResponse,
-  InvoiceListItem,
   InvoiceStatus,
   InvoiceSummary,
   InvoiceUploadResponse,
