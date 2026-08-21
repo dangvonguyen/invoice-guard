@@ -3,7 +3,7 @@ import { useDropzone } from 'react-dropzone';
 import { useFetcher } from 'react-router';
 import { UploadCloud } from 'lucide-react';
 
-import type { UploadInvoiceResult } from '@/entities/invoice';
+import type { UploadedInvoice } from '@/entities/invoice';
 import { formatFileSize } from '@/shared/lib/formatFileSize';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
@@ -22,7 +22,7 @@ export function UploadInvoiceDialog() {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [hasError, setHasError] = useState(false);
-  const fetcher = useFetcher<UploadInvoiceResult>();
+  const fetcher = useFetcher<UploadedInvoice | null>();
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { 'application/pdf': ['.pdf'] },
@@ -43,11 +43,11 @@ export function UploadInvoiceDialog() {
   useEffect(() => {
     if (fetcher.state !== 'idle' || fetcher.data === undefined) return;
 
-    if (fetcher.data.kind === 'ok') {
+    if (fetcher.data === null) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOpen(false);
-    } else {
       setHasError(true);
+    } else {
+      setOpen(false);
     }
   }, [fetcher.state, fetcher.data]);
 

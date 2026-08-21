@@ -3,9 +3,10 @@ import type {
   InvoiceDetailDto,
   InvoiceListItemDto,
   InvoiceSummaryDto,
+  InvoiceUploadResponseDto,
 } from '../api/types';
 
-import type { Decision, Invoice, InvoiceDetail, InvoiceSummary } from './types';
+import type { Decision, Invoice, InvoiceDetail, InvoiceSummary, UploadedInvoice } from './types';
 
 export function toInvoice(dto: InvoiceListItemDto): Invoice {
   return {
@@ -39,5 +40,12 @@ export function toInvoiceDetail(dto: InvoiceDetailDto): InvoiceDetail {
     status: dto.status,
     summary: dto.invoice_summary === null ? null : toInvoiceSummary(dto.invoice_summary),
     decision: dto.decision === null ? null : toDecision(dto.decision),
+  };
+}
+
+export function toUploadedInvoice(dto: InvoiceUploadResponseDto): UploadedInvoice {
+  return {
+    id: dto.id,
+    status: dto.status,
   };
 }

@@ -1,13 +1,18 @@
 import type { ActionFunctionArgs } from 'react-router';
 
-import { uploadInvoice, type UploadInvoiceResult } from '@/entities/invoice';
+import { type UploadedInvoice, uploadInvoice } from '@/entities/invoice';
 
-export async function action({ request }: ActionFunctionArgs): Promise<UploadInvoiceResult> {
+export async function action({ request }: ActionFunctionArgs): Promise<UploadedInvoice | null> {
   const formData = await request.formData();
   const file = formData.get('file');
 
   if (!(file instanceof File)) {
-    return { kind: 'error' };
+    return null;
   }
-  return uploadInvoice(file);
+
+  try {
+    return await uploadInvoice(file);
+  } catch {
+    return null;
+  }
 }

@@ -1,5 +1,3 @@
-import type { components } from '@/shared/api/schema';
-
 export type InvoiceStatus =
   'upload_failed' | 'processing' | 'processing_error' | 'awaiting_review' | 'approved' | 'rejected';
 
@@ -30,4 +28,7 @@ export interface InvoiceDetail {
   decision: Decision | null;
 }
 
-export type InvoiceUploadResponse = components['schemas']['InvoiceUploadResponse'];
+export interface UploadedInvoice {
+  id: string;
+  status: InvoiceStatus;
+}

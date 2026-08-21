@@ -1,7 +1,6 @@
 export { getInvoice, NotFoundError } from './api/getInvoice';
-export type { UploadInvoiceResult } from './api/invoiceApi';
-export { uploadInvoice } from './api/invoiceApi';
 export { listInvoices } from './api/listInvoices';
+export { uploadInvoice } from './api/uploadInvoice';
 export { invoiceStatusBadgeVariant, invoiceStatusLabel } from './model/statusLabel';
 export type {
   Decision,
@@ -9,7 +8,7 @@ export type {
   InvoiceDetail,
   InvoiceStatus,
   InvoiceSummary,
-  InvoiceUploadResponse,
+  UploadedInvoice,
 } from './model/types';
 export { DecisionCard } from './ui/DecisionCard';
 export { InvoiceRow } from './ui/InvoiceRow';
