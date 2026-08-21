@@ -11,7 +11,7 @@ export const router = createBrowserRouter([
     children: [
       {
         path: paths.home,
-        lazy: () => import('@/pages/dashboard'),
+        lazy: () => import('@/pages/home'),
       },
       {
         path: paths.login,

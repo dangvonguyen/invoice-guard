@@ -1,6 +1,7 @@
 import { type ActionFunctionArgs, redirect } from 'react-router';
 
 import { InvalidCredentialsError, login } from '@/entities/session';
+import { getCurrentUser, landingPathForRole } from '@/entities/user';
 import { paths } from '@/shared/config/paths';
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -18,5 +19,10 @@ export async function action({ request }: ActionFunctionArgs) {
     return new Error('Something went wrong. Please try again.');
   }
 
-  return redirect(paths.invoices);
+  try {
+    const user = await getCurrentUser();
+    return redirect(landingPathForRole(user.role));
+  } catch {
+    return redirect(paths.invoices);
+  }
 }

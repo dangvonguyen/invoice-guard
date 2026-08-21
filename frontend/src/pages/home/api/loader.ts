@@ -1,11 +1,12 @@
 import { redirect } from 'react-router';
 
 import { getCurrentUser, landingPathForRole, UnauthenticatedError } from '@/entities/user';
+import { paths } from '@/shared/config/paths';
 import { useAuthStore } from '@/shared/lib/authStore';
 
 export async function loader() {
   if (useAuthStore.getState().accessToken === null) {
-    return null;
+    return redirect(paths.login);
   }
 
   try {
@@ -14,7 +15,7 @@ export async function loader() {
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       useAuthStore.getState().setAccessToken(null);
-      return null;
+      return redirect(paths.login);
     }
     throw error;
   }
