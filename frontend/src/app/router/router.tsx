@@ -26,6 +26,10 @@ export const router = createBrowserRouter([
         lazy: () => import('@/pages/invoice-detail'),
       },
       {
+        path: paths.reviewQueue,
+        lazy: () => import('@/pages/review-queue'),
+      },
+      {
         path: '*',
         lazy: () => import('@/pages/not-found'),
       },

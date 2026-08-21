@@ -4,9 +4,17 @@ import type {
   InvoiceListItemDto,
   InvoiceSummaryDto,
   InvoiceUploadResponseDto,
+  ReviewQueueItemDto,
 } from '../api/types';
 
-import type { Decision, Invoice, InvoiceDetail, InvoiceSummary, UploadedInvoice } from './types';
+import type {
+  Decision,
+  Invoice,
+  InvoiceDetail,
+  InvoiceSummary,
+  ReviewQueueItem,
+  UploadedInvoice,
+} from './types';
 
 export function toInvoice(dto: InvoiceListItemDto): Invoice {
   return {
@@ -47,5 +55,14 @@ export function toUploadedInvoice(dto: InvoiceUploadResponseDto): UploadedInvoic
   return {
     id: dto.id,
     status: dto.status,
+  };
+}
+
+export function toReviewQueueItem(dto: ReviewQueueItemDto): ReviewQueueItem {
+  return {
+    id: dto.id,
+    submittedAt: new Date(dto.submitted_at),
+    summary: dto.invoice_summary === null ? null : toInvoiceSummary(dto.invoice_summary),
+    flagCount: dto.flag_count,
   };
 }

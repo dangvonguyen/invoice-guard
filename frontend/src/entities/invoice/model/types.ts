@@ -32,3 +32,10 @@ export interface UploadedInvoice {
   id: string;
   status: InvoiceStatus;
 }
+
+export interface ReviewQueueItem {
+  id: string;
+  submittedAt: Date;
+  summary: InvoiceSummary | null;
+  flagCount: number;
+}
