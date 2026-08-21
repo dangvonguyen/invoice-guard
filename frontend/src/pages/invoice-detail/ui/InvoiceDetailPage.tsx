@@ -1,13 +1,14 @@
 import type { ReactNode } from 'react';
-import { Link, useLoaderData, useRevalidator } from 'react-router';
+import { Link, useLoaderData, useRevalidator, useRouteError } from 'react-router';
 import { ArrowLeft, FileWarning, Loader2 } from 'lucide-react';
 
 import {
   DecisionCard,
-  type InvoiceDetailResponse,
+  type InvoiceDetail,
   invoiceStatusBadgeVariant,
   invoiceStatusLabel,
   InvoiceSummaryCard,
+  NotFoundError,
 } from '@/entities/invoice';
 import { paths } from '@/shared/config/paths';
 import { Badge } from '@/shared/ui/badge';
@@ -28,10 +29,21 @@ export function HydrateFallback() {
 }
 
 export function InvoiceDetailPage() {
-  const result = useLoaderData<typeof loader>();
+  const invoice = useLoaderData<typeof loader>();
+
+  return (
+    <div className="mx-auto flex max-w-3xl flex-col gap-6 px-5 py-10">
+      <BackToInvoiceList />
+      <InvoiceDetailContent invoice={invoice} />
+    </div>
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
   const revalidator = useRevalidator();
 
-  function refetch() {
+  function retry() {
     void revalidator.revalidate();
   }
 
@@ -39,7 +51,7 @@ export function InvoiceDetailPage() {
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-5 py-10">
       <BackToInvoiceList />
 
-      {result.kind === 'not_found' && (
+      {error instanceof NotFoundError ? (
         <Empty>
           <EmptyHeader>
             <EmptyMedia>
@@ -48,19 +60,15 @@ export function InvoiceDetailPage() {
             <EmptyTitle>Invoice not found</EmptyTitle>
           </EmptyHeader>
         </Empty>
-      )}
-
-      {result.kind === 'error' && (
+      ) : (
         <Empty>
           <EmptyHeader>
             <EmptyTitle>Couldn't load this invoice</EmptyTitle>
             <EmptyDescription>Something went wrong. Please try again.</EmptyDescription>
           </EmptyHeader>
-          <Button onClick={refetch}>Retry</Button>
+          <Button onClick={retry}>Retry</Button>
         </Empty>
       )}
-
-      {result.kind === 'ok' && <InvoiceDetailContent invoice={result.invoice} />}
     </div>
   );
 }
@@ -77,7 +85,7 @@ export function BackToInvoiceList() {
   );
 }
 
-function InvoiceDetailContent({ invoice }: { invoice: InvoiceDetailResponse }) {
+function InvoiceDetailContent({ invoice }: { invoice: InvoiceDetail }) {
   return (
     <>
       <div className="flex items-center justify-between gap-4">
@@ -95,7 +103,7 @@ function InvoiceDetailContent({ invoice }: { invoice: InvoiceDetailResponse }) {
         <StatusNotice>We couldn't process this invoice.</StatusNotice>
       )}
 
-      {invoice.invoice_summary !== null && <InvoiceSummaryCard summary={invoice.invoice_summary} />}
+      {invoice.summary !== null && <InvoiceSummaryCard summary={invoice.summary} />}
 
       {invoice.status === 'awaiting_review' && invoice.decision === null && (
         <StatusNotice>Awaiting review. You'll see the outcome here once it's decided.</StatusNotice>

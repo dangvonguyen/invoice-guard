@@ -11,7 +11,7 @@ import { useAuthStore } from '@/shared/lib/authStore';
 import { server } from '../../../../tests/mocks/server';
 import { loader } from '../api/loader';
 
-import { HydrateFallback, InvoiceDetailPage } from './InvoiceDetailPage';
+import { ErrorBoundary, HydrateFallback, InvoiceDetailPage } from './InvoiceDetailPage';
 
 const INVOICE_ID = 'inv-1';
 const INVOICE_URL = `${API_BASE_URL}/invoices/${INVOICE_ID}`;
@@ -43,7 +43,13 @@ function detailEnvelope(data: InvoiceDetailResponse) {
 
 function renderPage() {
   const Stub = createRoutesStub([
-    { path: '/invoices/:id', Component: InvoiceDetailPage, HydrateFallback, loader },
+    {
+      path: '/invoices/:id',
+      Component: InvoiceDetailPage,
+      HydrateFallback,
+      ErrorBoundary,
+      loader,
+    },
     { path: paths.login, Component: () => <p>Login</p> },
   ]);
 

@@ -9,7 +9,25 @@ export interface Invoice {
   createdAt: Date;
 }
 
+export interface InvoiceSummary {
+  vendorName: string;
+  invoiceDate: string;
+  totalAmount: string;
+  currency: string;
+}
+
+export interface Decision {
+  outcome: 'approved' | 'rejected';
+  reason: string;
+  decidedBy: string;
+  decidedAt: Date;
+}
+
+export interface InvoiceDetail {
+  id: string;
+  status: InvoiceStatus;
+  summary: InvoiceSummary | null;
+  decision: Decision | null;
+}
+
 export type InvoiceUploadResponse = components['schemas']['InvoiceUploadResponse'];
-export type InvoiceSummary = components['schemas']['InvoiceSummary'];
-export type InvoiceDetailResponse = components['schemas']['InvoiceDetailResponse'];
-export type DecisionView = components['schemas']['DecisionView'];
