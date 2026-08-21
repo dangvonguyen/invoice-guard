@@ -1,11 +1,11 @@
 import { redirect } from 'react-router'
 
 import { listInvoices } from '@/entities/invoice'
-import { tokenStorage } from '@/entities/session'
 import { paths } from '@/shared/config/paths'
+import { useAuthStore } from '@/shared/lib/authStore'
 
 export async function loader() {
-  if (!tokenStorage.isAuthenticated()) {
+  if (useAuthStore.getState().accessToken === null) {
     return redirect(paths.login)
   }
   return listInvoices()

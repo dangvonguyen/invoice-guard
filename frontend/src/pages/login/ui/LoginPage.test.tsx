@@ -4,9 +4,9 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { tokenStorage } from '@/entities/session'
 import { API_BASE_URL } from '@/shared/config/env'
 import { paths } from '@/shared/config/paths'
+import { useAuthStore } from '@/shared/lib/authStore'
 
 import { server } from '../../../../tests/mocks/server'
 import { action } from '../api/action'
@@ -31,7 +31,7 @@ async function submitLogin(email: string, password: string): Promise<void> {
 describe('LoginPage acceptance', () => {
   afterEach(() => {
     // Reset the session explicitly to avoid its state persisting across tests
-    tokenStorage.clear()
+    useAuthStore.getState().setAccessToken(null)
   })
 
   it('should navigate home when credentials are valid', async () => {

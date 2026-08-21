@@ -2,7 +2,7 @@ import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { API_BASE_URL } from '@/shared/config/env'
-import { tokenStorage } from '@/shared/lib/tokenStorage'
+import { useAuthStore } from '@/shared/lib/authStore'
 
 import { server } from '../../../../tests/mocks/server'
 
@@ -11,7 +11,7 @@ import { login } from './login'
 const LOGIN_URL = `${API_BASE_URL}/auth/login`
 
 describe('login', () => {
-  afterEach(() => tokenStorage.clear())
+  afterEach(() => useAuthStore.getState().setAccessToken(null))
 
   it('should return ok result and store the access token when credentials are valid', async () => {
     server.use(
@@ -26,8 +26,7 @@ describe('login', () => {
     const result = await login('user@example.com', 'secret123')
 
     expect(result).toEqual({ kind: 'ok' })
-    expect(tokenStorage.isAuthenticated()).toBe(true)
-    expect(tokenStorage.getAccessToken()).toBe('signed.jwt.token')
+    expect(useAuthStore.getState().accessToken).toBe('signed.jwt.token')
   })
 
   it('should return invalid credentials result on 401 and clear the token', async () => {
@@ -40,7 +39,7 @@ describe('login', () => {
     const result = await login('user@example.com', 'wrong')
 
     expect(result).toEqual({ kind: 'invalid_credentials' })
-    expect(tokenStorage.isAuthenticated()).toBe(false)
+    expect(useAuthStore.getState().accessToken).toBeNull()
   })
 
   it('should return network error result when request never reaches a server', async () => {
@@ -49,7 +48,7 @@ describe('login', () => {
     const result = await login('user@example.com', 'secret123')
 
     expect(result).toEqual({ kind: 'network_error' })
-    expect(tokenStorage.isAuthenticated()).toBe(false)
+    expect(useAuthStore.getState().accessToken).toBeNull()
   })
 
   it('should return network error result on 5xx server error', async () => {
@@ -90,8 +89,7 @@ describe('login', () => {
     const secondAttempt = login('user@example.com', 'correct-password')
 
     await secondAttempt // second attempt resolves first (nothing gates it)
-    expect(tokenStorage.isAuthenticated()).toBe(true)
-    expect(tokenStorage.getAccessToken()).toBe('correct.jwt.token')
+    expect(useAuthStore.getState().accessToken).toBe('correct.jwt.token')
 
     resolveFirstAttempt() // now let the stale first attempt finish
     const firstResult = await firstAttempt
@@ -99,7 +97,6 @@ describe('login', () => {
     // The store must still reflect attempt 2, unaffected by attempt 1
     // resolving afterward.
     expect(firstResult).toEqual({ kind: 'invalid_credentials' })
-    expect(tokenStorage.isAuthenticated()).toBe(true)
-    expect(tokenStorage.getAccessToken()).toBe('correct.jwt.token')
+    expect(useAuthStore.getState().accessToken).toBe('correct.jwt.token')
   })
 })

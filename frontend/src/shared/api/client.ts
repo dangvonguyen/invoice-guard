@@ -1,7 +1,7 @@
 import createClient from 'openapi-fetch'
 
 import { API_BASE_URL } from '../config/env'
-import { tokenStorage } from '../lib/tokenStorage'
+import { useAuthStore } from '../lib/authStore'
 
 import type { paths } from './schema'
 
@@ -18,7 +18,7 @@ export const apiClient = createClient<paths>({
 
 apiClient.use({
   onRequest({ request }) {
-    const accessToken = tokenStorage.getAccessToken()
+    const accessToken = useAuthStore.getState().accessToken
     if (accessToken === null) return
 
     request.headers.set('Authorization', `Bearer ${accessToken}`)

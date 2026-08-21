@@ -1,5 +1,5 @@
 import { apiClient } from '@/shared/api/client'
-import { tokenStorage } from '@/shared/lib/tokenStorage'
+import { useAuthStore } from '@/shared/lib/authStore'
 
 export type LoginErrorKind = 'invalid_credentials' | 'network_error'
 export type LoginResult = { kind: 'ok' } | { kind: LoginErrorKind }
@@ -16,11 +16,11 @@ export async function login(email: string, password: string): Promise<LoginResul
   const result = await requestLogin(email, password)
 
   if (result.kind === 'ok') {
-    if (attempt === latestAttempt) tokenStorage.setAccessToken(result.accessToken)
+    if (attempt === latestAttempt) useAuthStore.getState().setAccessToken(result.accessToken)
     return { kind: 'ok' }
   }
 
-  if (attempt === latestAttempt) tokenStorage.clear()
+  if (attempt === latestAttempt) useAuthStore.getState().setAccessToken(null)
   return result
 }
 

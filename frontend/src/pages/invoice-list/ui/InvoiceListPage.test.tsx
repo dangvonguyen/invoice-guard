@@ -4,9 +4,9 @@ import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { tokenStorage } from '@/entities/session'
 import { API_BASE_URL } from '@/shared/config/env'
 import { paths } from '@/shared/config/paths'
+import { useAuthStore } from '@/shared/lib/authStore'
 
 import { server } from '../../../../tests/mocks/server'
 import { action } from '../api/action'
@@ -46,10 +46,10 @@ function renderPage() {
 
 describe('InvoiceListPage', () => {
   beforeEach(() => {
-    tokenStorage.setAccessToken('signed.jwt.token')
+    useAuthStore.getState().setAccessToken('signed.jwt.token')
   })
 
-  afterEach(() => tokenStorage.clear())
+  afterEach(() => useAuthStore.getState().setAccessToken(null))
 
   it('should show a loading state while invoices are being fetched', async () => {
     server.use(

@@ -1,11 +1,11 @@
 import { Link } from 'react-router'
 
-import { tokenStorage, useSession } from '@/entities/session'
 import { paths } from '@/shared/config/paths'
+import { useAuth } from '@/shared/lib/hooks/useAuth'
 import { buttonVariants } from '@/shared/ui/button'
 
 export function DashboardPage() {
-  const { isAuthenticated } = useSession(tokenStorage)
+  const { isAuthenticated } = useAuth()
 
   if (!isAuthenticated) {
     return (

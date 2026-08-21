@@ -2,12 +2,12 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { tokenStorage } from '@/entities/session'
+import { useAuthStore } from '@/shared/lib/authStore'
 
 import { DashboardPage } from './DashboardPage'
 
 describe('DashboardPage', () => {
-  afterEach(() => tokenStorage.clear())
+  afterEach(() => useAuthStore.getState().setAccessToken(null))
 
   it('should invite unauthenticated users to log in', () => {
     render(
