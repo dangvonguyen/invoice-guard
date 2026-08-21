@@ -1,25 +1,25 @@
-import { createRoutesStub } from 'react-router'
-import { render, screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { delay, http, HttpResponse } from 'msw'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { createRoutesStub } from 'react-router';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { delay, http, HttpResponse } from 'msw';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { API_BASE_URL } from '@/shared/config/env'
-import { paths } from '@/shared/config/paths'
-import { useAuthStore } from '@/shared/lib/authStore'
+import { API_BASE_URL } from '@/shared/config/env';
+import { paths } from '@/shared/config/paths';
+import { useAuthStore } from '@/shared/lib/authStore';
 
-import { server } from '../../../../tests/mocks/server'
-import { action } from '../api/action'
-import { loader } from '../api/loader'
+import { server } from '../../../../tests/mocks/server';
+import { action } from '../api/action';
+import { loader } from '../api/loader';
 
-import { HydrateFallback, InvoiceListPage } from './InvoiceListPage'
+import { HydrateFallback, InvoiceListPage } from './InvoiceListPage';
 
-const INVOICES_URL = `${API_BASE_URL}/invoices`
+const INVOICES_URL = `${API_BASE_URL}/invoices`;
 
 interface InvoiceListItem {
-  id: string
-  status: 'processing' | 'processing_error' | 'awaiting_review' | 'approved' | 'rejected'
-  created_at: string
+  id: string;
+  status: 'processing' | 'processing_error' | 'awaiting_review' | 'approved' | 'rejected';
+  created_at: string;
 }
 
 function listEnvelope(data: InvoiceListItem[]) {
@@ -28,51 +28,51 @@ function listEnvelope(data: InvoiceListItem[]) {
     data,
     error: null,
     meta: { total: data.length, offset: 0, limit: 10 },
-  }
+  };
 }
 
 function uploadEnvelope(id: string, status: InvoiceListItem['status']) {
-  return { success: true, data: { id, status }, error: null, meta: null }
+  return { success: true, data: { id, status }, error: null, meta: null };
 }
 
 function renderPage() {
   const Stub = createRoutesStub([
     { path: '/invoices', Component: InvoiceListPage, HydrateFallback, loader, action },
     { path: '/invoices/:id', Component: () => <p>Invoice detail placeholder</p> },
-  ])
+  ]);
 
-  render(<Stub initialEntries={['/invoices']} />)
+  render(<Stub initialEntries={['/invoices']} />);
 }
 
 describe('InvoiceListPage', () => {
   beforeEach(() => {
-    useAuthStore.getState().setAccessToken('signed.jwt.token')
-  })
+    useAuthStore.getState().setAccessToken('signed.jwt.token');
+  });
 
-  afterEach(() => useAuthStore.getState().setAccessToken(null))
+  afterEach(() => useAuthStore.getState().setAccessToken(null));
 
   it('should show a loading state while invoices are being fetched', async () => {
     server.use(
       http.get(INVOICES_URL, async () => {
-        await delay(50)
-        return HttpResponse.json(listEnvelope([]))
+        await delay(50);
+        return HttpResponse.json(listEnvelope([]));
       }),
-    )
+    );
 
-    renderPage()
+    renderPage();
 
-    expect(screen.getByRole('status')).toBeInTheDocument()
-    await screen.findByRole('button', { name: /upload invoice/i })
-  })
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    await screen.findByRole('button', { name: /upload invoice/i });
+  });
 
   it('should show an empty state when the employee has no invoices', async () => {
-    server.use(http.get(INVOICES_URL, () => HttpResponse.json(listEnvelope([]))))
+    server.use(http.get(INVOICES_URL, () => HttpResponse.json(listEnvelope([]))));
 
-    renderPage()
+    renderPage();
 
-    expect(await screen.findByText(/no invoices yet/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /upload invoice/i })).toBeEnabled()
-  })
+    expect(await screen.findByText(/no invoices yet/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /upload invoice/i })).toBeEnabled();
+  });
 
   it('should render fetched invoices newest first with their status', async () => {
     server.use(
@@ -85,27 +85,29 @@ describe('InvoiceListPage', () => {
           ]),
         ),
       ),
-    )
+    );
 
-    renderPage()
+    renderPage();
 
-    const list = await screen.findByRole('list', { name: /invoices/i })
-    const rows = within(list).getAllByRole('link')
+    const list = await screen.findByRole('list', { name: /invoices/i });
+    const rows = within(list).getAllByRole('link');
 
-    expect(rows).toHaveLength(3)
-    expect(rows[0]).toHaveTextContent(/awaiting review/i)
-    expect(rows[0]).toHaveAttribute('href', '/invoices/inv-3')
-    expect(rows[1]).toHaveTextContent(/approved/i)
-    expect(rows[2]).toHaveTextContent(/processing error/i)
-  })
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveTextContent(/awaiting review/i);
+    expect(rows[0]).toHaveAttribute('href', '/invoices/inv-3');
+    expect(rows[1]).toHaveTextContent(/approved/i);
+    expect(rows[2]).toHaveTextContent(/processing error/i);
+  });
 
   it('should show a retry affordance when the list fails to load, and recover on retry', async () => {
-    server.use(http.get(INVOICES_URL, () => HttpResponse.json({ detail: 'boom' }, { status: 500 })))
+    server.use(
+      http.get(INVOICES_URL, () => HttpResponse.json({ detail: 'boom' }, { status: 500 })),
+    );
 
-    renderPage()
+    renderPage();
 
-    const retryButton = await screen.findByRole('button', { name: /retry/i })
-    expect(screen.getByText(/couldn.?t load/i)).toBeInTheDocument()
+    const retryButton = await screen.findByRole('button', { name: /retry/i });
+    expect(screen.getByText(/couldn.?t load/i)).toBeInTheDocument();
 
     server.use(
       http.get(INVOICES_URL, () =>
@@ -113,82 +115,82 @@ describe('InvoiceListPage', () => {
           listEnvelope([{ id: 'inv-1', status: 'processing', created_at: '2026-08-19T10:02:00Z' }]),
         ),
       ),
-    )
-    await userEvent.setup().click(retryButton)
+    );
+    await userEvent.setup().click(retryButton);
 
-    expect(await screen.findByText(/processing/i)).toBeInTheDocument()
-  })
+    expect(await screen.findByText(/processing/i)).toBeInTheDocument();
+  });
 
   it('should let an employee upload an invoice and see it appear in the list', async () => {
-    let invoices: InvoiceListItem[] = []
+    let invoices: InvoiceListItem[] = [];
     server.use(
       http.get(INVOICES_URL, () => HttpResponse.json(listEnvelope(invoices))),
       http.post(INVOICES_URL, () => {
-        invoices = [{ id: 'new-id', status: 'processing', created_at: '2026-08-19T12:00:00Z' }]
-        return HttpResponse.json(uploadEnvelope('new-id', 'processing'), { status: 201 })
+        invoices = [{ id: 'new-id', status: 'processing', created_at: '2026-08-19T12:00:00Z' }];
+        return HttpResponse.json(uploadEnvelope('new-id', 'processing'), { status: 201 });
       }),
-    )
-    const user = userEvent.setup()
-    renderPage()
-    await screen.findByText(/no invoices yet/i)
+    );
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText(/no invoices yet/i);
 
-    await user.click(screen.getByRole('button', { name: /upload invoice/i }))
-    const dialog = await screen.findByRole('dialog', { name: /upload invoice/i })
-    const file = new File(['%PDF-1.4'], 'invoice.pdf', { type: 'application/pdf' })
-    await user.upload(within(dialog).getByLabelText(/file/i), file)
-    await user.click(within(dialog).getByRole('button', { name: /^upload$/i }))
+    await user.click(screen.getByRole('button', { name: /upload invoice/i }));
+    const dialog = await screen.findByRole('dialog', { name: /upload invoice/i });
+    const file = new File(['%PDF-1.4'], 'invoice.pdf', { type: 'application/pdf' });
+    await user.upload(within(dialog).getByLabelText(/file/i), file);
+    await user.click(within(dialog).getByRole('button', { name: /^upload$/i }));
 
-    await screen.findByRole('list', { name: /invoices/i })
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(screen.getByText(/processing/i)).toBeInTheDocument()
-  })
+    await screen.findByRole('list', { name: /invoices/i });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText(/processing/i)).toBeInTheDocument();
+  });
 
   it('should disable submit until a file is selected', async () => {
-    server.use(http.get(INVOICES_URL, () => HttpResponse.json(listEnvelope([]))))
-    const user = userEvent.setup()
-    renderPage()
-    await screen.findByText(/no invoices yet/i)
+    server.use(http.get(INVOICES_URL, () => HttpResponse.json(listEnvelope([]))));
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText(/no invoices yet/i);
 
-    await user.click(screen.getByRole('button', { name: /upload invoice/i }))
-    const dialog = await screen.findByRole('dialog', { name: /upload invoice/i })
+    await user.click(screen.getByRole('button', { name: /upload invoice/i }));
+    const dialog = await screen.findByRole('dialog', { name: /upload invoice/i });
 
-    expect(within(dialog).getByRole('button', { name: /^upload$/i })).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: /^upload$/i })).toBeDisabled();
 
-    const file = new File(['%PDF-1.4'], 'invoice.pdf', { type: 'application/pdf' })
-    await user.upload(within(dialog).getByLabelText(/file/i), file)
+    const file = new File(['%PDF-1.4'], 'invoice.pdf', { type: 'application/pdf' });
+    await user.upload(within(dialog).getByLabelText(/file/i), file);
 
-    expect(within(dialog).getByRole('button', { name: /^upload$/i })).toBeEnabled()
-  })
+    expect(within(dialog).getByRole('button', { name: /^upload$/i })).toBeEnabled();
+  });
 
   it('should show an inline error and keep the dialog open when upload fails', async () => {
     server.use(
       http.get(INVOICES_URL, () => HttpResponse.json(listEnvelope([]))),
       http.post(INVOICES_URL, () => HttpResponse.json({ detail: 'boom' }, { status: 500 })),
-    )
-    const user = userEvent.setup()
-    renderPage()
-    await screen.findByText(/no invoices yet/i)
+    );
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText(/no invoices yet/i);
 
-    await user.click(screen.getByRole('button', { name: /upload invoice/i }))
-    const dialog = await screen.findByRole('dialog', { name: /upload invoice/i })
-    const file = new File(['%PDF-1.4'], 'invoice.pdf', { type: 'application/pdf' })
-    await user.upload(within(dialog).getByLabelText(/file/i), file)
-    await user.click(within(dialog).getByRole('button', { name: /^upload$/i }))
+    await user.click(screen.getByRole('button', { name: /upload invoice/i }));
+    const dialog = await screen.findByRole('dialog', { name: /upload invoice/i });
+    const file = new File(['%PDF-1.4'], 'invoice.pdf', { type: 'application/pdf' });
+    await user.upload(within(dialog).getByLabelText(/file/i), file);
+    await user.click(within(dialog).getByRole('button', { name: /^upload$/i }));
 
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/something went wrong/i)
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
-  })
-})
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/something went wrong/i);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+});
 
 describe('InvoicesPage access control', () => {
   it('should redirect unauthenticated users to login', async () => {
     const Stub = createRoutesStub([
       { path: paths.invoices, Component: InvoiceListPage, HydrateFallback, loader, action },
       { path: paths.login, Component: () => <p>Login</p> },
-    ])
+    ]);
 
-    render(<Stub initialEntries={[paths.invoices]} />)
+    render(<Stub initialEntries={[paths.invoices]} />);
 
-    expect(await screen.findByText('Login')).toBeInTheDocument()
-  })
-})
+    expect(await screen.findByText('Login')).toBeInTheDocument();
+  });
+});

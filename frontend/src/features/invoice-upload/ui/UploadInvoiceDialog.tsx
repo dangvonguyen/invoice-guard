@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
-import { useDropzone } from 'react-dropzone'
-import { useFetcher } from 'react-router'
-import { UploadCloud } from 'lucide-react'
+import { useEffect, useState } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { useFetcher } from 'react-router';
+import { UploadCloud } from 'lucide-react';
 
-import type { UploadInvoiceResult } from '@/entities/invoice'
-import { formatFileSize } from '@/shared/lib/formatFileSize'
-import { cn } from '@/shared/lib/utils'
-import { Button } from '@/shared/ui/button'
+import type { UploadInvoiceResult } from '@/entities/invoice';
+import { formatFileSize } from '@/shared/lib/formatFileSize';
+import { cn } from '@/shared/lib/utils';
+import { Button } from '@/shared/ui/button';
 import {
   Dialog,
   DialogClose,
@@ -15,43 +15,43 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/shared/ui/dialog'
-import { Field, FieldError, FieldGroup } from '@/shared/ui/field'
+} from '@/shared/ui/dialog';
+import { Field, FieldError, FieldGroup } from '@/shared/ui/field';
 
 export function UploadInvoiceDialog() {
-  const [open, setOpen] = useState(false)
-  const [file, setFile] = useState<File | null>(null)
-  const [hasError, setHasError] = useState(false)
-  const fetcher = useFetcher<UploadInvoiceResult>()
+  const [open, setOpen] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [hasError, setHasError] = useState(false);
+  const fetcher = useFetcher<UploadInvoiceResult>();
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { 'application/pdf': ['.pdf'] },
     multiple: false,
     onDrop: ([dropped]) => {
-      if (dropped) setFile(dropped)
+      if (dropped) setFile(dropped);
     },
-  })
+  });
 
   function handleOpenChange(nextOpen: boolean): void {
-    setOpen(nextOpen)
+    setOpen(nextOpen);
     if (nextOpen) {
-      setFile(null)
-      setHasError(false)
+      setFile(null);
+      setHasError(false);
     }
   }
 
   useEffect(() => {
-    if (fetcher.state !== 'idle' || fetcher.data === undefined) return
+    if (fetcher.state !== 'idle' || fetcher.data === undefined) return;
 
     if (fetcher.data.kind === 'ok') {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOpen(false)
+      setOpen(false);
     } else {
-      setHasError(true)
+      setHasError(true);
     }
-  }, [fetcher.state, fetcher.data])
+  }, [fetcher.state, fetcher.data]);
 
-  const isSubmitting = fetcher.state !== 'idle'
+  const isSubmitting = fetcher.state !== 'idle';
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -105,5 +105,5 @@ export function UploadInvoiceDialog() {
         </fetcher.Form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

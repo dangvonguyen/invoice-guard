@@ -1,10 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 
-import { formatInvoiceDate } from '../lib/formatInvoiceDate'
-import type { InvoiceSummary } from '../model/types'
+import { formatInvoiceDate } from '../lib/formatInvoiceDate';
+import type { InvoiceSummary } from '../model/types';
 
 export interface InvoiceSummaryCardProps {
-  summary: InvoiceSummary
+  summary: InvoiceSummary;
 }
 
 export function InvoiceSummaryCard({ summary }: InvoiceSummaryCardProps) {
@@ -26,5 +26,5 @@ export function InvoiceSummaryCard({ summary }: InvoiceSummaryCardProps) {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

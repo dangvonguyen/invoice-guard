@@ -10,5 +10,5 @@ export function formatInvoiceDate(dateOnly: string): string {
     month: 'short',
     day: 'numeric',
     timeZone: 'UTC',
-  })
+  });
 }

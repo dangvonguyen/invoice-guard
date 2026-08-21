@@ -1,7 +1,7 @@
-import { Link, Outlet } from 'react-router'
-import { ShieldCheck } from 'lucide-react'
+import { Link, Outlet } from 'react-router';
+import { ShieldCheck } from 'lucide-react';
 
-import { paths } from '@/shared/config/paths'
+import { paths } from '@/shared/config/paths';
 
 export function AppLayout() {
   return (
@@ -23,5 +23,5 @@ export function AppLayout() {
         <Outlet />
       </main>
     </div>
-  )
+  );
 }

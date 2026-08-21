@@ -1,1 +1,1 @@
-export { UploadInvoiceDialog } from './ui/UploadInvoiceDialog'
+export { UploadInvoiceDialog } from './ui/UploadInvoiceDialog';

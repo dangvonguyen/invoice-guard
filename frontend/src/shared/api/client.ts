@@ -1,9 +1,9 @@
-import createClient from 'openapi-fetch'
+import createClient from 'openapi-fetch';
 
-import { API_BASE_URL } from '../config/env'
-import { useAuthStore } from '../lib/authStore'
+import { API_BASE_URL } from '../config/env';
+import { useAuthStore } from '../lib/authStore';
 
-import type { paths } from './schema'
+import type { paths } from './schema';
 
 // openapi-fetch resolves `fetch: globalThis.fetch` once, at createClient()
 // call time. Since MSW's setupServer() patches globalThis.fetch inside
@@ -14,14 +14,14 @@ import type { paths } from './schema'
 export const apiClient = createClient<paths>({
   baseUrl: API_BASE_URL,
   fetch: (...args) => globalThis.fetch(...args),
-})
+});
 
 apiClient.use({
   onRequest({ request }) {
-    const accessToken = useAuthStore.getState().accessToken
-    if (accessToken === null) return
+    const accessToken = useAuthStore.getState().accessToken;
+    if (accessToken === null) return;
 
-    request.headers.set('Authorization', `Bearer ${accessToken}`)
-    return request
+    request.headers.set('Authorization', `Bearer ${accessToken}`);
+    return request;
   },
-})
+});

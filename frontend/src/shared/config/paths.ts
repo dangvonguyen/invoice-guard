@@ -3,4 +3,4 @@ export const paths = {
   login: '/login',
   invoices: '/invoices',
   invoiceDetail: '/invoices/:id',
-} as const
+} as const;

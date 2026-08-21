@@ -1,14 +1,14 @@
-import { Badge } from '@/shared/ui/badge'
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
+import { Badge } from '@/shared/ui/badge';
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 
-import type { DecisionView } from '../model/types'
+import type { DecisionView } from '../model/types';
 
 export interface DecisionCardProps {
-  decision: DecisionView
+  decision: DecisionView;
 }
 
 export function DecisionCard({ decision }: DecisionCardProps) {
-  const decidedAt = new Date(decision.decided_at)
+  const decidedAt = new Date(decision.decided_at);
 
   return (
     <Card>
@@ -32,5 +32,5 @@ export function DecisionCard({ decision }: DecisionCardProps) {
         </p>
       </CardContent>
     </Card>
-  )
+  );
 }

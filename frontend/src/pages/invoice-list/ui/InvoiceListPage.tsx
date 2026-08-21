@@ -1,12 +1,12 @@
-import { useLoaderData, useRevalidator } from 'react-router'
-import { Inbox, Loader2 } from 'lucide-react'
+import { useLoaderData, useRevalidator } from 'react-router';
+import { Inbox, Loader2 } from 'lucide-react';
 
-import { InvoiceRow } from '@/entities/invoice'
-import { UploadInvoiceDialog } from '@/features/invoice-upload'
-import { Button } from '@/shared/ui/button'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/shared/ui/empty'
+import { InvoiceRow } from '@/entities/invoice';
+import { UploadInvoiceDialog } from '@/features/invoice-upload';
+import { Button } from '@/shared/ui/button';
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/shared/ui/empty';
 
-import type { loader } from '../api/loader'
+import type { loader } from '../api/loader';
 
 export function HydrateFallback() {
   return (
@@ -16,15 +16,15 @@ export function HydrateFallback() {
         <span className="sr-only">Loading invoices…</span>
       </div>
     </div>
-  )
+  );
 }
 
 export function InvoiceListPage() {
-  const result = useLoaderData<typeof loader>()
-  const revalidator = useRevalidator()
+  const result = useLoaderData<typeof loader>();
+  const revalidator = useRevalidator();
 
   function refetch() {
-    void revalidator.revalidate()
+    void revalidator.revalidate();
   }
 
   return (
@@ -65,5 +65,5 @@ export function InvoiceListPage() {
         </ul>
       )}
     </div>
-  )
+  );
 }

@@ -1,18 +1,18 @@
-import { Link } from 'react-router'
-import { ChevronRight } from 'lucide-react'
+import { Link } from 'react-router';
+import { ChevronRight } from 'lucide-react';
 
-import { Badge } from '@/shared/ui/badge'
+import { Badge } from '@/shared/ui/badge';
 
-import { invoiceStatusBadgeVariant, invoiceStatusLabel } from '../model/statusLabel'
-import type { InvoiceListItem } from '../model/types'
+import { invoiceStatusBadgeVariant, invoiceStatusLabel } from '../model/statusLabel';
+import type { InvoiceListItem } from '../model/types';
 
 export interface InvoiceRowProps {
-  invoice: InvoiceListItem
-  index: number
+  invoice: InvoiceListItem;
+  index: number;
 }
 
 export function InvoiceRow({ invoice, index }: InvoiceRowProps) {
-  const submittedAt = new Date(invoice.created_at)
+  const submittedAt = new Date(invoice.created_at);
 
   return (
     <Link
@@ -35,5 +35,5 @@ export function InvoiceRow({ invoice, index }: InvoiceRowProps) {
         <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
       </span>
     </Link>
-  )
+  );
 }

@@ -1,13 +1,13 @@
-import { MemoryRouter, Route, Routes } from 'react-router'
-import { render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { MemoryRouter, Route, Routes } from 'react-router';
+import { render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
 
-import { useAuthStore } from '@/shared/lib/authStore'
+import { useAuthStore } from '@/shared/lib/authStore';
 
-import { DashboardPage } from './DashboardPage'
+import { DashboardPage } from './DashboardPage';
 
 describe('DashboardPage', () => {
-  afterEach(() => useAuthStore.getState().setAccessToken(null))
+  afterEach(() => useAuthStore.getState().setAccessToken(null));
 
   it('should invite unauthenticated users to log in', () => {
     render(
@@ -17,8 +17,8 @@ describe('DashboardPage', () => {
           <Route path="/login" element={<p>Login</p>} />
         </Routes>
       </MemoryRouter>,
-    )
+    );
 
-    expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login')
-  })
-})
+    expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login');
+  });
+});

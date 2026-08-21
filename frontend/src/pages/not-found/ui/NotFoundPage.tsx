@@ -1,7 +1,7 @@
-import { Link } from 'react-router'
+import { Link } from 'react-router';
 
-import { paths } from '@/shared/config/paths'
-import { buttonVariants } from '@/shared/ui/button'
+import { paths } from '@/shared/config/paths';
+import { buttonVariants } from '@/shared/ui/button';
 
 export function NotFoundPage() {
   return (
@@ -24,5 +24,5 @@ export function NotFoundPage() {
         </Link>
       </section>
     </div>
-  )
+  );
 }

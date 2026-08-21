@@ -1,6 +1,6 @@
-import { useAuthStore } from '../authStore'
+import { useAuthStore } from '../authStore';
 
 export function useAuth() {
-  const accessToken = useAuthStore((s) => s.accessToken)
-  return { isAuthenticated: !!accessToken }
+  const accessToken = useAuthStore((s) => s.accessToken);
+  return { isAuthenticated: !!accessToken };
 }

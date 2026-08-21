@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
-import { Link, useLoaderData, useRevalidator } from 'react-router'
-import { ArrowLeft, FileWarning, Loader2 } from 'lucide-react'
+import type { ReactNode } from 'react';
+import { Link, useLoaderData, useRevalidator } from 'react-router';
+import { ArrowLeft, FileWarning, Loader2 } from 'lucide-react';
 
 import {
   DecisionCard,
@@ -8,13 +8,13 @@ import {
   invoiceStatusBadgeVariant,
   invoiceStatusLabel,
   InvoiceSummaryCard,
-} from '@/entities/invoice'
-import { paths } from '@/shared/config/paths'
-import { Badge } from '@/shared/ui/badge'
-import { Button } from '@/shared/ui/button'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/shared/ui/empty'
+} from '@/entities/invoice';
+import { paths } from '@/shared/config/paths';
+import { Badge } from '@/shared/ui/badge';
+import { Button } from '@/shared/ui/button';
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/shared/ui/empty';
 
-import type { loader } from '../api/loader'
+import type { loader } from '../api/loader';
 
 export function HydrateFallback() {
   return (
@@ -24,15 +24,15 @@ export function HydrateFallback() {
         <span className="sr-only">Loading invoice…</span>
       </div>
     </div>
-  )
+  );
 }
 
 export function InvoiceDetailPage() {
-  const result = useLoaderData<typeof loader>()
-  const revalidator = useRevalidator()
+  const result = useLoaderData<typeof loader>();
+  const revalidator = useRevalidator();
 
   function refetch() {
-    void revalidator.revalidate()
+    void revalidator.revalidate();
   }
 
   return (
@@ -62,7 +62,7 @@ export function InvoiceDetailPage() {
 
       {result.kind === 'ok' && <InvoiceDetailContent invoice={result.invoice} />}
     </div>
-  )
+  );
 }
 
 export function BackToInvoiceList() {
@@ -74,7 +74,7 @@ export function BackToInvoiceList() {
       <ArrowLeft className="size-4" aria-hidden="true" />
       Back to invoices
     </Link>
-  )
+  );
 }
 
 function InvoiceDetailContent({ invoice }: { invoice: InvoiceDetailResponse }) {
@@ -103,7 +103,7 @@ function InvoiceDetailContent({ invoice }: { invoice: InvoiceDetailResponse }) {
 
       {invoice.decision !== null && <DecisionCard decision={invoice.decision} />}
     </>
-  )
+  );
 }
 
 function StatusNotice({ children }: { children: ReactNode }) {
@@ -111,5 +111,5 @@ function StatusNotice({ children }: { children: ReactNode }) {
     <p className="rounded-xl bg-card p-4 text-sm text-muted-foreground ring-1 ring-foreground/10 text-center">
       {children}
     </p>
-  )
+  );
 }

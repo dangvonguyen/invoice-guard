@@ -1,7 +1,7 @@
-import { createBrowserRouter } from 'react-router'
+import { createBrowserRouter } from 'react-router';
 
-import { AppLayout } from '@/app/layout/AppLayout'
-import { paths } from '@/shared/config/paths'
+import { AppLayout } from '@/app/layout/AppLayout';
+import { paths } from '@/shared/config/paths';
 
 export const router = createBrowserRouter([
   {
@@ -29,4 +29,4 @@ export const router = createBrowserRouter([
       },
     ],
   },
-])
+]);
