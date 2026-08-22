@@ -1,27 +1,26 @@
 """Routes for the finance reviewer's queue of invoices awaiting review."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
-from app.api.deps import InvoiceRepositoryDep, get_current_finance_reviewer
+from app.api.deps import CurrentFinanceReviewer, InvoiceRepositoryDep
 from app.schemas.envelope import PaginationMeta, ResponseEnvelope
 from app.schemas.invoice import ReviewQueueItem
 from app.services.invoices.views import build_invoice_summary
 
-router = APIRouter(
-    prefix="/review-queue",
-    tags=["Review Queue"],
-    dependencies=[Depends(get_current_finance_reviewer)],
-)
+router = APIRouter(prefix="/review-queue", tags=["Review Queue"])
 
 
 @router.get("")
 async def list_review_queue(
+    reviewer: CurrentFinanceReviewer,
     invoices: InvoiceRepositoryDep,
     offset: int = 0,
     limit: int = 100,
 ) -> ResponseEnvelope[list[ReviewQueueItem], PaginationMeta]:
-    """List invoices awaiting review, oldest first."""
-    rows, total = await invoices.list_awaiting_review(offset, limit)
+    """List invoices awaiting review, oldest first, excluding the reviewer's own."""
+    rows, total = await invoices.list_awaiting_review(
+        offset, limit, exclude_owner_id=reviewer.id
+    )
     items = [
         ReviewQueueItem(
             id=invoice.id,

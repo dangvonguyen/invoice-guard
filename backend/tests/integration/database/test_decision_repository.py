@@ -16,6 +16,7 @@ from app.database.repositories.decision import (
     DecisionRepository,
     InvoiceNotAwaitingReviewError,
     InvoiceNotFoundError,
+    ReviewerCannotDecideOwnInvoiceError,
 )
 from tests.support.helpers import create_invoice, create_user
 
@@ -136,6 +137,29 @@ async def should_raise_when_the_invoice_does_not_exist(
             reason="Within policy.",
             decided_by_id=reviewer.id,
         )
+
+
+async def should_raise_when_the_reviewer_owns_the_invoice(
+    test_db: AsyncSession,
+    repository: DecisionRepository,
+    reviewer: User,
+) -> None:
+    """Refuse a decision where the reviewer is also the invoice's owner."""
+    own_invoice = await create_invoice(
+        test_db, owner_id=reviewer.id, storage_key="own.pdf"
+    )
+
+    with pytest.raises(ReviewerCannotDecideOwnInvoiceError):
+        await repository.record(
+            invoice_id=own_invoice.id,
+            outcome=InvoiceDecisionOutcome.APPROVED,
+            reason="Within policy.",
+            decided_by_id=reviewer.id,
+        )
+
+    stored = await test_db.scalar(select(Invoice).where(Invoice.id == own_invoice.id))
+    assert stored is not None
+    assert stored.status == InvoiceStatus.AWAITING_REVIEW
 
 
 async def should_let_only_one_of_two_concurrent_decisions_succeed(

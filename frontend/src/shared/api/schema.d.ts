@@ -44,6 +44,114 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Invoices
+         * @description List invoices owned by the authenticated user, newest first.
+         */
+        get: operations["list_invoices_invoices_get"];
+        put?: never;
+        /**
+         * Upload Invoice
+         * @description Accept an invoice document and enqueue it for processing.
+         */
+        post: operations["upload_invoice_invoices_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invoices/{invoice_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Invoice
+         * @description Return an invoice the caller owns, or - for a reviewer - any invoice.
+         */
+        get: operations["get_invoice_invoices__invoice_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invoices/{invoice_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide Invoice
+         * @description Record a finance reviewer's one final decision on an invoice.
+         */
+        post: operations["decide_invoice_invoices__invoice_id__decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/review-queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Review Queue
+         * @description List invoices awaiting review, oldest first.
+         */
+        get: operations["list_review_queue_review_queue_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/policies/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Policy Documents
+         * @description List every ingested policy document and its current status.
+         */
+        get: operations["list_policy_documents_policies_documents_get"];
+        put?: never;
+        /**
+         * Upload Policy Document
+         * @description Ingest a policy handbook PDF and activate it as the current policy.
+         */
+        post: operations["upload_policy_document_policies_documents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -90,20 +198,372 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Body_upload_invoice_invoices_post */
+        Body_upload_invoice_invoices_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_upload_policy_document_policies_documents_post */
+        Body_upload_policy_document_policies_documents_post: {
+            /** File */
+            file: string;
+        };
         /**
          * CurrentUserResponse
          * @description Response for users getting their own user data.
          */
         CurrentUserResponse: {
-            /** Id */
+            /**
+             * Id
+             * Format: uuid
+             */
             id: string;
             /** Email */
             email: string;
+            /** Name */
+            name: string;
+            role: components["schemas"]["UserRole"];
         };
+        /**
+         * DecisionRequest
+         * @description Request body for recording a decision.
+         */
+        DecisionRequest: {
+            outcome: components["schemas"]["InvoiceDecisionOutcome"];
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * DecisionView
+         * @description The final decision as shown to both the employee and the reviewer.
+         */
+        DecisionView: {
+            outcome: components["schemas"]["InvoiceDecisionOutcome"];
+            /** Reason */
+            reason: string;
+            /** Decided By */
+            decided_by: string;
+            /**
+             * Decided At
+             * Format: date-time
+             */
+            decided_at: string;
+        };
+        /**
+         * EmployeeIdentity
+         * @description Who submitted an invoice, as shown to its reviewer.
+         */
+        EmployeeIdentity: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Email */
+            email: string;
+        };
+        /**
+         * ErrorDetail
+         * @description Single structured error.
+         */
+        ErrorDetail: {
+            /** Field */
+            field?: string | null;
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+        };
+        /**
+         * ErrorInfo
+         * @description Top-level error info for a failed response.
+         */
+        ErrorInfo: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /** Details */
+            details?: components["schemas"]["ErrorDetail"][] | null;
+        };
+        /**
+         * ExtractionConfidence
+         * @description Whether an extraction's fields were traceable to the source document.
+         * @enum {string}
+         */
+        ExtractionConfidence: "high" | "low";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * InvoiceDecisionOutcome
+         * @description The two legal final outcomes for an invoice decision.
+         * @enum {string}
+         */
+        InvoiceDecisionOutcome: "approved" | "rejected";
+        /**
+         * InvoiceDetailResponse
+         * @description Employee-facing view of one invoice's current state.
+         */
+        InvoiceDetailResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["InvoiceStatus"];
+            invoice_summary: components["schemas"]["InvoiceSummary"] | null;
+            decision: components["schemas"]["DecisionView"] | null;
+        };
+        /**
+         * InvoiceListItem
+         * @description Response for one invoice in an owner's invoice list.
+         */
+        InvoiceListItem: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["InvoiceStatus"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * InvoiceStatus
+         * @description Lifecycle states for an invoice.
+         * @enum {string}
+         */
+        InvoiceStatus: "upload_failed" | "processing" | "processing_error" | "awaiting_review" | "approved" | "rejected";
+        /**
+         * InvoiceSummary
+         * @description The plain-language invoice facts an employee is allowed to see.
+         */
+        InvoiceSummary: {
+            /** Vendor Name */
+            vendor_name: string;
+            /**
+             * Invoice Date
+             * Format: date
+             */
+            invoice_date: string;
+            /** Total Amount */
+            total_amount: string;
+            /** Currency */
+            currency: string;
+        };
+        /**
+         * InvoiceUploadResponse
+         * @description Response a successful invoice upload.
+         */
+        InvoiceUploadResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["InvoiceStatus"];
+        };
+        /**
+         * PaginationMeta
+         * @description Pagination metadata attached to list responses.
+         */
+        PaginationMeta: {
+            /** Total */
+            total: number;
+            /** Offset */
+            offset: number;
+            /** Limit */
+            limit: number;
+        };
+        /**
+         * PolicyDocumentListItem
+         * @description One document entry in the policy document listing.
+         */
+        PolicyDocumentListItem: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["PolicyDocumentStatus"];
+            /** Original Filename */
+            original_filename: string;
+            /** Chunk Count */
+            chunk_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * PolicyDocumentStatus
+         * @description Lifecycle states for an ingested policy handbook.
+         * @enum {string}
+         */
+        PolicyDocumentStatus: "active" | "superseded";
+        /**
+         * PolicyDocumentUploadResponse
+         * @description Response for a successful policy document upload.
+         */
+        PolicyDocumentUploadResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["PolicyDocumentStatus"];
+            /** Chunk Count */
+            chunk_count: number;
+        };
+        /** ResponseEnvelope[CurrentUserResponse, NoneType] */
+        ResponseEnvelope_CurrentUserResponse_NoneType_: {
+            data?: components["schemas"]["CurrentUserResponse"] | null;
+            error?: components["schemas"]["ErrorInfo"] | null;
+            /** Meta */
+            meta?: null;
+            /** Success */
+            readonly success: boolean;
+        };
+        /** ResponseEnvelope[DecisionView, NoneType] */
+        ResponseEnvelope_DecisionView_NoneType_: {
+            data?: components["schemas"]["DecisionView"] | null;
+            error?: components["schemas"]["ErrorInfo"] | null;
+            /** Meta */
+            meta?: null;
+            /** Success */
+            readonly success: boolean;
+        };
+        /** ResponseEnvelope[InvoiceUploadResponse, NoneType] */
+        ResponseEnvelope_InvoiceUploadResponse_NoneType_: {
+            data?: components["schemas"]["InvoiceUploadResponse"] | null;
+            error?: components["schemas"]["ErrorInfo"] | null;
+            /** Meta */
+            meta?: null;
+            /** Success */
+            readonly success: boolean;
+        };
+        /** ResponseEnvelope[NoneType, NoneType] */
+        ResponseEnvelope_NoneType_NoneType_: {
+            /** Data */
+            data?: null;
+            error?: components["schemas"]["ErrorInfo"] | null;
+            /** Meta */
+            meta?: null;
+            /** Success */
+            readonly success: boolean;
+        };
+        /** ResponseEnvelope[PolicyDocumentUploadResponse, NoneType] */
+        ResponseEnvelope_PolicyDocumentUploadResponse_NoneType_: {
+            data?: components["schemas"]["PolicyDocumentUploadResponse"] | null;
+            error?: components["schemas"]["ErrorInfo"] | null;
+            /** Meta */
+            meta?: null;
+            /** Success */
+            readonly success: boolean;
+        };
+        /** ResponseEnvelope[Union[InvoiceDetailResponse, ReviewerInvoiceDetailResponse], NoneType] */
+        ResponseEnvelope_Union_InvoiceDetailResponse__ReviewerInvoiceDetailResponse__NoneType_: {
+            /** Data */
+            data?: components["schemas"]["InvoiceDetailResponse"] | components["schemas"]["ReviewerInvoiceDetailResponse"] | null;
+            error?: components["schemas"]["ErrorInfo"] | null;
+            /** Meta */
+            meta?: null;
+            /** Success */
+            readonly success: boolean;
+        };
+        /** ResponseEnvelope[list[InvoiceListItem], PaginationMeta] */
+        ResponseEnvelope_list_InvoiceListItem__PaginationMeta_: {
+            /** Data */
+            data?: components["schemas"]["InvoiceListItem"][] | null;
+            error?: components["schemas"]["ErrorInfo"] | null;
+            meta?: components["schemas"]["PaginationMeta"] | null;
+            /** Success */
+            readonly success: boolean;
+        };
+        /** ResponseEnvelope[list[PolicyDocumentListItem], NoneType] */
+        ResponseEnvelope_list_PolicyDocumentListItem__NoneType_: {
+            /** Data */
+            data?: components["schemas"]["PolicyDocumentListItem"][] | null;
+            error?: components["schemas"]["ErrorInfo"] | null;
+            /** Meta */
+            meta?: null;
+            /** Success */
+            readonly success: boolean;
+        };
+        /** ResponseEnvelope[list[ReviewQueueItem], PaginationMeta] */
+        ResponseEnvelope_list_ReviewQueueItem__PaginationMeta_: {
+            /** Data */
+            data?: components["schemas"]["ReviewQueueItem"][] | null;
+            error?: components["schemas"]["ErrorInfo"] | null;
+            meta?: components["schemas"]["PaginationMeta"] | null;
+            /** Success */
+            readonly success: boolean;
+        };
+        /**
+         * ReviewFlagView
+         * @description One reviewer-visible condition produced by analysis.
+         */
+        ReviewFlagView: {
+            /** Code */
+            code: string;
+            /** Summary */
+            summary: string | null;
+            /** Evidence */
+            evidence: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * ReviewQueueItem
+         * @description Response for one invoice in the finance reviewer's review queue.
+         */
+        ReviewQueueItem: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["InvoiceStatus"];
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            invoice_summary: components["schemas"]["InvoiceSummary"] | null;
+            /** Flag Count */
+            flag_count: number;
+        };
+        /**
+         * ReviewerInvoiceDetailResponse
+         * @description Reviewer-facing view of one invoice's current state.
+         */
+        ReviewerInvoiceDetailResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["InvoiceStatus"];
+            employee: components["schemas"]["EmployeeIdentity"];
+            /** Extracted Fields */
+            extracted_fields: {
+                [key: string]: unknown;
+            } | null;
+            confidence: components["schemas"]["ExtractionConfidence"] | null;
+            /** Confidence Reason */
+            confidence_reason: string | null;
+            /** Review Flags */
+            review_flags: components["schemas"]["ReviewFlagView"][];
+            decision: components["schemas"]["DecisionView"] | null;
         };
         /**
          * TokenResponse
@@ -128,6 +588,12 @@ export interface components {
             /** Password */
             password: string;
         };
+        /**
+         * UserRole
+         * @description Roles available to users.
+         * @enum {string}
+         */
+        UserRole: "employee" | "finance_reviewer";
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -198,7 +664,232 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CurrentUserResponse"];
+                    "application/json": components["schemas"]["ResponseEnvelope_CurrentUserResponse_NoneType_"];
+                };
+            };
+            /** @description Missing or invalid bearer token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_NoneType_NoneType_"];
+                };
+            };
+        };
+    };
+    list_invoices_invoices_get: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_list_InvoiceListItem__PaginationMeta_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_invoice_invoices_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_invoice_invoices_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_InvoiceUploadResponse_NoneType_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_invoice_invoices__invoice_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_Union_InvoiceDetailResponse__ReviewerInvoiceDetailResponse__NoneType_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_invoice_invoices__invoice_id__decision_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_DecisionView_NoneType_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_review_queue_review_queue_get: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_list_ReviewQueueItem__PaginationMeta_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_policy_documents_policies_documents_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_list_PolicyDocumentListItem__NoneType_"];
+                };
+            };
+        };
+    };
+    upload_policy_document_policies_documents_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_policy_document_policies_documents_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_PolicyDocumentUploadResponse_NoneType_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

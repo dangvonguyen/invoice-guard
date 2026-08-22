@@ -1,0 +1,37 @@
+import { apiClient } from '@/shared/api/client';
+import { unwrapEnvelope } from '@/shared/api/envelope';
+import { UnauthenticatedError } from '@/shared/api/errors';
+
+import { toInvoiceDetail, toReviewerInvoiceDetail } from '../model/mapper';
+import type { InvoiceDetailView } from '../model/types';
+
+export class NotFoundError extends Error {
+  constructor() {
+    super('Invoice not found');
+    this.name = 'NotFoundError';
+  }
+}
+
+export async function getInvoice(invoiceId: string): Promise<InvoiceDetailView> {
+  const {
+    data: envelope,
+    error,
+    response,
+  } = await apiClient.GET('/invoices/{invoice_id}', {
+    params: { path: { invoice_id: invoiceId } },
+  });
+
+  if (error) {
+    if (response.status === 404) throw new NotFoundError();
+    if (response.status === 401) throw new UnauthenticatedError();
+    throw new Error('Failed to fetch invoice');
+  }
+
+  const { data: dto } = unwrapEnvelope(envelope);
+
+  if ('employee' in dto) {
+    return toReviewerInvoiceDetail(dto);
+  }
+
+  return toInvoiceDetail(dto);
+}

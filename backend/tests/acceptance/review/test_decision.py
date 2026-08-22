@@ -160,3 +160,26 @@ async def should_reject_unauthenticated_decisions(
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+async def should_reject_a_reviewer_deciding_on_their_own_submission(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    finance_reviewer: User,
+    reviewer_headers: dict[str, str],
+) -> None:
+    """Block self-approval even when the reviewer knows their own invoice's id."""
+    own_invoice = await create_invoice(test_db, owner_id=finance_reviewer.id)
+    await test_db.commit()
+
+    response = await client.post(
+        f"/invoices/{own_invoice.id}/decision",
+        headers=reviewer_headers,
+        json=APPROVAL_PAYLOAD,
+    )
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert response.json()["error"]["code"] == "CANNOT_DECIDE_OWN_INVOICE"
+
+    await test_db.refresh(own_invoice)
+    assert own_invoice.status == InvoiceStatus.AWAITING_REVIEW

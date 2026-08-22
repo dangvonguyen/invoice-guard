@@ -42,7 +42,223 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CurrentUserResponse'
+                $ref: '#/components/schemas/ResponseEnvelope_CurrentUserResponse_NoneType_'
+        '401':
+          description: Missing or invalid bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEnvelope_NoneType_NoneType_'
+      security:
+        - HTTPBearer: []
+  /invoices:
+    post:
+      tags:
+        - Invoices
+      summary: Upload Invoice
+      description: Accept an invoice document and enqueue it for processing.
+      operationId: upload_invoice_invoices_post
+      security:
+        - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_upload_invoice_invoices_post'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEnvelope_InvoiceUploadResponse_NoneType_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+        - Invoices
+      summary: List Invoices
+      description: List invoices owned by the authenticated user, newest first.
+      operationId: list_invoices_invoices_get
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            title: Offset
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+            title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEnvelope_list_InvoiceListItem__PaginationMeta_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /invoices/{invoice_id}:
+    get:
+      tags:
+        - Invoices
+      summary: Get Invoice
+      description: Return an invoice the caller owns, or - for a reviewer - any invoice.
+      operationId: get_invoice_invoices__invoice_id__get
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: invoice_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Invoice Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEnvelope_Union_InvoiceDetailResponse__ReviewerInvoiceDetailResponse__NoneType_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /invoices/{invoice_id}/decision:
+    post:
+      tags:
+        - Invoices
+      summary: Decide Invoice
+      description: Record a finance reviewer's one final decision on an invoice.
+      operationId: decide_invoice_invoices__invoice_id__decision_post
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: invoice_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Invoice Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionRequest'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEnvelope_DecisionView_NoneType_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /review-queue:
+    get:
+      tags:
+        - Review Queue
+      summary: List Review Queue
+      description: List invoices awaiting review, oldest first.
+      operationId: list_review_queue_review_queue_get
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            title: Offset
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+            title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEnvelope_list_ReviewQueueItem__PaginationMeta_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /policies/documents:
+    get:
+      tags:
+        - Policies
+      summary: List Policy Documents
+      description: List every ingested policy document and its current status.
+      operationId: list_policy_documents_policies_documents_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEnvelope_list_PolicyDocumentListItem__NoneType_'
+      security:
+        - HTTPBearer: []
+    post:
+      tags:
+        - Policies
+      summary: Upload Policy Document
+      description: Ingest a policy handbook PDF and activate it as the current policy.
+      operationId: upload_policy_document_policies_documents_post
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_upload_policy_document_policies_documents_post'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEnvelope_PolicyDocumentUploadResponse_NoneType_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
       security:
         - HTTPBearer: []
   /health/live:
@@ -84,20 +300,150 @@ paths:
                 title: Response Ready Health Ready Get
 components:
   schemas:
+    Body_upload_invoice_invoices_post:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+      type: object
+      required:
+        - file
+      title: Body_upload_invoice_invoices_post
+    Body_upload_policy_document_policies_documents_post:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+      type: object
+      required:
+        - file
+      title: Body_upload_policy_document_policies_documents_post
     CurrentUserResponse:
       properties:
         id:
           type: string
+          format: uuid
           title: Id
+        email:
+          type: string
+          title: Email
+        name:
+          type: string
+          title: Name
+        role:
+          $ref: '#/components/schemas/UserRole'
+      type: object
+      required:
+        - id
+        - email
+        - name
+        - role
+      title: CurrentUserResponse
+      description: Response for users getting their own user data.
+    DecisionRequest:
+      properties:
+        outcome:
+          $ref: '#/components/schemas/InvoiceDecisionOutcome'
+        reason:
+          type: string
+          minLength: 1
+          title: Reason
+      type: object
+      required:
+        - outcome
+        - reason
+      title: DecisionRequest
+      description: Request body for recording a decision.
+    DecisionView:
+      properties:
+        outcome:
+          $ref: '#/components/schemas/InvoiceDecisionOutcome'
+        reason:
+          type: string
+          title: Reason
+        decided_by:
+          type: string
+          title: Decided By
+        decided_at:
+          type: string
+          format: date-time
+          title: Decided At
+      type: object
+      required:
+        - outcome
+        - reason
+        - decided_by
+        - decided_at
+      title: DecisionView
+      description: The final decision as shown to both the employee and the reviewer.
+    EmployeeIdentity:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
         email:
           type: string
           title: Email
       type: object
       required:
         - id
+        - name
         - email
-      title: CurrentUserResponse
-      description: Response for users getting their own user data.
+      title: EmployeeIdentity
+      description: Who submitted an invoice, as shown to its reviewer.
+    ErrorDetail:
+      properties:
+        field:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Field
+        code:
+          type: string
+          title: Code
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+        - code
+        - message
+      title: ErrorDetail
+      description: Single structured error.
+    ErrorInfo:
+      properties:
+        code:
+          type: string
+          title: Code
+        message:
+          type: string
+          title: Message
+        details:
+          anyOf:
+            - items:
+                $ref: '#/components/schemas/ErrorDetail'
+              type: array
+            - type: 'null'
+          title: Details
+      type: object
+      required:
+        - code
+        - message
+      title: ErrorInfo
+      description: Top-level error info for a failed response.
+    ExtractionConfidence:
+      type: string
+      enum:
+        - high
+        - low
+      title: ExtractionConfidence
+      description: Whether an extraction's fields were traceable to the source document.
     HTTPValidationError:
       properties:
         detail:
@@ -107,6 +453,472 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    InvoiceDecisionOutcome:
+      type: string
+      enum:
+        - approved
+        - rejected
+      title: InvoiceDecisionOutcome
+      description: The two legal final outcomes for an invoice decision.
+    InvoiceDetailResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        status:
+          $ref: '#/components/schemas/InvoiceStatus'
+        invoice_summary:
+          anyOf:
+            - $ref: '#/components/schemas/InvoiceSummary'
+            - type: 'null'
+        decision:
+          anyOf:
+            - $ref: '#/components/schemas/DecisionView'
+            - type: 'null'
+      type: object
+      required:
+        - id
+        - status
+        - invoice_summary
+        - decision
+      title: InvoiceDetailResponse
+      description: Employee-facing view of one invoice's current state.
+    InvoiceListItem:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        status:
+          $ref: '#/components/schemas/InvoiceStatus'
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+        - id
+        - status
+        - created_at
+      title: InvoiceListItem
+      description: Response for one invoice in an owner's invoice list.
+    InvoiceStatus:
+      type: string
+      enum:
+        - upload_failed
+        - processing
+        - processing_error
+        - awaiting_review
+        - approved
+        - rejected
+      title: InvoiceStatus
+      description: Lifecycle states for an invoice.
+    InvoiceSummary:
+      properties:
+        vendor_name:
+          type: string
+          title: Vendor Name
+        invoice_date:
+          type: string
+          format: date
+          title: Invoice Date
+        total_amount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Total Amount
+        currency:
+          type: string
+          title: Currency
+      type: object
+      required:
+        - vendor_name
+        - invoice_date
+        - total_amount
+        - currency
+      title: InvoiceSummary
+      description: The plain-language invoice facts an employee is allowed to see.
+    InvoiceUploadResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        status:
+          $ref: '#/components/schemas/InvoiceStatus'
+      type: object
+      required:
+        - id
+        - status
+      title: InvoiceUploadResponse
+      description: Response a successful invoice upload.
+    PaginationMeta:
+      properties:
+        total:
+          type: integer
+          title: Total
+        offset:
+          type: integer
+          title: Offset
+        limit:
+          type: integer
+          title: Limit
+      type: object
+      required:
+        - total
+        - offset
+        - limit
+      title: PaginationMeta
+      description: Pagination metadata attached to list responses.
+    PolicyDocumentListItem:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        status:
+          $ref: '#/components/schemas/PolicyDocumentStatus'
+        original_filename:
+          type: string
+          title: Original Filename
+        chunk_count:
+          type: integer
+          title: Chunk Count
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+        - id
+        - status
+        - original_filename
+        - chunk_count
+        - created_at
+      title: PolicyDocumentListItem
+      description: One document entry in the policy document listing.
+    PolicyDocumentStatus:
+      type: string
+      enum:
+        - active
+        - superseded
+      title: PolicyDocumentStatus
+      description: Lifecycle states for an ingested policy handbook.
+    PolicyDocumentUploadResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        status:
+          $ref: '#/components/schemas/PolicyDocumentStatus'
+        chunk_count:
+          type: integer
+          title: Chunk Count
+      type: object
+      required:
+        - id
+        - status
+        - chunk_count
+      title: PolicyDocumentUploadResponse
+      description: Response for a successful policy document upload.
+    ResponseEnvelope_CurrentUserResponse_NoneType_:
+      properties:
+        data:
+          anyOf:
+            - $ref: '#/components/schemas/CurrentUserResponse'
+            - type: 'null'
+        error:
+          anyOf:
+            - $ref: '#/components/schemas/ErrorInfo'
+            - type: 'null'
+        meta:
+          type: 'null'
+          title: Meta
+        success:
+          type: boolean
+          title: Success
+          readOnly: true
+      type: object
+      required:
+        - success
+      title: ResponseEnvelope[CurrentUserResponse, NoneType]
+    ResponseEnvelope_DecisionView_NoneType_:
+      properties:
+        data:
+          anyOf:
+            - $ref: '#/components/schemas/DecisionView'
+            - type: 'null'
+        error:
+          anyOf:
+            - $ref: '#/components/schemas/ErrorInfo'
+            - type: 'null'
+        meta:
+          type: 'null'
+          title: Meta
+        success:
+          type: boolean
+          title: Success
+          readOnly: true
+      type: object
+      required:
+        - success
+      title: ResponseEnvelope[DecisionView, NoneType]
+    ResponseEnvelope_InvoiceUploadResponse_NoneType_:
+      properties:
+        data:
+          anyOf:
+            - $ref: '#/components/schemas/InvoiceUploadResponse'
+            - type: 'null'
+        error:
+          anyOf:
+            - $ref: '#/components/schemas/ErrorInfo'
+            - type: 'null'
+        meta:
+          type: 'null'
+          title: Meta
+        success:
+          type: boolean
+          title: Success
+          readOnly: true
+      type: object
+      required:
+        - success
+      title: ResponseEnvelope[InvoiceUploadResponse, NoneType]
+    ResponseEnvelope_NoneType_NoneType_:
+      properties:
+        data:
+          type: 'null'
+          title: Data
+        error:
+          anyOf:
+            - $ref: '#/components/schemas/ErrorInfo'
+            - type: 'null'
+        meta:
+          type: 'null'
+          title: Meta
+        success:
+          type: boolean
+          title: Success
+          readOnly: true
+      type: object
+      required:
+        - success
+      title: ResponseEnvelope[NoneType, NoneType]
+    ResponseEnvelope_PolicyDocumentUploadResponse_NoneType_:
+      properties:
+        data:
+          anyOf:
+            - $ref: '#/components/schemas/PolicyDocumentUploadResponse'
+            - type: 'null'
+        error:
+          anyOf:
+            - $ref: '#/components/schemas/ErrorInfo'
+            - type: 'null'
+        meta:
+          type: 'null'
+          title: Meta
+        success:
+          type: boolean
+          title: Success
+          readOnly: true
+      type: object
+      required:
+        - success
+      title: ResponseEnvelope[PolicyDocumentUploadResponse, NoneType]
+    ResponseEnvelope_Union_InvoiceDetailResponse__ReviewerInvoiceDetailResponse__NoneType_:
+      properties:
+        data:
+          anyOf:
+            - $ref: '#/components/schemas/InvoiceDetailResponse'
+            - $ref: '#/components/schemas/ReviewerInvoiceDetailResponse'
+            - type: 'null'
+          title: Data
+        error:
+          anyOf:
+            - $ref: '#/components/schemas/ErrorInfo'
+            - type: 'null'
+        meta:
+          type: 'null'
+          title: Meta
+        success:
+          type: boolean
+          title: Success
+          readOnly: true
+      type: object
+      required:
+        - success
+      title: ResponseEnvelope[Union[InvoiceDetailResponse, ReviewerInvoiceDetailResponse],
+        NoneType]
+    ResponseEnvelope_list_InvoiceListItem__PaginationMeta_:
+      properties:
+        data:
+          anyOf:
+            - items:
+                $ref: '#/components/schemas/InvoiceListItem'
+              type: array
+            - type: 'null'
+          title: Data
+        error:
+          anyOf:
+            - $ref: '#/components/schemas/ErrorInfo'
+            - type: 'null'
+        meta:
+          anyOf:
+            - $ref: '#/components/schemas/PaginationMeta'
+            - type: 'null'
+        success:
+          type: boolean
+          title: Success
+          readOnly: true
+      type: object
+      required:
+        - success
+      title: ResponseEnvelope[list[InvoiceListItem], PaginationMeta]
+    ResponseEnvelope_list_PolicyDocumentListItem__NoneType_:
+      properties:
+        data:
+          anyOf:
+            - items:
+                $ref: '#/components/schemas/PolicyDocumentListItem'
+              type: array
+            - type: 'null'
+          title: Data
+        error:
+          anyOf:
+            - $ref: '#/components/schemas/ErrorInfo'
+            - type: 'null'
+        meta:
+          type: 'null'
+          title: Meta
+        success:
+          type: boolean
+          title: Success
+          readOnly: true
+      type: object
+      required:
+        - success
+      title: ResponseEnvelope[list[PolicyDocumentListItem], NoneType]
+    ResponseEnvelope_list_ReviewQueueItem__PaginationMeta_:
+      properties:
+        data:
+          anyOf:
+            - items:
+                $ref: '#/components/schemas/ReviewQueueItem'
+              type: array
+            - type: 'null'
+          title: Data
+        error:
+          anyOf:
+            - $ref: '#/components/schemas/ErrorInfo'
+            - type: 'null'
+        meta:
+          anyOf:
+            - $ref: '#/components/schemas/PaginationMeta'
+            - type: 'null'
+        success:
+          type: boolean
+          title: Success
+          readOnly: true
+      type: object
+      required:
+        - success
+      title: ResponseEnvelope[list[ReviewQueueItem], PaginationMeta]
+    ReviewFlagView:
+      properties:
+        code:
+          type: string
+          title: Code
+        summary:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Summary
+        evidence:
+          additionalProperties: true
+          type: object
+          title: Evidence
+      type: object
+      required:
+        - code
+        - summary
+        - evidence
+      title: ReviewFlagView
+      description: One reviewer-visible condition produced by analysis.
+    ReviewQueueItem:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        status:
+          $ref: '#/components/schemas/InvoiceStatus'
+        submitted_at:
+          type: string
+          format: date-time
+          title: Submitted At
+        invoice_summary:
+          anyOf:
+            - $ref: '#/components/schemas/InvoiceSummary'
+            - type: 'null'
+        flag_count:
+          type: integer
+          title: Flag Count
+      type: object
+      required:
+        - id
+        - status
+        - submitted_at
+        - invoice_summary
+        - flag_count
+      title: ReviewQueueItem
+      description: Response for one invoice in the finance reviewer's review queue.
+    ReviewerInvoiceDetailResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        status:
+          $ref: '#/components/schemas/InvoiceStatus'
+        employee:
+          $ref: '#/components/schemas/EmployeeIdentity'
+        extracted_fields:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: 'null'
+          title: Extracted Fields
+        confidence:
+          anyOf:
+            - $ref: '#/components/schemas/ExtractionConfidence'
+            - type: 'null'
+        confidence_reason:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Confidence Reason
+        review_flags:
+          items:
+            $ref: '#/components/schemas/ReviewFlagView'
+          type: array
+          title: Review Flags
+        decision:
+          anyOf:
+            - $ref: '#/components/schemas/DecisionView'
+            - type: 'null'
+      type: object
+      required:
+        - id
+        - status
+        - employee
+        - extracted_fields
+        - confidence
+        - confidence_reason
+        - review_flags
+        - decision
+      title: ReviewerInvoiceDetailResponse
+      description: Reviewer-facing view of one invoice's current state.
     TokenResponse:
       properties:
         access_token:
@@ -130,7 +942,7 @@ components:
           title: Email
         password:
           type: string
-          maxLength: 256
+          maxLength: 255
           minLength: 1
           title: Password
       type: object
@@ -139,6 +951,13 @@ components:
         - password
       title: UserLoginRequest
       description: Email/password login payload.
+    UserRole:
+      type: string
+      enum:
+        - employee
+        - finance_reviewer
+      title: UserRole
+      description: Roles available to users.
     ValidationError:
       properties:
         loc:

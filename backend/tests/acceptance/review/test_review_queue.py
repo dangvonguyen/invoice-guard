@@ -94,6 +94,34 @@ async def should_report_the_number_of_failed_checks_as_the_flag_count(
     assert body["data"][0]["flag_count"] == 2
 
 
+async def should_exclude_the_reviewers_own_invoices_from_the_queue(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    employee: User,
+    finance_reviewer: User,
+    reviewer_headers: dict[str, str],
+) -> None:
+    """Never let a reviewer see their own submission in the queue."""
+    others = await create_invoice(
+        test_db,
+        owner_id=employee.id,
+        storage_key="others.pdf",
+        status=InvoiceStatus.AWAITING_REVIEW,
+    )
+    await create_invoice(
+        test_db,
+        owner_id=finance_reviewer.id,
+        storage_key="own.pdf",
+        status=InvoiceStatus.AWAITING_REVIEW,
+    )
+    await test_db.commit()
+
+    response = await client.get("/review-queue", headers=reviewer_headers)
+
+    body = response.json()
+    assert [item["id"] for item in body["data"]] == [str(others.id)]
+
+
 async def should_reject_employees_from_the_review_queue(
     client: AsyncClient, employee_headers: dict[str, str]
 ) -> None:

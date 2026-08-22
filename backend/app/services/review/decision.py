@@ -2,13 +2,14 @@
 
 from uuid import UUID
 
-from app.core.errors import DomainError, NotFoundError
+from app.core.errors import DomainError, ForbiddenError, NotFoundError
 from app.database.models.decision import InvoiceDecision, InvoiceDecisionOutcome
 from app.database.repositories.decision import (
     DecisionAlreadyExistsError,
     DecisionRepository,
     InvoiceNotAwaitingReviewError,
     InvoiceNotFoundError,
+    ReviewerCannotDecideOwnInvoiceError,
 )
 
 
@@ -24,6 +25,12 @@ class NotAwaitingReviewError(DomainError):
 
     code = "INVOICE_NOT_AWAITING_REVIEW"
     status_code = 409
+
+
+class CannotDecideOwnInvoiceError(ForbiddenError):
+    """Raised when a reviewer attempts to decide on their own submission."""
+
+    code = "CANNOT_DECIDE_OWN_INVOICE"
 
 
 class DecisionService:
@@ -63,3 +70,7 @@ class DecisionService:
             ) from exc
         except InvoiceNotFoundError as exc:
             raise NotFoundError(f"Invoice {invoice_id} was not found.") from exc
+        except ReviewerCannotDecideOwnInvoiceError as exc:
+            raise CannotDecideOwnInvoiceError(
+                "Reviewers cannot decide on their own submissions."
+            ) from exc

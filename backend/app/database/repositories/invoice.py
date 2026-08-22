@@ -101,12 +101,14 @@ class InvoiceRepository:
         return [], total or 0
 
     async def list_awaiting_review(
-        self, offset: int, limit: int
+        self, offset: int, limit: int, *, exclude_owner_id: UUID
     ) -> tuple[Sequence[tuple[Invoice, int]], int]:
         """Return a page of awaiting-review invoices with flag counts, and the total.
 
-        Oldest first. The total reflects the full matching set, not just the
-        page, computed via a window function alongside the page query.
+        Oldest first. Excludes invoices owned by `exclude_owner_id`, so a
+        reviewer never sees their own submissions in the queue. The total
+        reflects the full matching set, not just the page, computed via a
+        window function alongside the page query.
         """
         flag_counts = (
             select(
@@ -117,7 +119,10 @@ class InvoiceRepository:
             .group_by(InvoiceRuleResult.invoice_id)
             .subquery()
         )
-        awaiting_review = Invoice.status == InvoiceStatus.AWAITING_REVIEW
+        queue_filter = (
+            Invoice.status == InvoiceStatus.AWAITING_REVIEW,
+            Invoice.owner_id != exclude_owner_id,
+        )
         result = await self._session.execute(
             select(
                 Invoice,
@@ -125,7 +130,7 @@ class InvoiceRepository:
                 func.count().over().label("total"),
             )
             .outerjoin(flag_counts, flag_counts.c.invoice_id == Invoice.id)
-            .where(awaiting_review)
+            .where(*queue_filter)
             .order_by(Invoice.created_at.asc())
             .offset(offset)
             .limit(limit)
@@ -135,7 +140,7 @@ class InvoiceRepository:
             return [(invoice, count) for invoice, count, _ in rows], rows[0].total
 
         total = await self._session.scalar(
-            select(func.count()).select_from(Invoice).where(awaiting_review)
+            select(func.count()).select_from(Invoice).where(*queue_filter)
         )
         return [], total or 0
 
