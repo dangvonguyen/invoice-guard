@@ -1,21 +1,11 @@
 import { redirect } from 'react-router';
 
-import { getCurrentUser, landingPathForRole, UnauthenticatedError } from '@/entities/user';
-import { useAuthStore } from '@/shared/lib/authStore';
+import { landingPathForRole, resolveCurrentUser } from '@/entities/user';
 
 export async function loader() {
-  if (useAuthStore.getState().accessToken === null) {
+  const user = await resolveCurrentUser();
+  if (user === null) {
     return null;
   }
-
-  try {
-    const user = await getCurrentUser();
-    return redirect(landingPathForRole(user.role));
-  } catch (error) {
-    if (error instanceof UnauthenticatedError) {
-      useAuthStore.getState().setAccessToken(null);
-      return null;
-    }
-    throw error;
-  }
+  return redirect(landingPathForRole(user.role));
 }
