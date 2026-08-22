@@ -20,7 +20,7 @@ async def should_return_authenticated_users_profile_without_password_hash(
     response = await client.get("/users/me", headers=employee_headers)
 
     assert response.status_code == status.HTTP_200_OK
-    body = response.json()
+    body = response.json()["data"]
     assert body["id"] == str(employee.id)
     assert body["email"] == employee.email
     assert body["name"] == employee.name
