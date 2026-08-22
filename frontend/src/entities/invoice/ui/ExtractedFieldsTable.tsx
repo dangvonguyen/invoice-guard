@@ -7,9 +7,14 @@ import { ConfidenceBadge } from './ConfidenceBadge';
 export interface ExtractedFieldsTableProps {
   fields: Record<string, unknown> | null;
   confidence: ExtractionConfidence | null;
+  confidenceReason: string | null;
 }
 
-export function ExtractedFieldsTable({ fields, confidence }: ExtractedFieldsTableProps) {
+export function ExtractedFieldsTable({
+  fields,
+  confidence,
+  confidenceReason,
+}: ExtractedFieldsTableProps) {
   const entries = fields === null ? [] : Object.entries(fields);
 
   return (
@@ -19,6 +24,9 @@ export function ExtractedFieldsTable({ fields, confidence }: ExtractedFieldsTabl
           <span>Extracted fields</span>
           {confidence && <ConfidenceBadge confidence={confidence} />}
         </CardTitle>
+        {confidenceReason !== null && (
+          <p className="text-sm text-muted-foreground">{confidenceReason}</p>
+        )}
       </CardHeader>
       <CardContent>
         {entries.length === 0 ? (

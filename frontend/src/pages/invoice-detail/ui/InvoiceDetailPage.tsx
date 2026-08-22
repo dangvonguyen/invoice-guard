@@ -14,6 +14,7 @@ import {
   type ReviewerInvoiceDetail,
   ReviewFlagList,
 } from '@/entities/invoice';
+import { DecisionForm } from '@/features/review-decision';
 import { paths } from '@/shared/config/paths';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
@@ -142,11 +143,16 @@ function ReviewerInvoiceDetailContent({ invoice }: { invoice: ReviewerInvoiceDet
 
       <EmployeeIdentityBlock employee={invoice.submittedBy} />
 
-      <ExtractedFieldsTable fields={invoice.extractedFields} confidence={invoice.confidence} />
+      <ExtractedFieldsTable
+        fields={invoice.extractedFields}
+        confidence={invoice.confidence}
+        confidenceReason={invoice.confidenceReason}
+      />
 
       <ReviewFlagList flags={invoice.reviewFlags} />
 
       {invoice.decision !== null && <DecisionCard decision={invoice.decision} />}
+      {invoice.decision === null && invoice.status === 'awaiting_review' && <DecisionForm />}
     </>
   );
 }

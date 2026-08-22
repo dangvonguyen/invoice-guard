@@ -9,6 +9,7 @@ import { paths } from '@/shared/config/paths';
 import { useAuthStore } from '@/shared/lib/authStore';
 
 import { server } from '../../../../tests/mocks/server';
+import { action } from '../api/action';
 import { loader } from '../api/loader';
 
 import { ErrorBoundary, HydrateFallback, InvoiceDetailPage } from './InvoiceDetailPage';
@@ -64,6 +65,7 @@ function renderPage() {
       HydrateFallback,
       ErrorBoundary,
       loader,
+      action,
     },
     { path: paths.login, Component: () => <p>Login</p> },
   ]);

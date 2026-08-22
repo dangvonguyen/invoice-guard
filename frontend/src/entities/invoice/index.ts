@@ -1,3 +1,4 @@
+export { decideInvoice, DecisionConflictError } from './api/decideInvoice';
 export { getInvoice, NotFoundError } from './api/getInvoice';
 export { listInvoices } from './api/listInvoices';
 export { listReviewQueue } from './api/listReviewQueue';
