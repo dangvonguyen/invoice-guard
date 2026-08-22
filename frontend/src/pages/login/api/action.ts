@@ -23,6 +23,8 @@ export async function action({ request }: ActionFunctionArgs) {
     const user = await getCurrentUser();
     return redirect(landingPathForRole(user.role));
   } catch {
-    return redirect(paths.invoices);
+    // Role unknown after a transient failure — let the home route's loader
+    // retry the lookup and route by the actual role once it resolves.
+    return redirect(paths.home);
   }
 }
