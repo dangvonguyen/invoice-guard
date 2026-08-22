@@ -45,8 +45,8 @@ export function ReviewQueuePage() {
       {items.length > 0 && (
         <ul aria-label="Review queue" className="flex flex-col gap-3">
           {items.map((item) => (
-            <li>
-              <ReviewQueueRow key={item.id} item={item} />
+            <li key={item.id}>
+              <ReviewQueueRow item={item} />
             </li>
           ))}
         </ul>

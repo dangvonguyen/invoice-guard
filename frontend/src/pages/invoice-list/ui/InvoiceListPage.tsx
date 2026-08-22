@@ -43,8 +43,8 @@ export function InvoiceListPage() {
       {invoices.length > 0 && (
         <ul aria-label="Invoices" className="flex flex-col gap-3">
           {invoices.map((invoice, index) => (
-            <li>
-              <InvoiceRow key={invoice.id} invoice={invoice} index={index + 1} />
+            <li key={invoice.id}>
+              <InvoiceRow invoice={invoice} index={index + 1} />
             </li>
           ))}
         </ul>
