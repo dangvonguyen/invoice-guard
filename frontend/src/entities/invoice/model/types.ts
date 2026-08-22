@@ -22,6 +22,7 @@ export interface Decision {
 }
 
 export interface InvoiceDetail {
+  view: 'employee';
   id: string;
   status: InvoiceStatus;
   summary: InvoiceSummary | null;
@@ -39,3 +40,31 @@ export interface ReviewQueueItem {
   summary: InvoiceSummary | null;
   flagCount: number;
 }
+
+export type ExtractionConfidence = 'high' | 'low';
+
+export interface EmployeeIdentity {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface ReviewFlag {
+  code: string;
+  summary: string | null;
+  evidence: Record<string, unknown>;
+}
+
+export interface ReviewerInvoiceDetail {
+  view: 'reviewer';
+  id: string;
+  status: InvoiceStatus;
+  submittedBy: EmployeeIdentity;
+  extractedFields: Record<string, unknown> | null;
+  confidence: ExtractionConfidence | null;
+  confidenceReason: string | null;
+  reviewFlags: ReviewFlag[];
+  decision: Decision | null;
+}
+
+export type InvoiceDetailView = InvoiceDetail | ReviewerInvoiceDetail;

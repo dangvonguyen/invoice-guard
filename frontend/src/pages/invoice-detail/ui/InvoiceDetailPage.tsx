@@ -4,11 +4,15 @@ import { ArrowLeft, FileWarning, Loader2 } from 'lucide-react';
 
 import {
   DecisionCard,
+  EmployeeIdentityBlock,
+  ExtractedFieldsTable,
   type InvoiceDetail,
   invoiceStatusBadgeVariant,
   invoiceStatusLabel,
   InvoiceSummaryCard,
   NotFoundError,
+  type ReviewerInvoiceDetail,
+  ReviewFlagList,
 } from '@/entities/invoice';
 import { paths } from '@/shared/config/paths';
 import { Badge } from '@/shared/ui/badge';
@@ -30,10 +34,14 @@ export function HydrateFallback() {
 
 export function InvoiceDetailPage() {
   const invoice = useLoaderData<typeof loader>();
+  const isReviewer = invoice.view === 'reviewer';
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-5 py-10">
-      <BackToInvoiceList />
+      <BackLink
+        to={isReviewer ? paths.reviewQueue : paths.invoices}
+        label={isReviewer ? 'Back to review queue' : 'Back to invoices'}
+      />
       <InvoiceDetailContent invoice={invoice} />
     </div>
   );
@@ -49,7 +57,7 @@ export function ErrorBoundary() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-5 py-10">
-      <BackToInvoiceList />
+      <BackLink to={paths.invoices} label="Back to invoices" />
 
       {error instanceof NotFoundError ? (
         <Empty>
@@ -73,19 +81,27 @@ export function ErrorBoundary() {
   );
 }
 
-export function BackToInvoiceList() {
+function BackLink({ to, label }: { to: string; label: string }) {
   return (
     <Link
-      to={paths.invoices}
+      to={to}
       className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
     >
       <ArrowLeft className="size-4" aria-hidden="true" />
-      Back to invoices
+      {label}
     </Link>
   );
 }
 
-function InvoiceDetailContent({ invoice }: { invoice: InvoiceDetail }) {
+function InvoiceDetailContent({ invoice }: { invoice: InvoiceDetail | ReviewerInvoiceDetail }) {
+  if (invoice.view === 'reviewer') {
+    return <ReviewerInvoiceDetailContent invoice={invoice} />;
+  }
+
+  return <EmployeeInvoiceDetailContent invoice={invoice} />;
+}
+
+function EmployeeInvoiceDetailContent({ invoice }: { invoice: InvoiceDetail }) {
   return (
     <>
       <div className="flex items-center justify-between gap-4">
@@ -108,6 +124,27 @@ function InvoiceDetailContent({ invoice }: { invoice: InvoiceDetail }) {
       {invoice.status === 'awaiting_review' && invoice.decision === null && (
         <StatusNotice>Awaiting review. You'll see the outcome here once it's decided.</StatusNotice>
       )}
+
+      {invoice.decision !== null && <DecisionCard decision={invoice.decision} />}
+    </>
+  );
+}
+
+function ReviewerInvoiceDetailContent({ invoice }: { invoice: ReviewerInvoiceDetail }) {
+  return (
+    <>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl leading-none font-semibold tracking-tight">Invoice</h1>
+        <Badge variant={invoiceStatusBadgeVariant(invoice.status)}>
+          {invoiceStatusLabel(invoice.status)}
+        </Badge>
+      </div>
+
+      <EmployeeIdentityBlock employee={invoice.submittedBy} />
+
+      <ExtractedFieldsTable fields={invoice.extractedFields} confidence={invoice.confidence} />
+
+      <ReviewFlagList flags={invoice.reviewFlags} />
 
       {invoice.decision !== null && <DecisionCard decision={invoice.decision} />}
     </>

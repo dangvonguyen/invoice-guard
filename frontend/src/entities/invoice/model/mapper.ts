@@ -1,17 +1,23 @@
 import type {
   DecisionDto,
+  EmployeeIdentityDto,
   InvoiceDetailDto,
   InvoiceListItemDto,
   InvoiceSummaryDto,
   InvoiceUploadResponseDto,
+  ReviewerInvoiceDetailDto,
+  ReviewFlagDto,
   ReviewQueueItemDto,
 } from '../api/types';
 
 import type {
   Decision,
+  EmployeeIdentity,
   Invoice,
   InvoiceDetail,
   InvoiceSummary,
+  ReviewerInvoiceDetail,
+  ReviewFlag,
   ReviewQueueItem,
   UploadedInvoice,
 } from './types';
@@ -44,9 +50,40 @@ export function toDecision(dto: DecisionDto): Decision {
 
 export function toInvoiceDetail(dto: InvoiceDetailDto): InvoiceDetail {
   return {
+    view: 'employee',
     id: dto.id,
     status: dto.status,
     summary: dto.invoice_summary === null ? null : toInvoiceSummary(dto.invoice_summary),
+    decision: dto.decision === null ? null : toDecision(dto.decision),
+  };
+}
+
+export function toEmployeeIdentity(dto: EmployeeIdentityDto): EmployeeIdentity {
+  return {
+    id: dto.id,
+    name: dto.name,
+    email: dto.email,
+  };
+}
+
+export function toReviewFlag(dto: ReviewFlagDto): ReviewFlag {
+  return {
+    code: dto.code,
+    summary: dto.summary,
+    evidence: dto.evidence,
+  };
+}
+
+export function toReviewerInvoiceDetail(dto: ReviewerInvoiceDetailDto): ReviewerInvoiceDetail {
+  return {
+    view: 'reviewer',
+    id: dto.id,
+    status: dto.status,
+    submittedBy: toEmployeeIdentity(dto.employee),
+    extractedFields: dto.extracted_fields,
+    confidence: dto.confidence,
+    confidenceReason: dto.confidence_reason,
+    reviewFlags: dto.review_flags.map(toReviewFlag),
     decision: dto.decision === null ? null : toDecision(dto.decision),
   };
 }

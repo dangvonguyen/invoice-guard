@@ -1,8 +1,8 @@
 import { apiClient } from '@/shared/api/client';
 import { unwrapEnvelope } from '@/shared/api/envelope';
 
-import { toInvoiceDetail } from '../model/mapper';
-import type { InvoiceDetail } from '../model/types';
+import { toInvoiceDetail, toReviewerInvoiceDetail } from '../model/mapper';
+import type { InvoiceDetailView } from '../model/types';
 
 export class NotFoundError extends Error {
   constructor() {
@@ -11,7 +11,7 @@ export class NotFoundError extends Error {
   }
 }
 
-export async function getInvoice(invoiceId: string): Promise<InvoiceDetail> {
+export async function getInvoice(invoiceId: string): Promise<InvoiceDetailView> {
   const {
     data: envelope,
     error,
@@ -28,7 +28,7 @@ export async function getInvoice(invoiceId: string): Promise<InvoiceDetail> {
   const { data: dto } = unwrapEnvelope(envelope);
 
   if ('employee' in dto) {
-    throw new Error('Unsupported invoice view');
+    return toReviewerInvoiceDetail(dto);
   }
 
   return toInvoiceDetail(dto);

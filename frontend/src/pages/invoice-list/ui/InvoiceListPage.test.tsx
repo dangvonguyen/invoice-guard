@@ -15,6 +15,7 @@ import { loader } from '../api/loader';
 import { ErrorBoundary, HydrateFallback, InvoiceListPage } from './InvoiceListPage';
 
 const INVOICES_URL = `${API_BASE_URL}/invoices`;
+const CURRENT_USER_URL = `${API_BASE_URL}/users/me`;
 
 interface InvoiceListItem {
   id: string;
@@ -33,6 +34,19 @@ function listEnvelope(data: InvoiceListItem[]) {
 
 function uploadEnvelope(id: string, status: InvoiceListItem['status']) {
   return { success: true, data: { id, status }, error: null, meta: null };
+}
+
+function currentUserEnvelope(role: 'employee' | 'finance_reviewer') {
+  return {
+    success: true,
+    data: { id: 'user-1', email: 'jamie@example.com', name: 'Jamie Lin', role },
+    error: null,
+    meta: null,
+  };
+}
+
+function mockEmployee() {
+  server.use(http.get(CURRENT_USER_URL, () => HttpResponse.json(currentUserEnvelope('employee'))));
 }
 
 function renderPage() {
@@ -54,6 +68,7 @@ function renderPage() {
 describe('InvoiceListPage', () => {
   beforeEach(() => {
     useAuthStore.getState().setAccessToken('signed.jwt.token');
+    mockEmployee();
   });
 
   afterEach(() => useAuthStore.getState().setAccessToken(null));
@@ -190,6 +205,8 @@ describe('InvoiceListPage', () => {
 });
 
 describe('InvoicesPage access control', () => {
+  afterEach(() => useAuthStore.getState().setAccessToken(null));
+
   it('should redirect unauthenticated users to login', async () => {
     const Stub = createRoutesStub([
       { path: paths.invoices, Component: InvoiceListPage, HydrateFallback, loader, action },
@@ -199,5 +216,20 @@ describe('InvoicesPage access control', () => {
     render(<Stub initialEntries={[paths.invoices]} />);
 
     expect(await screen.findByText('Login')).toBeInTheDocument();
+  });
+
+  it('should redirect reviewers to the review queue, so they can never see their own invoices there', async () => {
+    useAuthStore.getState().setAccessToken('signed.jwt.token');
+    server.use(
+      http.get(CURRENT_USER_URL, () => HttpResponse.json(currentUserEnvelope('finance_reviewer'))),
+    );
+    const Stub = createRoutesStub([
+      { path: paths.invoices, Component: InvoiceListPage, HydrateFallback, loader, action },
+      { path: paths.reviewQueue, Component: () => <p>Review queue</p> },
+    ]);
+
+    render(<Stub initialEntries={[paths.invoices]} />);
+
+    expect(await screen.findByText('Review queue')).toBeInTheDocument();
   });
 });

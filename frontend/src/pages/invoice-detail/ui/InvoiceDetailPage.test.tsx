@@ -37,7 +37,22 @@ interface InvoiceDetailResponse {
   decision: DecisionView | null;
 }
 
+interface ReviewerInvoiceDetailResponse {
+  id: string;
+  status: 'processing_error' | 'awaiting_review' | 'approved' | 'rejected';
+  employee: { id: string; name: string; email: string };
+  extracted_fields: Record<string, unknown> | null;
+  confidence: 'high' | 'low' | null;
+  confidence_reason: string | null;
+  review_flags: { code: string; summary: string | null; evidence: Record<string, unknown> }[];
+  decision: DecisionView | null;
+}
+
 function detailEnvelope(data: InvoiceDetailResponse) {
+  return { success: true, data, error: null, meta: null };
+}
+
+function reviewerDetailEnvelope(data: ReviewerInvoiceDetailResponse) {
   return { success: true, data, error: null, meta: null };
 }
 
@@ -246,6 +261,98 @@ describe('InvoiceDetailPage', () => {
     // "Rejected" appears in both the status badge and the decision badge.
     expect(screen.getAllByText('Rejected')).toHaveLength(2);
     expect(screen.getByText(/missing receipt/i)).toBeInTheDocument();
+  });
+});
+
+describe('InvoiceDetailPage reviewer view', () => {
+  beforeEach(() => {
+    useAuthStore.getState().setAccessToken('signed.jwt.token');
+  });
+
+  afterEach(() => useAuthStore.getState().setAccessToken(null));
+
+  it("should show the submitter, extracted fields, confidence, and review flags for a reviewer's invoice", async () => {
+    server.use(
+      http.get(INVOICE_URL, () =>
+        HttpResponse.json(
+          reviewerDetailEnvelope({
+            id: INVOICE_ID,
+            status: 'awaiting_review',
+            employee: { id: 'emp-1', name: 'Priya Nair', email: 'priya@example.com' },
+            extracted_fields: { vendor: 'Acme Cloud Services', total: '482.10' },
+            confidence: 'low',
+            confidence_reason: 'Total amount was not clearly legible',
+            review_flags: [
+              { code: 'duplicate_submission', summary: 'Possible duplicate', evidence: {} },
+            ],
+            decision: null,
+          }),
+        ),
+      ),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText('Priya Nair')).toBeInTheDocument();
+    expect(screen.getByText('priya@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Acme Cloud Services')).toBeInTheDocument();
+    expect(screen.getByText(/low confidence/i)).toBeInTheDocument();
+    expect(screen.getByText(/total amount was not clearly legible/i)).toBeInTheDocument();
+    expect(screen.getByText(/possible duplicate/i)).toBeInTheDocument();
+  });
+
+  it('should show no extracted fields note when extraction produced nothing', async () => {
+    server.use(
+      http.get(INVOICE_URL, () =>
+        HttpResponse.json(
+          reviewerDetailEnvelope({
+            id: INVOICE_ID,
+            status: 'processing_error',
+            employee: { id: 'emp-1', name: 'Priya Nair', email: 'priya@example.com' },
+            extracted_fields: null,
+            confidence: null,
+            confidence_reason: null,
+            review_flags: [],
+            decision: null,
+          }),
+        ),
+      ),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText('Priya Nair')).toBeInTheDocument();
+    expect(screen.getByText(/no extracted fields available/i)).toBeInTheDocument();
+  });
+
+  it("should show the recorded decision for a reviewer's invoice", async () => {
+    server.use(
+      http.get(INVOICE_URL, () =>
+        HttpResponse.json(
+          reviewerDetailEnvelope({
+            id: INVOICE_ID,
+            status: 'approved',
+            employee: { id: 'emp-1', name: 'Priya Nair', email: 'priya@example.com' },
+            extracted_fields: { vendor: 'Acme Cloud Services' },
+            confidence: 'high',
+            confidence_reason: null,
+            review_flags: [],
+            decision: {
+              outcome: 'approved',
+              reason: 'Within policy',
+              decided_by: 'Morgan Reyes',
+              decided_at: '2026-08-19T10:00:00Z',
+            },
+          }),
+        ),
+      ),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText(/decision/i)).toBeInTheDocument();
+    expect(screen.getByText(/within policy/i)).toBeInTheDocument();
+    expect(screen.getByText(/decided by morgan reyes/i)).toBeInTheDocument();
   });
 });
 
