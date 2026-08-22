@@ -26,3 +26,4 @@ export { InvoiceRow } from './ui/InvoiceRow';
 export { InvoiceSummaryCard } from './ui/InvoiceSummaryCard';
 export { ReviewFlagList } from './ui/ReviewFlagList';
 export { ReviewQueueRow } from './ui/ReviewQueueRow';
+export { UnauthenticatedError } from '@/shared/api/errors';

@@ -359,7 +359,34 @@ describe('InvoiceDetailPage reviewer view', () => {
 });
 
 describe('InvoiceDetailPage access control', () => {
+  afterEach(() => useAuthStore.getState().setAccessToken(null));
+
   it('should redirect unauthenticated users to login', async () => {
+    const Stub = createRoutesStub([
+      { path: paths.invoiceDetail, Component: InvoiceDetailPage, HydrateFallback, loader },
+      { path: paths.login, Component: () => <p>Login</p> },
+    ]);
+
+    render(<Stub initialEntries={[`/invoices/${INVOICE_ID}`]} />);
+
+    expect(await screen.findByText('Login')).toBeInTheDocument();
+  });
+
+  it('should redirect to login when the session expires while fetching the invoice', async () => {
+    useAuthStore.getState().setAccessToken('signed.jwt.token');
+    server.use(
+      http.get(INVOICE_URL, () =>
+        HttpResponse.json(
+          {
+            success: false,
+            data: null,
+            error: { code: 'UNAUTHORIZED', message: 'Expired' },
+            meta: null,
+          },
+          { status: 401 },
+        ),
+      ),
+    );
     const Stub = createRoutesStub([
       { path: paths.invoiceDetail, Component: InvoiceDetailPage, HydrateFallback, loader },
       { path: paths.login, Component: () => <p>Login</p> },

@@ -15,6 +15,7 @@ export async function loader() {
     if (user.role !== 'employee') {
       return redirect(landingPathForRole(user.role));
     }
+    return await listInvoices();
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       useAuthStore.getState().setAccessToken(null);
@@ -22,6 +23,4 @@ export async function loader() {
     }
     throw error;
   }
-
-  return listInvoices();
 }

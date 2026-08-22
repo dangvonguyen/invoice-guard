@@ -232,4 +232,30 @@ describe('InvoicesPage access control', () => {
 
     expect(await screen.findByText('Review queue')).toBeInTheDocument();
   });
+
+  it('should redirect to login when the session expires while fetching invoices', async () => {
+    useAuthStore.getState().setAccessToken('signed.jwt.token');
+    mockEmployee();
+    server.use(
+      http.get(INVOICES_URL, () =>
+        HttpResponse.json(
+          {
+            success: false,
+            data: null,
+            error: { code: 'UNAUTHORIZED', message: 'Expired' },
+            meta: null,
+          },
+          { status: 401 },
+        ),
+      ),
+    );
+    const Stub = createRoutesStub([
+      { path: paths.invoices, Component: InvoiceListPage, HydrateFallback, loader, action },
+      { path: paths.login, Component: () => <p>Login</p> },
+    ]);
+
+    render(<Stub initialEntries={[paths.invoices]} />);
+
+    expect(await screen.findByText('Login')).toBeInTheDocument();
+  });
 });
