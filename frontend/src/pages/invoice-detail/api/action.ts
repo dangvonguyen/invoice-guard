@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs } from 'react-router';
 
-import { decideInvoice, DecisionConflictError } from '@/entities/invoice';
+import { decideInvoice, DecisionConflictError, NotAwaitingReviewError } from '@/entities/invoice';
 
 export async function action({ request, params }: ActionFunctionArgs): Promise<Error | null> {
   if (params.id === undefined) {
@@ -19,7 +19,9 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<E
     await decideInvoice(params.id, outcome, reason);
     return null;
   } catch (error) {
-    if (error instanceof DecisionConflictError) return error;
+    if (error instanceof DecisionConflictError || error instanceof NotAwaitingReviewError) {
+      return error;
+    }
     return new Error('Something went wrong. Please try again.');
   }
 }

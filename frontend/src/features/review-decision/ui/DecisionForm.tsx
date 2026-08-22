@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useFetcher } from 'react-router';
 
-import { DecisionConflictError } from '@/entities/invoice';
+import { DecisionConflictError, NotAwaitingReviewError } from '@/entities/invoice';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/shared/ui/field';
@@ -10,14 +10,17 @@ import { ToggleGroup, ToggleGroupItem } from '@/shared/ui/toggle-group';
 
 type Outcome = 'approved' | 'rejected';
 
+function getErrorMessage(error: Error | null | undefined): string | null {
+  if (error instanceof DecisionConflictError) return 'Already decided by another reviewer.';
+  if (error instanceof NotAwaitingReviewError) return 'This invoice is no longer awaiting review.';
+  return error?.message ?? null;
+}
+
 export function DecisionForm() {
   const fetcher = useFetcher<Error>();
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const isSubmitting = fetcher.state !== 'idle';
-  const errorMessage =
-    fetcher.data instanceof DecisionConflictError
-      ? 'Already decided by another reviewer.'
-      : (fetcher.data?.message ?? null);
+  const errorMessage = getErrorMessage(fetcher.data);
 
   function handleOutcomeChange(values: string[]): void {
     const [value] = values;

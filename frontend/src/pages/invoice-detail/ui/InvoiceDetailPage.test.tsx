@@ -358,6 +358,85 @@ describe('InvoiceDetailPage reviewer view', () => {
   });
 });
 
+describe('DecisionForm submission', () => {
+  beforeEach(() => {
+    useAuthStore.getState().setAccessToken('signed.jwt.token');
+    server.use(
+      http.get(INVOICE_URL, () =>
+        HttpResponse.json(
+          reviewerDetailEnvelope({
+            id: INVOICE_ID,
+            status: 'awaiting_review',
+            employee: { id: 'emp-1', name: 'Priya Nair', email: 'priya@example.com' },
+            extracted_fields: null,
+            confidence: null,
+            confidence_reason: null,
+            review_flags: [],
+            decision: null,
+          }),
+        ),
+      ),
+    );
+  });
+
+  afterEach(() => useAuthStore.getState().setAccessToken(null));
+
+  it('should show a distinct message when the invoice is no longer awaiting review', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post(`${INVOICE_URL}/decision`, () =>
+        HttpResponse.json(
+          {
+            success: false,
+            data: null,
+            error: {
+              code: 'INVOICE_NOT_AWAITING_REVIEW',
+              message: 'Invoice is not awaiting review.',
+            },
+            meta: null,
+          },
+          { status: 409 },
+        ),
+      ),
+    );
+
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: /approve/i }));
+    await user.type(screen.getByLabelText(/reason/i), 'Looks fine');
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/no longer awaiting review/i);
+  });
+
+  it('should show the already-decided message when another reviewer wins the race', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post(`${INVOICE_URL}/decision`, () =>
+        HttpResponse.json(
+          {
+            success: false,
+            data: null,
+            error: { code: 'INVOICE_ALREADY_DECIDED', message: 'Invoice already decided.' },
+            meta: null,
+          },
+          { status: 409 },
+        ),
+      ),
+    );
+
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: /approve/i }));
+    await user.type(screen.getByLabelText(/reason/i), 'Looks fine');
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /already decided by another reviewer/i,
+    );
+  });
+});
+
 describe('InvoiceDetailPage access control', () => {
   afterEach(() => useAuthStore.getState().setAccessToken(null));
 
