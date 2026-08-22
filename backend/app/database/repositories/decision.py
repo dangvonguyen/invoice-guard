@@ -29,6 +29,10 @@ class InvoiceNotAwaitingReviewError(Exception):
     """Raised when the target invoice was not in `awaiting_review`."""
 
 
+class ReviewerCannotDecideOwnInvoiceError(Exception):
+    """Raised when a reviewer attempts to decide on their own submission."""
+
+
 class DecisionRepository:
     """Repository for performing database operations related to decisions."""
 
@@ -44,8 +48,11 @@ class DecisionRepository:
         decided_by_id: UUID,
     ) -> InvoiceDecision:
         """Insert a decision and transition the invoice status, atomically."""
-        if await self._session.get(Invoice, invoice_id) is None:
+        invoice = await self._session.get(Invoice, invoice_id)
+        if invoice is None:
             raise InvoiceNotFoundError(str(invoice_id))
+        if invoice.owner_id == decided_by_id:
+            raise ReviewerCannotDecideOwnInvoiceError(str(invoice_id))
 
         decision = InvoiceDecision(
             invoice_id=invoice_id,
