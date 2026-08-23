@@ -16,6 +16,7 @@ import { ErrorBoundary, HydrateFallback, InvoiceDetailPage } from './InvoiceDeta
 
 const INVOICE_ID = 'inv-1';
 const INVOICE_URL = `${API_BASE_URL}/invoices/${INVOICE_ID}`;
+const CURRENT_USER_URL = `${API_BASE_URL}/users/me`;
 
 interface InvoiceSummary {
   vendor_name: string;
@@ -57,6 +58,19 @@ function reviewerDetailEnvelope(data: ReviewerInvoiceDetailResponse) {
   return { success: true, data, error: null, meta: null };
 }
 
+function currentUserEnvelope(role: 'employee' | 'finance_reviewer') {
+  return {
+    success: true,
+    data: { id: 'user-1', email: 'jamie@example.com', name: 'Jamie Lin', role },
+    error: null,
+    meta: null,
+  };
+}
+
+function mockCurrentUser(role: 'employee' | 'finance_reviewer' = 'employee') {
+  server.use(http.get(CURRENT_USER_URL, () => HttpResponse.json(currentUserEnvelope(role))));
+}
+
 function renderPage() {
   const Stub = createRoutesStub([
     {
@@ -76,6 +90,7 @@ function renderPage() {
 describe('InvoiceDetailPage', () => {
   beforeEach(() => {
     useAuthStore.getState().setAccessToken('signed.jwt.token');
+    mockCurrentUser();
   });
 
   afterEach(() => useAuthStore.getState().setAccessToken(null));
@@ -269,6 +284,7 @@ describe('InvoiceDetailPage', () => {
 describe('InvoiceDetailPage reviewer view', () => {
   beforeEach(() => {
     useAuthStore.getState().setAccessToken('signed.jwt.token');
+    mockCurrentUser('finance_reviewer');
   });
 
   afterEach(() => useAuthStore.getState().setAccessToken(null));
@@ -361,6 +377,7 @@ describe('InvoiceDetailPage reviewer view', () => {
 describe('DecisionForm submission', () => {
   beforeEach(() => {
     useAuthStore.getState().setAccessToken('signed.jwt.token');
+    mockCurrentUser('finance_reviewer');
     server.use(
       http.get(INVOICE_URL, () =>
         HttpResponse.json(
@@ -435,6 +452,31 @@ describe('DecisionForm submission', () => {
       /already decided by another reviewer/i,
     );
   });
+
+  it('should redirect to login when the session expires while submitting a decision', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post(`${INVOICE_URL}/decision`, () =>
+        HttpResponse.json(
+          {
+            success: false,
+            data: null,
+            error: { code: 'UNAUTHORIZED', message: 'Expired' },
+            meta: null,
+          },
+          { status: 401 },
+        ),
+      ),
+    );
+
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: /approve/i }));
+    await user.type(screen.getByLabelText(/reason/i), 'Looks fine');
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+
+    expect(await screen.findByText('Login')).toBeInTheDocument();
+  });
 });
 
 describe('InvoiceDetailPage access control', () => {
@@ -453,6 +495,7 @@ describe('InvoiceDetailPage access control', () => {
 
   it('should redirect to login when the session expires while fetching the invoice', async () => {
     useAuthStore.getState().setAccessToken('signed.jwt.token');
+    mockCurrentUser();
     server.use(
       http.get(INVOICE_URL, () =>
         HttpResponse.json(

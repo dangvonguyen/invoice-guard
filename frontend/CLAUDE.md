@@ -36,7 +36,7 @@ Every slice exposes a public API through its `index.ts`; cross-slice imports go 
 
 **DTO ↔ model.** `api/types.ts` holds snake_case DTOs mirroring the backend; `model/types.ts` holds camelCase app models; `model/mapper.ts` converts (`toInvoice`, `toCurrentUser`), including date strings → `Date`. Components consume models only.
 
-**Auth.** The access token lives in the zustand `useAuthStore` (in memory, not persisted). Loaders must not read it directly — use `requireCurrentUser` (redirects to `/login`) or `resolveCurrentUser` (returns `null` for a signed-out visitor) from `@/entities/user`.
+**Auth.** The access token lives in the zustand `useAuthStore` (in memory, not persisted). Loaders must not read it directly — use `requireCurrentUser` (redirects to `/login`), `resolveCurrentUser` (returns `null` for a signed-out visitor), or `requireRole` (redirects to `/login`, then to the user's own landing page if their role doesn't match) from `@/entities/user`.
 
 **Styling.** Tailwind v4 + shadcn primitives in `shared/ui/` (generated — regenerate rather than hand-edit). Compose classes with `cn()` from `shared/lib/utils`.
 

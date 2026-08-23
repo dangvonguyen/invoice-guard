@@ -1,5 +1,6 @@
 import { apiClient } from '@/shared/api/client';
 import { unwrapEnvelope } from '@/shared/api/envelope';
+import { translateApiError } from '@/shared/api/errors';
 
 import { toDecision } from '../model/mapper';
 import type { Decision } from '../model/types';
@@ -42,13 +43,12 @@ export async function decideInvoice(
   });
 
   if (error) {
-    if (response.status === 409) {
-      if (conflictErrorCode(error) === 'INVOICE_NOT_AWAITING_REVIEW') {
-        throw new NotAwaitingReviewError();
-      }
-      throw new DecisionConflictError();
-    }
-    throw new Error('Failed to record decision');
+    throw translateApiError(response, error, 'Failed to record decision', {
+      409: (conflictError) =>
+        conflictErrorCode(conflictError) === 'INVOICE_NOT_AWAITING_REVIEW'
+          ? new NotAwaitingReviewError()
+          : new DecisionConflictError(),
+    });
   }
 
   const { data: dto } = unwrapEnvelope(envelope);

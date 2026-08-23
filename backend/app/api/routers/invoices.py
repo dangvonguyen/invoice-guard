@@ -16,7 +16,6 @@ from app.api.deps import (
     InvoiceRepositoryDep,
 )
 from app.core.config import get_settings
-from app.database.models.invoice import InvoiceStatus
 from app.database.models.user import UserRole
 from app.queueing import invoice_processing
 from app.schemas.decision import DecisionRequest, DecisionView
@@ -90,8 +89,9 @@ async def upload_invoice(
                 "context": {"invoice_id": str(invoice.id)},
             },
         )
-        await invoices.mark_processing_error(invoice_id=invoice.id)
-        invoice.status = InvoiceStatus.PROCESSING_ERROR
+        transition = await invoices.mark_processing_error(invoice_id=invoice.id)
+        if transition.status is not None:
+            invoice.status = transition.status
 
     logger.info(
         "Invoice upload accepted",

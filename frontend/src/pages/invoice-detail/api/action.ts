@@ -1,8 +1,12 @@
 import type { ActionFunctionArgs } from 'react-router';
 
 import { decideInvoice, DecisionConflictError, NotAwaitingReviewError } from '@/entities/invoice';
+import { redirectOnSessionExpiry } from '@/entities/user';
 
-export async function action({ request, params }: ActionFunctionArgs): Promise<Error | null> {
+export async function action({
+  request,
+  params,
+}: ActionFunctionArgs): Promise<Error | null | Response> {
   if (params.id === undefined) {
     return new Error('Something went wrong. Please try again.');
   }
@@ -22,6 +26,6 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<E
     if (error instanceof DecisionConflictError || error instanceof NotAwaitingReviewError) {
       return error;
     }
-    return new Error('Something went wrong. Please try again.');
+    return redirectOnSessionExpiry(error) ?? new Error('Something went wrong. Please try again.');
   }
 }

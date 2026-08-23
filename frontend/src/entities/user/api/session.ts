@@ -3,12 +3,28 @@ import { redirect } from 'react-router';
 import { paths } from '@/shared/config/paths';
 import { useAuthStore } from '@/shared/lib/authStore';
 
-import type { CurrentUser } from '../model/types';
+import { landingPathForRole } from '../lib/landingPathForRole';
+import type { CurrentUser, UserRole } from '../model/types';
 
 import { getCurrentUser, UnauthenticatedError } from './getCurrentUser';
 
 function clearAccessToken(): void {
   useAuthStore.getState().setAccessToken(null);
+}
+
+/**
+ * Clears the session and returns a redirect to `/login` for a caught
+ * `UnauthenticatedError`, or `undefined` for any other error so the caller
+ * can keep handling it. For loaders/actions that call entity `api/`
+ * functions directly (outside `requireCurrentUser`) and still need to react
+ * to a session expiring mid-request, e.g. a follow-up mutation.
+ */
+export function redirectOnSessionExpiry(error: unknown): ReturnType<typeof redirect> | undefined {
+  if (!(error instanceof UnauthenticatedError)) {
+    return undefined;
+  }
+  clearAccessToken();
+  return redirect(paths.login);
 }
 
 /**
@@ -54,4 +70,17 @@ export async function requireCurrentUser<T>(
     }
     throw error;
   }
+}
+
+/**
+ * Redirect to the current user's own landing page when their role doesn't
+ * match `role`.
+ */
+export async function requireRole<T>(
+  role: UserRole,
+  run: (user: CurrentUser) => Promise<T> | T,
+): Promise<T | ReturnType<typeof redirect>> {
+  return requireCurrentUser((user) =>
+    user.role !== role ? redirect(landingPathForRole(user.role)) : run(user),
+  );
 }

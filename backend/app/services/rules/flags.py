@@ -2,33 +2,13 @@
 
 from app.database.models.rule_result import InvoiceRuleResult, RuleOutcome
 from app.schemas.review import ReviewFlagView
+from app.services.rules.definitions import RULES
 from app.services.rules.result import RuleCode
 
 _SUMMARIES: dict[tuple[RuleCode, RuleOutcome], str] = {
-    (
-        RuleCode.EXPENSE_WITHIN_AMOUNT_LIMIT,
-        RuleOutcome.FAIL,
-    ): "Invoice total exceeds the configured review limit.",
-    (
-        RuleCode.LINE_ITEM_TOTAL_CONSISTENCY,
-        RuleOutcome.FAIL,
-    ): "Line items and tax do not reconcile with the stated total.",
-    (
-        RuleCode.LINE_ITEM_TOTAL_CONSISTENCY,
-        RuleOutcome.NOT_APPLICABLE,
-    ): "No line items were extracted to reconcile against the total.",
-    (
-        RuleCode.CURRENCY_ALLOWED,
-        RuleOutcome.FAIL,
-    ): "Invoice currency is not in the allowed set.",
-    (
-        RuleCode.INVOICE_DATE_NOT_IN_FUTURE,
-        RuleOutcome.FAIL,
-    ): "Invoice is dated in the future.",
-    (
-        RuleCode.EXPENSE_WITHIN_SUBMISSION_WINDOW,
-        RuleOutcome.FAIL,
-    ): "Invoice was submitted after the allowed submission window.",
+    (rule.code, outcome): summary
+    for rule in RULES
+    for outcome, summary in rule.summaries.items()
 }
 
 

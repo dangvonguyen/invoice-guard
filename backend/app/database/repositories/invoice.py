@@ -8,17 +8,36 @@ with no database record.
 """
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import ColumnElement, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database.models.decision import InvoiceDecision
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.rule_result import InvoiceRuleResult, RuleOutcome
+
+_LEGAL_PRIOR_STATUSES: dict[InvoiceStatus, frozenset[InvoiceStatus]] = {
+    InvoiceStatus.UPLOAD_FAILED: frozenset({InvoiceStatus.PROCESSING}),
+    InvoiceStatus.PROCESSING_ERROR: frozenset({InvoiceStatus.PROCESSING}),
+    InvoiceStatus.AWAITING_REVIEW: frozenset(
+        {InvoiceStatus.PROCESSING, InvoiceStatus.PROCESSING_ERROR}
+    ),
+    InvoiceStatus.APPROVED: frozenset({InvoiceStatus.AWAITING_REVIEW}),
+    InvoiceStatus.REJECTED: frozenset({InvoiceStatus.AWAITING_REVIEW}),
+}
+
+
+@dataclass(frozen=True)
+class TransitionResult:
+    """The outcome of one attempted transition."""
+
+    applied: bool
+    status: InvoiceStatus | None
 
 
 class InvoiceRepository:
@@ -159,29 +178,26 @@ class InvoiceRepository:
         )
         return result.scalars().all()
 
-    async def mark_upload_failed(self, *, invoice_id: UUID) -> None:
+    async def mark_upload_failed(self, *, invoice_id: UUID) -> TransitionResult:
         """Durably record that storage failed for a reserved invoice."""
-        await self._session.execute(
-            update(Invoice)
-            .where(Invoice.id == invoice_id)
-            .values(status=InvoiceStatus.UPLOAD_FAILED)
+        result = await self.transition_status(
+            self._session, invoice_id=invoice_id, to=InvoiceStatus.UPLOAD_FAILED
         )
         await self._session.commit()
+        return result
 
-    async def mark_processing_error(self, *, invoice_id: UUID) -> None:
+    async def mark_processing_error(self, *, invoice_id: UUID) -> TransitionResult:
         """Durably record that extraction could not proceed for an invoice."""
-        await self._session.execute(
-            update(Invoice)
-            .where(
-                Invoice.id == invoice_id,
-                Invoice.status == InvoiceStatus.PROCESSING,
-                # Guarded so a later retry/failure callback can never stomp
-                # on fields a prior attempt already persisted
-                Invoice.extracted_fields.is_(None),
-            )
-            .values(status=InvoiceStatus.PROCESSING_ERROR)
+        result = await self.transition_status(
+            self._session,
+            invoice_id=invoice_id,
+            to=InvoiceStatus.PROCESSING_ERROR,
+            # Guarded so a later retry/failure callback can never stomp
+            # on fields a prior attempt already persisted
+            extra_conditions=(Invoice.extracted_fields.is_(None),),
         )
         await self._session.commit()
+        return result
 
     async def mark_extracted(
         self,
@@ -207,20 +223,48 @@ class InvoiceRepository:
         )
         await self._session.commit()
 
-    async def mark_awaiting_review(self, *, invoice_id: UUID) -> None:
+    async def mark_awaiting_review(self, *, invoice_id: UUID) -> TransitionResult:
         """Durably open an invoice for review, whether analysis completed or not.
 
         Used both for a fully analyzed invoice and for retry-exhausted ones
         that never finished analysis - either way, a reviewer decides next.
         """
-        await self._session.execute(
+        result = await self.transition_status(
+            self._session, invoice_id=invoice_id, to=InvoiceStatus.AWAITING_REVIEW
+        )
+        await self._session.commit()
+        return result
+
+    @staticmethod
+    async def transition_status(
+        session: AsyncSession,
+        *,
+        invoice_id: UUID,
+        to: InvoiceStatus,
+        extra_conditions: Sequence[ColumnElement[bool]] = (),
+    ) -> TransitionResult:
+        """The single seam governing every invoice status transition.
+
+        Guarded to only apply from `to`'s legal prior status(es), and never
+        commits - the caller controls the transaction, since some callers
+        (decision recording) need this in the same transaction as other
+        writes against the same aggregate.
+        """
+        result = await session.execute(
             update(Invoice)
             .where(
                 Invoice.id == invoice_id,
-                Invoice.status.in_(
-                    [InvoiceStatus.PROCESSING, InvoiceStatus.PROCESSING_ERROR]
-                ),
+                Invoice.status.in_(_LEGAL_PRIOR_STATUSES[to]),
+                *extra_conditions,
             )
-            .values(status=InvoiceStatus.AWAITING_REVIEW)
+            .values(status=to)
+            .returning(Invoice.status)
         )
-        await self._session.commit()
+        updated_status = result.scalar_one_or_none()
+        if updated_status is not None:
+            return TransitionResult(applied=True, status=updated_status)
+
+        current_status = await session.scalar(
+            select(Invoice.status).where(Invoice.id == invoice_id)
+        )
+        return TransitionResult(applied=False, status=current_status)

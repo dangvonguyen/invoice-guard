@@ -1,4 +1,5 @@
 import { apiClient } from '@/shared/api/client';
+import { translateApiError } from '@/shared/api/errors';
 import { useAuthStore } from '@/shared/lib/authStore';
 
 export class InvalidCredentialsError extends Error {
@@ -31,8 +32,9 @@ async function requestLogin(email: string, password: string): Promise<string> {
   });
 
   if (error) {
-    if (response.status === 401) throw new InvalidCredentialsError();
-    throw new Error('Failed to log in');
+    throw translateApiError(response, error, 'Failed to log in', {
+      401: () => new InvalidCredentialsError(),
+    });
   }
   return data.access_token;
 }

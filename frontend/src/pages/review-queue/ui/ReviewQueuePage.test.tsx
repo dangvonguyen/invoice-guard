@@ -204,4 +204,26 @@ describe('ReviewQueuePage access control', () => {
 
     expect(await screen.findByText('Invoices')).toBeInTheDocument();
   });
+
+  it('should redirect to login when the session expires while loading the review queue', async () => {
+    useAuthStore.getState().setAccessToken('signed.jwt.token');
+    mockReviewer();
+    server.use(
+      http.get(REVIEW_QUEUE_URL, () =>
+        HttpResponse.json(
+          {
+            success: false,
+            data: null,
+            error: { code: 'UNAUTHORIZED', message: 'Expired' },
+            meta: null,
+          },
+          { status: 401 },
+        ),
+      ),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText('Login')).toBeInTheDocument();
+  });
 });
