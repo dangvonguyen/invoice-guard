@@ -1,15 +1,15 @@
 """Database access operations for invoice decisions."""
 
-from typing import cast
 from uuid import UUID
 
-from sqlalchemy import CursorResult, select, update
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database.models.decision import InvoiceDecision, InvoiceDecisionOutcome
 from app.database.models.invoice import Invoice, InvoiceStatus
+from app.database.repositories.invoice import InvoiceRepository
 
 _OUTCOME_TO_STATUS = {
     InvoiceDecisionOutcome.APPROVED: InvoiceStatus.APPROVED,
@@ -68,15 +68,10 @@ class DecisionRepository:
             await self._session.rollback()
             raise DecisionAlreadyExistsError(str(invoice_id)) from exc
 
-        result = await self._session.execute(
-            update(Invoice)
-            .where(
-                Invoice.id == invoice_id,
-                Invoice.status == InvoiceStatus.AWAITING_REVIEW,
-            )
-            .values(status=_OUTCOME_TO_STATUS[outcome])
+        transition = await InvoiceRepository.transition_status(
+            self._session, invoice_id=invoice_id, to=_OUTCOME_TO_STATUS[outcome]
         )
-        if cast(CursorResult[None], result).rowcount == 0:
+        if not transition.applied:
             await self._session.rollback()
             raise InvoiceNotAwaitingReviewError(str(invoice_id))
 

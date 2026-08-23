@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.user import User
 from app.database.repositories.invoice import InvoiceRepository
-from tests.support.helpers import create_user
+from tests.support.helpers import create_invoice, create_user
 
 pytestmark = [
     pytest.mark.integration,
@@ -79,10 +79,31 @@ async def should_durably_mark_a_failed_upload(
         original_filename="invoice.pdf",
     )
 
-    await repository.mark_upload_failed(invoice_id=invoice.id)
+    result = await repository.mark_upload_failed(invoice_id=invoice.id)
     await test_db.refresh(invoice)
 
     assert invoice.status == InvoiceStatus.UPLOAD_FAILED
+    assert result.applied is True
+    assert result.status == InvoiceStatus.UPLOAD_FAILED
+
+
+async def should_not_mark_upload_failed_once_an_invoice_has_left_processing(
+    test_db: AsyncSession, repository: InvoiceRepository, owner: User
+) -> None:
+    """Refuse to mark a no-longer-processing invoice as a failed upload."""
+    invoice = await create_invoice(
+        test_db,
+        owner_id=owner.id,
+        storage_key="already-reviewed-key",
+        status=InvoiceStatus.AWAITING_REVIEW,
+    )
+
+    result = await repository.mark_upload_failed(invoice_id=invoice.id)
+    await test_db.refresh(invoice)
+
+    assert invoice.status == InvoiceStatus.AWAITING_REVIEW
+    assert result.applied is False
+    assert result.status == InvoiceStatus.AWAITING_REVIEW
 
 
 async def should_durably_mark_a_processing_error(
@@ -95,10 +116,12 @@ async def should_durably_mark_a_processing_error(
         original_filename="invoice.pdf",
     )
 
-    await repository.mark_processing_error(invoice_id=invoice.id)
+    result = await repository.mark_processing_error(invoice_id=invoice.id)
     await test_db.refresh(invoice)
 
     assert invoice.status == InvoiceStatus.PROCESSING_ERROR
+    assert result.applied is True
+    assert result.status == InvoiceStatus.PROCESSING_ERROR
 
 
 async def should_not_mark_processing_error_once_fields_are_already_extracted(
@@ -117,11 +140,13 @@ async def should_not_mark_processing_error_once_fields_are_already_extracted(
         confidence_reason=None,
     )
 
-    await repository.mark_processing_error(invoice_id=invoice.id)
+    result = await repository.mark_processing_error(invoice_id=invoice.id)
     await test_db.refresh(invoice)
 
     assert invoice.status == InvoiceStatus.PROCESSING
     assert invoice.extracted_fields is not None
+    assert result.applied is False
+    assert result.status == InvoiceStatus.PROCESSING
 
 
 async def should_persist_extracted_fields_without_changing_status(
@@ -164,10 +189,12 @@ async def should_mark_a_processing_invoice_awaiting_review(
         original_filename="invoice.pdf",
     )
 
-    await repository.mark_awaiting_review(invoice_id=invoice.id)
+    result = await repository.mark_awaiting_review(invoice_id=invoice.id)
     await test_db.refresh(invoice)
 
     assert invoice.status == InvoiceStatus.AWAITING_REVIEW
+    assert result.applied is True
+    assert result.status == InvoiceStatus.AWAITING_REVIEW
 
 
 async def should_mark_a_processing_error_invoice_awaiting_review(
@@ -187,23 +214,36 @@ async def should_mark_a_processing_error_invoice_awaiting_review(
     assert invoice.status == InvoiceStatus.AWAITING_REVIEW
 
 
+@pytest.mark.parametrize(
+    "terminal_status",
+    [
+        InvoiceStatus.APPROVED,
+        InvoiceStatus.REJECTED,
+        InvoiceStatus.UPLOAD_FAILED,
+    ],
+)
 async def should_not_resurrect_a_terminal_invoice_into_awaiting_review(
-    test_db: AsyncSession, repository: InvoiceRepository, owner: User
+    test_db: AsyncSession,
+    repository: InvoiceRepository,
+    owner: User,
+    terminal_status: InvoiceStatus,
 ) -> None:
-    """Never move a decided invoice back into the review queue."""
+    """Never move a decided or failed-upload invoice into the review queue."""
     invoice = Invoice(
         owner_id=owner.id,
-        storage_key="decided-key",
+        storage_key=f"terminal-{terminal_status.value}-key",
         original_filename="invoice.pdf",
-        status=InvoiceStatus.APPROVED,
+        status=terminal_status,
     )
     test_db.add(invoice)
     await test_db.flush()
 
-    await repository.mark_awaiting_review(invoice_id=invoice.id)
+    result = await repository.mark_awaiting_review(invoice_id=invoice.id)
     await test_db.refresh(invoice)
 
-    assert invoice.status == InvoiceStatus.APPROVED
+    assert invoice.status == terminal_status
+    assert result.applied is False
+    assert result.status == terminal_status
 
 
 async def should_list_only_processing_invoices_older_than_a_cutoff(
