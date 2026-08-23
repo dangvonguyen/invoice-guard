@@ -3,7 +3,8 @@ import { redirect } from 'react-router';
 import { paths } from '@/shared/config/paths';
 import { useAuthStore } from '@/shared/lib/authStore';
 
-import type { CurrentUser } from '../model/types';
+import { landingPathForRole } from '../lib/landingPathForRole';
+import type { CurrentUser, UserRole } from '../model/types';
 
 import { getCurrentUser, UnauthenticatedError } from './getCurrentUser';
 
@@ -69,4 +70,17 @@ export async function requireCurrentUser<T>(
     }
     throw error;
   }
+}
+
+/**
+ * Redirect to the current user's own landing page when their role doesn't
+ * match `role`.
+ */
+export async function requireRole<T>(
+  role: UserRole,
+  run: (user: CurrentUser) => Promise<T> | T,
+): Promise<T | ReturnType<typeof redirect>> {
+  return requireCurrentUser((user) =>
+    user.role !== role ? redirect(landingPathForRole(user.role)) : run(user),
+  );
 }
