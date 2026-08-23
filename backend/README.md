@@ -41,26 +41,21 @@ Update the root `.env` file with your PostgreSQL credentials, then set `OPENAI_A
 
 ## Run with Docker Compose
 
-The root `Makefile` provides convenient wrappers around the Docker Compose commands used to manage the stack.
-
-From the repository root, start PostgreSQL and Redis, apply database migrations, and run the backend, extraction worker, and frontend. Use `up-d` to start the same stack in the background:
+From the repository root, start PostgreSQL and Redis, apply database migrations, and run the backend, extraction worker, and frontend. Add `-d` to start the same stack in the background:
 
 ```sh
-make up
-make up-d
+docker compose up --build
+docker compose up --build -d
 ```
 
 The API will be available at <http://localhost:8000>.
 
-The remaining Make targets manage a running stack:
+The remaining Compose commands manage a running stack:
 
-- `make db` starts only PostgreSQL in the background.
-- `make logs` follows logs from all containers.
-- `make down` stops the stack and removes its containers and networks.
-- `make down-v` also removes its volumes and permanently deletes the local PostgreSQL and Redis data.
-- `make help`, which is also the default `make` target, lists the available commands.
-
-The underlying Compose commands are visible in the root `Makefile` if Make is not available on your system.
+- `docker compose up -d postgres redis` starts only PostgreSQL and Redis in the background.
+- `docker compose logs -f` follows logs from all containers.
+- `docker compose down` stops the stack and removes its containers and networks.
+- `docker compose down -v` also removes its volumes and permanently deletes the local PostgreSQL and Redis data.
 
 ## Run the backend locally
 
