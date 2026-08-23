@@ -1,8 +1,11 @@
 import type { ActionFunctionArgs } from 'react-router';
 
 import { type UploadedInvoice, uploadInvoice } from '@/entities/invoice';
+import { redirectOnSessionExpiry } from '@/entities/user';
 
-export async function action({ request }: ActionFunctionArgs): Promise<UploadedInvoice | null> {
+export async function action({
+  request,
+}: ActionFunctionArgs): Promise<UploadedInvoice | null | Response> {
   const formData = await request.formData();
   const file = formData.get('file');
 
@@ -12,7 +15,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<UploadedI
 
   try {
     return await uploadInvoice(file);
-  } catch {
-    return null;
+  } catch (error) {
+    return redirectOnSessionExpiry(error) ?? null;
   }
 }

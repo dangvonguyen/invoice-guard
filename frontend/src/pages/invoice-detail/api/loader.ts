@@ -1,6 +1,7 @@
 import { type LoaderFunctionArgs, redirect } from 'react-router';
 
-import { getInvoice, NotFoundError, UnauthenticatedError } from '@/entities/invoice';
+import { getInvoice, NotFoundError } from '@/entities/invoice';
+import { redirectOnSessionExpiry } from '@/entities/user';
 import { paths } from '@/shared/config/paths';
 import { useAuthStore } from '@/shared/lib/authStore';
 
@@ -14,10 +15,8 @@ export async function loader({ params }: LoaderFunctionArgs) {
   try {
     return await getInvoice(params.id);
   } catch (error) {
-    if (error instanceof UnauthenticatedError) {
-      useAuthStore.getState().setAccessToken(null);
-      return redirect(paths.login);
-    }
+    const redirectResponse = redirectOnSessionExpiry(error);
+    if (redirectResponse) return redirectResponse;
     throw error;
   }
 }

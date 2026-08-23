@@ -1,6 +1,6 @@
 import { apiClient } from '@/shared/api/client';
 import { unwrapEnvelope } from '@/shared/api/envelope';
-import { UnauthenticatedError } from '@/shared/api/errors';
+import { translateApiError } from '@/shared/api/errors';
 
 import { toInvoiceDetail, toReviewerInvoiceDetail } from '../model/mapper';
 import type { InvoiceDetailView } from '../model/types';
@@ -22,9 +22,9 @@ export async function getInvoice(invoiceId: string): Promise<InvoiceDetailView> 
   });
 
   if (error) {
-    if (response.status === 404) throw new NotFoundError();
-    if (response.status === 401) throw new UnauthenticatedError();
-    throw new Error('Failed to fetch invoice');
+    throw translateApiError(response, error, 'Failed to fetch invoice', {
+      404: () => new NotFoundError(),
+    });
   }
 
   const { data: dto } = unwrapEnvelope(envelope);

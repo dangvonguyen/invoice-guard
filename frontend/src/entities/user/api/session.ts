@@ -12,6 +12,21 @@ function clearAccessToken(): void {
 }
 
 /**
+ * Clears the session and returns a redirect to `/login` for a caught
+ * `UnauthenticatedError`, or `undefined` for any other error so the caller
+ * can keep handling it. For loaders/actions that call entity `api/`
+ * functions directly (outside `requireCurrentUser`) and still need to react
+ * to a session expiring mid-request, e.g. a follow-up mutation.
+ */
+export function redirectOnSessionExpiry(error: unknown): ReturnType<typeof redirect> | undefined {
+  if (!(error instanceof UnauthenticatedError)) {
+    return undefined;
+  }
+  clearAccessToken();
+  return redirect(paths.login);
+}
+
+/**
  * Resolves the current user, treating a missing or expired session as `null`
  * instead of redirecting. For loaders that render differently for a signed-out
  * visitor rather than sending them away (the app shell, the login page).

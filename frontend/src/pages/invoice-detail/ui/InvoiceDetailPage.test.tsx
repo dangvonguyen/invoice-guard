@@ -435,6 +435,31 @@ describe('DecisionForm submission', () => {
       /already decided by another reviewer/i,
     );
   });
+
+  it('should redirect to login when the session expires while submitting a decision', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post(`${INVOICE_URL}/decision`, () =>
+        HttpResponse.json(
+          {
+            success: false,
+            data: null,
+            error: { code: 'UNAUTHORIZED', message: 'Expired' },
+            meta: null,
+          },
+          { status: 401 },
+        ),
+      ),
+    );
+
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: /approve/i }));
+    await user.type(screen.getByLabelText(/reason/i), 'Looks fine');
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+
+    expect(await screen.findByText('Login')).toBeInTheDocument();
+  });
 });
 
 describe('InvoiceDetailPage access control', () => {
