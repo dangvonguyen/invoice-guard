@@ -27,10 +27,10 @@ The Compose value uses `api`, the backend service name on the Compose network. D
 From the repository root, start the full development stack:
 
 ```sh
-make up
+docker compose up --build
 ```
 
-Use `make up-d` to run the stack in the background. The frontend will be available at <http://localhost:5173>.
+Add `-d` to run the stack in the background. The frontend will be available at <http://localhost:5173>.
 
 ## Run the frontend locally
 
@@ -41,8 +41,6 @@ cd frontend
 pnpm install
 pnpm dev
 ```
-
-Alternatively, run `make run-frontend-local` from the repository root after installing the dependencies.
 
 ## Available commands
 
