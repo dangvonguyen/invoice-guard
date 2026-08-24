@@ -9,7 +9,7 @@ from app.services.explanations.generation import GenerationClient
 from app.services.explanations.service import ExplanationService
 
 from .invoices import InvoiceRepositoryDep
-from .policies import EmbeddingClientDep
+from .policies import EmbeddingClientDep, PolicyDocumentRepositoryDep
 
 
 def get_generation_client() -> GenerationClient:
@@ -21,6 +21,7 @@ GenerationClientDep = Annotated[GenerationClient, Depends(get_generation_client)
 
 def get_explanation_service(
     invoice_repo: InvoiceRepositoryDep,
+    policy_repo: PolicyDocumentRepositoryDep,
     embedding_client: EmbeddingClientDep,
     generation_client: GenerationClientDep,
 ) -> ExplanationService:
@@ -28,6 +29,7 @@ def get_explanation_service(
     settings = get_settings()
     return ExplanationService(
         invoice_repo=invoice_repo,
+        policy_repo=policy_repo,
         embedding_client=embedding_client,
         generation_client=generation_client,
         generation_model=settings.OPENAI_GENERATION_MODEL,
