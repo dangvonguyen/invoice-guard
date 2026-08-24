@@ -23,6 +23,7 @@ dependencies = [
 [dependency-groups]
 dev = [
 	"fpdf2>=2.8.8",
+	"import-linter>=2.5",
 	"mypy>=2.3.0",
 	"poethepoet>=0.48.0",
 	"prek>=0.4.12",
@@ -66,6 +67,25 @@ test.cmd = "pytest"
 "test:a".cmd = "pytest -m acceptance"
 "test:skipped".help = "Show skipped tests without running all tests"
 "test:skipped".cmd = "pytest --quiet --collect-only -m skip --no-cov"
+
+[tool.importlinter]
+root_package = "app"
+
+[[tool.importlinter.contracts]]
+name = "Layered architecture"
+type = "layers"
+layers = [
+	"app.api",
+	"app.queueing",
+	"app.services",
+	"app.database",
+]
+
+[[tool.importlinter.contracts]]
+name = "Repositories never import services directly"
+type = "forbidden"
+source_modules = "app.database"
+forbidden_modules = "app.services"
 
 [tool.mypy]
 python_version = "3.13"

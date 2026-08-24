@@ -1,14 +1,14 @@
 """The embedding model's client boundary.
 
 Shared collaborator between policy-document ingestion and the RAG
-exception-explanation query path.
+explanation query path.
 """
 
 from typing import Protocol
 
 from openai import AsyncOpenAI
 
-EMBEDDING_DIMENSIONS = 1536
+from app.database.models.policy_document import EMBEDDING_DIMENSIONS
 
 _MAX_BATCH_SIZE = 100
 

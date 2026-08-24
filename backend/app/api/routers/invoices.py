@@ -11,6 +11,7 @@ from app.api.deps import (
     CurrentFinanceReviewer,
     CurrentUser,
     DecisionServiceDep,
+    ExplanationServiceDep,
     ExtractionQueueDep,
     InvoiceIntakeServiceDep,
     InvoiceRepositoryDep,
@@ -20,6 +21,7 @@ from app.database.models.user import UserRole
 from app.queueing import invoice_processing
 from app.schemas.decision import DecisionRequest, DecisionView
 from app.schemas.envelope import PaginationMeta, ResponseEnvelope
+from app.schemas.explanation import ExplanationView
 from app.schemas.invoice import (
     InvoiceDetailResponse,
     InvoiceListItem,
@@ -27,6 +29,7 @@ from app.schemas.invoice import (
 )
 from app.schemas.review import ReviewerInvoiceDetailResponse
 from app.services.invoices.views import build_decision_view, resolve_invoice_view
+from app.services.rules.result import RuleCode
 from app.services.upload.intake import (
     UploadRateLimitExceededError,
     UploadStorageUnavailableError,
@@ -152,6 +155,22 @@ async def decide_invoice(
         decided_by_id=reviewer.id,
     )
     return ResponseEnvelope(data=build_decision_view(decision))
+
+
+@router.post("/{invoice_id}/flags/{rule_code}/explanation")
+async def explain_review_flag(
+    invoice_id: UUID,
+    rule_code: RuleCode,
+    reviewer: CurrentFinanceReviewer,
+    explanations: ExplanationServiceDep,
+) -> ResponseEnvelope[ExplanationView, None]:
+    """Retrieve a cached explanation, or generate and cache one, for one flag."""
+    explanation = await explanations.resolve(
+        invoice_id=invoice_id,
+        rule_code=rule_code,
+        reviewer_id=reviewer.id,
+    )
+    return ResponseEnvelope(data=explanation)
 
 
 def _log_rejection(*, code: str, status_code: int, **context: object) -> None:

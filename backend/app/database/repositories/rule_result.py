@@ -1,16 +1,23 @@
 """Database access operations for invoice rule-evaluation results."""
 
 from collections.abc import Sequence
-from datetime import date
-from decimal import Decimal
+from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models.rule_result import InvoiceRuleResult
-from app.services.rules.result import EvidenceValue, RuleResult
+from app.database.models.rule_result import InvoiceRuleResult, RuleOutcome
+
+
+@dataclass(frozen=True)
+class RuleResultRow:
+    """One rule's outcome, already JSON-safe and ready to persist."""
+
+    rule_code: str
+    outcome: RuleOutcome
+    evidence: dict[str, Any] = field(default_factory=dict)
 
 
 class RuleResultRepository:
@@ -20,7 +27,7 @@ class RuleResultRepository:
         self._session = session
 
     async def replace_for_invoice(
-        self, *, invoice_id: UUID, results: Sequence[RuleResult]
+        self, *, invoice_id: UUID, results: Sequence[RuleResultRow]
     ) -> None:
         """Replace all of an invoice's rule-result rows with a fresh set."""
         await self._session.execute(
@@ -30,9 +37,9 @@ class RuleResultRepository:
             [
                 InvoiceRuleResult(
                     invoice_id=invoice_id,
-                    rule_code=result.rule_code.value,
+                    rule_code=result.rule_code,
                     outcome=result.outcome,
-                    evidence=self._to_json(result.evidence),
+                    evidence=result.evidence,
                 )
                 for result in results
             ]
@@ -47,16 +54,3 @@ class RuleResultRepository:
             .order_by(InvoiceRuleResult.rule_code)
         )
         return result.scalars().all()
-
-    @staticmethod
-    def _to_json(evidence: dict[str, EvidenceValue]) -> dict[str, Any]:
-        """Convert types into JSON-safe values for storage."""
-        serialized: dict[str, Any] = {}
-        for key, value in evidence.items():
-            if isinstance(value, str | int):
-                serialized[key] = value
-            elif isinstance(value, Decimal | date | UUID):
-                serialized[key] = str(value)
-            else:
-                serialized[key] = list(value)
-        return serialized

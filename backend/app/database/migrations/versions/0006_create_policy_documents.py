@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from alembic import op
 from pgvector.sqlalchemy import Vector
 
-from app.services.embeddings.client import EMBEDDING_DIMENSIONS
+from app.database.models.policy_document import EMBEDDING_DIMENSIONS
 
 # revision identifiers, used by Alembic.
 revision: str = "0006"

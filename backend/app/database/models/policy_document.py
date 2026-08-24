@@ -20,7 +20,8 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
-from app.services.embeddings.client import EMBEDDING_DIMENSIONS
+
+EMBEDDING_DIMENSIONS = 1536
 
 
 class PolicyDocumentStatus(StrEnum):

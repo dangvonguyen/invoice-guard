@@ -25,6 +25,7 @@ class ReviewFlagView(BaseModel):
     code: str
     summary: str | None
     evidence: dict[str, Any]
+    explainable: bool
 
 
 class ReviewerInvoiceDetailResponse(BaseModel):
