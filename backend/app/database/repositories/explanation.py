@@ -28,12 +28,14 @@ class ExplanationRepository:
         rule_result_id: UUID,
         narrative: str,
         citations: list[dict[str, Any]],
+        generated_by_model: str,
     ) -> Explanation:
         """Persist a newly generated explanation for a rule-result row."""
         explanation = Explanation(
             rule_result_id=rule_result_id,
             narrative=narrative,
             citations=citations,
+            generated_by_model=generated_by_model,
         )
         self._session.add(explanation)
         await self._session.flush()

@@ -71,7 +71,6 @@ def get_explanation_service(
         explanation_repo=explanation_repo,
         embedding_client=embedding_client,
         generation_client=generation_client,
-        generation_model=settings.OPENAI_GENERATION_MODEL,
         retrieval_top_k=settings.EXPLANATION_RETRIEVAL_TOP_K,
     )
 

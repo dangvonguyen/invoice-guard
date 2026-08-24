@@ -26,6 +26,9 @@ class GeneratedExplanation(BaseModel):
 class GenerationClient(Protocol):
     """Call the generation model and return a grounded explanation."""
 
+    @property
+    def model(self) -> str: ...
+
     async def generate_explanation(
         self,
         *,
@@ -62,6 +65,10 @@ class OpenAIGenerationClient:
     def __init__(self, *, client: AsyncOpenAI, model: str) -> None:
         self._client = client
         self._model = model
+
+    @property
+    def model(self) -> str:
+        return self._model
 
     async def generate_explanation(
         self,

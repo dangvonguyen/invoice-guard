@@ -29,8 +29,9 @@ def upgrade() -> None:
         sa.Column("rule_result_id", sa.Uuid(), nullable=False),
         sa.Column("narrative", sa.Text(), nullable=False),
         sa.Column("citations", JSONB(), nullable=False),
+        sa.Column("generated_by_model", sa.String(length=128), nullable=False),
         sa.Column(
-            "created_at",
+            "generated_at",
             sa.DateTime(timezone=True),
             server_default=sa.text("now()"),
             nullable=False,

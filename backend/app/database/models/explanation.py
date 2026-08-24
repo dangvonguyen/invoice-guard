@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Text, Uuid, func
+from sqlalchemy import DateTime, ForeignKey, String, Text, Uuid, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -28,6 +28,7 @@ class Explanation(Base):
     )
     narrative: Mapped[str] = mapped_column(Text)
     citations: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
-    created_at: Mapped[datetime] = mapped_column(
+    generated_by_model: Mapped[str] = mapped_column(String(128))
+    generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

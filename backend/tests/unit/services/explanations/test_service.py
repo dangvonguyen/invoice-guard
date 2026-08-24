@@ -80,7 +80,8 @@ PERSISTED_EXPLANATION = Explanation(
             "content": "Expenses must be submitted in USD, EUR, or GBP.",
         }
     ],
-    created_at=datetime(2000, 1, 1, tzinfo=UTC),
+    generated_by_model=GENERATION_MODEL,
+    generated_at=datetime(2000, 1, 1, tzinfo=UTC),
 )
 
 
@@ -120,7 +121,6 @@ def context() -> ExplanationContext:
         explanation_repo=explanation_repo,
         embedding_client=embedding_client,
         generation_client=generation_client,
-        generation_model=GENERATION_MODEL,
         retrieval_top_k=RETRIEVAL_TOP_K,
     )
 

@@ -1,5 +1,6 @@
 """Reviewer-facing schema for a generated review-flag explanation."""
 
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -18,3 +19,5 @@ class ExplanationView(BaseModel):
 
     explanation: str
     citations: list[CitationView]
+    generated_by_model: str
+    generated_at: datetime

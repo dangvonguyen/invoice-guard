@@ -46,7 +46,6 @@ class ExplanationService:
         explanation_repo: ExplanationRepository,
         embedding_client: EmbeddingClient,
         generation_client: GenerationClient,
-        generation_model: str,
         retrieval_top_k: int,
     ) -> None:
         self._invoice_repo = invoice_repo
@@ -54,7 +53,6 @@ class ExplanationService:
         self._explanation_repo = explanation_repo
         self._embedding_client = embedding_client
         self._generation_client = generation_client
-        self._generation_model = generation_model
         self._retrieval_top_k = retrieval_top_k
 
     async def resolve(
@@ -126,6 +124,7 @@ class ExplanationService:
             rule_result_id=flag.id,
             narrative=generated.narrative,
             citations=[citation.model_dump(mode="json") for citation in citations],
+            generated_by_model=self._generation_client.model,
         )
 
         return _to_view(persisted)
@@ -159,4 +158,6 @@ def _to_view(explanation: Explanation) -> ExplanationView:
         citations=[
             CitationView.model_validate(citation) for citation in explanation.citations
         ],
+        generated_by_model=explanation.generated_by_model,
+        generated_at=explanation.generated_at,
     )

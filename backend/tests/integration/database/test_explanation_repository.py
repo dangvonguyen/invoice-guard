@@ -90,6 +90,7 @@ async def should_persist_and_return_an_explanation_for_its_rule_result(
         rule_result_id=rule_result.id,
         narrative="The invoice's currency isn't on the handbook's allowed list.",
         citations=CITATIONS,
+        generated_by_model="gpt-5",
     )
 
     fetched = await repository.get_by_rule_result(rule_result.id)
@@ -120,6 +121,7 @@ async def should_cascade_delete_the_explanation_when_its_rule_result_is_replaced
         rule_result_id=rule_result.id,
         narrative="The invoice's currency isn't on the handbook's allowed list.",
         citations=CITATIONS,
+        generated_by_model="gpt-5",
     )
 
     await rule_results.replace_for_invoice(
