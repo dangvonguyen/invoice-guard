@@ -1,6 +1,6 @@
 """Acceptance scenarios for on-demand review-flag explanation generation."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
@@ -42,15 +42,20 @@ class FakeEmbeddingClient:
 class FakeGenerationClient:
     """Stand in for the generation-provider boundary."""
 
+    calls: list[Any] = field(default_factory=list)
+
     async def generate_explanation(
         self, *, summary: str, evidence: dict[str, Any], chunks: list[Any]
     ) -> GeneratedExplanation:
+        self.calls.append((summary, evidence, chunks))
         return GeneratedExplanation(narrative=CITED_NARRATIVE, cited_chunk_indexes=[0])
 
 
 @pytest.fixture
-def fake_generation() -> None:
-    app.dependency_overrides[get_generation_client] = FakeGenerationClient
+def fake_generation() -> FakeGenerationClient:
+    fake = FakeGenerationClient()
+    app.dependency_overrides[get_generation_client] = lambda: fake
+    return fake
 
 
 @pytest.fixture
@@ -126,6 +131,29 @@ async def should_reject_when_no_failed_flag_matches_the_rule_code(
     )
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.usefixtures("fake_embeddings", "active_policy_document")
+async def should_return_the_previously_persisted_explanation_on_a_second_request(
+    client: AsyncClient,
+    employee_invoice: Invoice,
+    reviewer_headers: dict[str, str],
+    fake_generation: FakeGenerationClient,
+) -> None:
+    """A second request returns the cached explanation instead of regenerating."""
+    first = await client.post(
+        explanation_url(employee_invoice.id, "currency_allowed"),
+        headers=reviewer_headers,
+    )
+    second = await client.post(
+        explanation_url(employee_invoice.id, "currency_allowed"),
+        headers=reviewer_headers,
+    )
+
+    assert first.status_code == status.HTTP_200_OK
+    assert second.status_code == status.HTTP_200_OK
+    assert second.json()["data"] == first.json()["data"]
+    assert len(fake_generation.calls) == 1
 
 
 @pytest.mark.usefixtures("fake_generation", "fake_embeddings")

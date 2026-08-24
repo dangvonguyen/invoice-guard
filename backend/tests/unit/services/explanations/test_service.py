@@ -5,8 +5,9 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from app.database.models.explanation import Explanation
 from app.database.models.invoice import Invoice, InvoiceStatus
-from app.database.models.policy_document import PolicyDocChunk
+from app.database.models.policy_document import PolicyDocChunk, PolicyDocument
 from app.database.models.rule_result import InvoiceRuleResult, RuleOutcome
 from app.schemas.explanation import CitationView
 from app.services.explanations.generation import GeneratedExplanation
@@ -56,7 +57,25 @@ RETRIEVED_CHUNK = PolicyDocChunk(
     content="Expenses must be submitted in USD, EUR, or GBP.",
     embedding=[0.1] * 1536,
 )
+ACTIVE_POLICY_DOCUMENT = PolicyDocument(
+    id=uuid4(),
+    original_filename="handbook.pdf",
+    created_at=datetime(2000, 1, 1, tzinfo=UTC),
+)
 CITED_NARRATIVE = "The invoice's currency isn't on the handbook's allowed list."
+PERSISTED_EXPLANATION = Explanation(
+    id=uuid4(),
+    rule_result_id=RULE_RESULT_ID,
+    narrative=CITED_NARRATIVE,
+    citations=[
+        {
+            "chunk_id": str(CHUNK_ID),
+            "section_label": "5.3 Allowed Currencies",
+            "content": "Expenses must be submitted in USD, EUR, or GBP.",
+        }
+    ],
+    created_at=datetime(2000, 1, 1, tzinfo=UTC),
+)
 
 
 @dataclass(frozen=True)
@@ -66,6 +85,7 @@ class ExplanationContext:
     service: ExplanationService
     invoice_repo: AsyncMock
     policy_repo: AsyncMock
+    explanation_repo: AsyncMock
     embedding_client: AsyncMock
     generation_client: AsyncMock
 
@@ -74,12 +94,14 @@ class ExplanationContext:
 def context() -> ExplanationContext:
     invoice_repo = AsyncMock()
     policy_repo = AsyncMock()
+    explanation_repo = AsyncMock()
     embedding_client = AsyncMock()
     generation_client = AsyncMock()
 
     service = ExplanationService(
         invoice_repo=invoice_repo,
         policy_repo=policy_repo,
+        explanation_repo=explanation_repo,
         embedding_client=embedding_client,
         generation_client=generation_client,
         generation_model=GENERATION_MODEL,
@@ -90,6 +112,7 @@ def context() -> ExplanationContext:
         service=service,
         invoice_repo=invoice_repo,
         policy_repo=policy_repo,
+        explanation_repo=explanation_repo,
         embedding_client=embedding_client,
         generation_client=generation_client,
     )
@@ -100,12 +123,15 @@ async def should_generate_an_explanation_grounded_in_the_retrieved_chunks(
 ) -> None:
     """Retrieve policy chunks, generate a grounded explanation, and return it."""
     context.invoice_repo.get_for_review_view.return_value = STORED_INVOICE
+    context.explanation_repo.get_by_rule_result.return_value = None
+    context.policy_repo.get_active_document.return_value = ACTIVE_POLICY_DOCUMENT
     context.policy_repo.search_similar_chunks.return_value = [RETRIEVED_CHUNK]
     context.embedding_client.embed_batch.return_value = [[0.1, 0.2, 0.3]]
     context.generation_client.generate_explanation.return_value = GeneratedExplanation(
         narrative=CITED_NARRATIVE,
         cited_chunk_indexes=[0],
     )
+    context.explanation_repo.create.return_value = PERSISTED_EXPLANATION
 
     result = await context.service.resolve(
         invoice_id=INVOICE_ID, rule_code=RuleCode.CURRENCY_ALLOWED

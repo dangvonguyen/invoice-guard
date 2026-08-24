@@ -3,7 +3,9 @@
 from uuid import UUID
 
 from app.core.errors import NotFoundError, ValidationError
+from app.database.models.explanation import Explanation
 from app.database.models.rule_result import RuleOutcome
+from app.database.repositories.explanation import ExplanationRepository
 from app.database.repositories.invoice import InvoiceRepository
 from app.database.repositories.policy_document import PolicyDocumentRepository
 from app.schemas.explanation import CitationView, ExplanationView
@@ -33,6 +35,7 @@ class ExplanationService:
         *,
         invoice_repo: InvoiceRepository,
         policy_repo: PolicyDocumentRepository,
+        explanation_repo: ExplanationRepository,
         embedding_client: EmbeddingClient,
         generation_client: GenerationClient,
         generation_model: str,
@@ -40,6 +43,7 @@ class ExplanationService:
     ) -> None:
         self._invoice_repo = invoice_repo
         self._policy_repo = policy_repo
+        self._explanation_repo = explanation_repo
         self._embedding_client = embedding_client
         self._generation_client = generation_client
         self._generation_model = generation_model
@@ -69,6 +73,10 @@ class ExplanationService:
             raise NotFoundError(
                 f"No failed flag for rule {rule_code.value} on invoice {invoice_id}."
             )
+
+        existing = await self._explanation_repo.get_by_rule_result(flag.id)
+        if existing is not None:
+            return _to_view(existing)
 
         active_document = await self._policy_repo.get_active_document()
         if active_document is None:
@@ -109,10 +117,26 @@ class ExplanationService:
             if 0 <= index < len(chunks)
         ]
 
-        return ExplanationView(explanation=generated.narrative, citations=citations)
+        persisted = await self._explanation_repo.create(
+            rule_result_id=flag.id,
+            narrative=generated.narrative,
+            citations=[citation.model_dump(mode="json") for citation in citations],
+        )
+
+        return _to_view(persisted)
 
 
 def _build_query_text(*, summary: str, evidence: dict[str, object]) -> str:
     """Build the retrieval query text from a flag's summary and evidence values."""
     evidence_text = ", ".join(f"{key}: {value}" for key, value in evidence.items())
     return f"{summary} ({evidence_text})".strip()
+
+
+def _to_view(explanation: Explanation) -> ExplanationView:
+    """Project a persisted explanation row into its reviewer-facing view."""
+    return ExplanationView(
+        explanation=explanation.narrative,
+        citations=[
+            CitationView.model_validate(citation) for citation in explanation.citations
+        ],
+    )
