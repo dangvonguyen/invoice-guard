@@ -43,6 +43,7 @@ class FakeGenerationClient:
     """Stand in for the generation-provider boundary."""
 
     calls: list[Any] = field(default_factory=list)
+    model: str = "gpt-5"
 
     async def generate_explanation(
         self, *, summary: str, evidence: dict[str, Any], chunks: list[Any]
