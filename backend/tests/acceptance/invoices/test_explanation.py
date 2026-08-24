@@ -112,3 +112,43 @@ async def should_generate_and_persist_an_explanation_for_an_explainable_flag(
     assert body["citations"][0]["content"] == (
         "Expenses must be submitted in USD, EUR, or GBP."
     )
+
+
+async def should_reject_when_no_failed_flag_matches_the_rule_code(
+    client: AsyncClient,
+    employee_invoice: Invoice,
+    reviewer_headers: dict[str, str],
+) -> None:
+    """No FAIL result for that rule code exists on the invoice, so 404."""
+    response = await client.post(
+        explanation_url(employee_invoice.id, "expense_within_amount_limit"),
+        headers=reviewer_headers,
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.usefixtures("fake_generation", "fake_embeddings")
+async def should_reject_explanation_requests_for_a_non_explainable_rule(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    employee: User,
+    reviewer_headers: dict[str, str],
+) -> None:
+    """A rule with no policy-backed threshold can't be explained, so reject it."""
+    invoice = await create_invoice(test_db, owner_id=employee.id)
+    await add_rule_result(
+        test_db,
+        invoice_id=invoice.id,
+        outcome=RuleOutcome.FAIL,
+        rule_code="line_item_total_consistency",
+        evidence={"stated_total": "100.00", "computed_total": "90.00"},
+    )
+    await test_db.commit()
+
+    response = await client.post(
+        explanation_url(invoice.id, "line_item_total_consistency"),
+        headers=reviewer_headers,
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT

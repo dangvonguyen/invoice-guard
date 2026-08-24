@@ -2,14 +2,21 @@
 
 from uuid import UUID
 
+from app.core.errors import NotFoundError, ValidationError
 from app.database.models.rule_result import RuleOutcome
 from app.database.repositories.invoice import InvoiceRepository
 from app.database.repositories.policy_document import PolicyDocumentRepository
 from app.schemas.explanation import CitationView, ExplanationView
 from app.services.embeddings.client import EmbeddingClient
 from app.services.explanations.generation import GenerationClient, RetrievedChunk
-from app.services.rules.flags import summary_for
+from app.services.rules.flags import is_explainable, summary_for
 from app.services.rules.result import RuleCode
+
+
+class RuleNotExplainableError(ValidationError):
+    """Raised when the rule code isn't backed by a policy-configured threshold."""
+
+    code = "RULE_NOT_EXPLAINABLE"
 
 
 class ExplanationService:
@@ -37,12 +44,25 @@ class ExplanationService:
     ) -> ExplanationView:
         """Return the flag's explanation."""
         invoice = await self._invoice_repo.get_for_review_view(invoice_id)
+        if invoice is None:
+            raise NotFoundError(f"Invoice {invoice_id} was not found.")
+
+        if not is_explainable(rule_code):
+            raise RuleNotExplainableError(f"Rule {rule_code.value} is not explainable.")
+
         flag = next(
-            result
-            for result in invoice.rule_results
-            if result.rule_code == rule_code.value
-            and result.outcome == RuleOutcome.FAIL
+            (
+                result
+                for result in invoice.rule_results
+                if result.rule_code == rule_code.value
+                and result.outcome == RuleOutcome.FAIL
+            ),
+            None,
         )
+        if flag is None:
+            raise NotFoundError(
+                f"No failed flag for rule {rule_code.value} on invoice {invoice_id}."
+            )
 
         summary = (
             summary_for(rule_code, RuleOutcome.FAIL) or f"{rule_code.value} failed."
