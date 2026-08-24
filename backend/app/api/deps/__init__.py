@@ -21,6 +21,12 @@ from .decision import (
     get_decision_repository,
     get_decision_service,
 )
+from .explanations import (
+    ExplanationServiceDep,
+    GenerationClientDep,
+    get_explanation_service,
+    get_generation_client,
+)
 from .invoices import (
     ExtractionQueueDep,
     InvoiceIntakeServiceDep,
@@ -62,7 +68,9 @@ __all__ = [
     "DecisionRepositoryDep",
     "DecisionServiceDep",
     "EmbeddingClientDep",
+    "ExplanationServiceDep",
     "ExtractionQueueDep",
+    "GenerationClientDep",
     "InvoiceIntakeServiceDep",
     "InvoiceRepositoryDep",
     "PasswordHasherDep",
@@ -86,6 +94,8 @@ __all__ = [
     "get_decision_repository",
     "get_decision_service",
     "get_embedding_client",
+    "get_explanation_service",
+    "get_generation_client",
     "get_invoice_intake_service",
     "get_invoice_repository",
     "get_invoice_upload_validator",

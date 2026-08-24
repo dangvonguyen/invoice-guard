@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     # Embedding model
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
 
+    # Explanation generation
+    OPENAI_GENERATION_MODEL: str = "gpt-5-mini"
+    EXPLANATION_RETRIEVAL_TOP_K: PositiveInt = 5
+
     # Extraction reconciliation
     EXTRACTION_RECONCILE_INTERVAL_SECONDS: PositiveInt = 600
     EXTRACTION_RECONCILE_STALE_AFTER_SECONDS: PositiveInt = 1200
