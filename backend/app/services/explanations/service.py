@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from app.core.errors import NotFoundError, ValidationError
+from app.core.errors import ForbiddenError, NotFoundError, ValidationError
 from app.database.models.explanation import Explanation
 from app.database.models.rule_result import RuleOutcome
 from app.database.repositories.explanation import ExplanationRepository
@@ -25,6 +25,12 @@ class NoActivePolicyDocumentError(NotFoundError):
     """Raised when no policy document has ever been ingested."""
 
     code = "NO_ACTIVE_POLICY_DOCUMENT"
+
+
+class CannotExplainOwnInvoiceError(ForbiddenError):
+    """Raised when a reviewer requests an explanation for their own submission."""
+
+    code = "CANNOT_EXPLAIN_OWN_INVOICE"
 
 
 class ExplanationService:
@@ -50,12 +56,17 @@ class ExplanationService:
         self._retrieval_top_k = retrieval_top_k
 
     async def resolve(
-        self, *, invoice_id: UUID, rule_code: RuleCode
+        self, *, invoice_id: UUID, rule_code: RuleCode, reviewer_id: UUID
     ) -> ExplanationView:
         """Return the flag's explanation."""
         invoice = await self._invoice_repo.get_for_review_view(invoice_id)
         if invoice is None:
             raise NotFoundError(f"Invoice {invoice_id} was not found.")
+
+        if invoice.owner_id == reviewer_id:
+            raise CannotExplainOwnInvoiceError(
+                "Reviewers cannot explain flags on their own submissions."
+            )
 
         if not is_explainable(rule_code):
             raise RuleNotExplainableError(f"Rule {rule_code.value} is not explainable.")

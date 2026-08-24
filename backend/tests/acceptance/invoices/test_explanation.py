@@ -194,3 +194,29 @@ async def should_reject_when_no_active_policy_document_exists(
     )
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def should_reject_a_reviewer_explaining_their_own_submission(
+    client: AsyncClient,
+    test_db: AsyncSession,
+    finance_reviewer: User,
+    reviewer_headers: dict[str, str],
+) -> None:
+    """Block self-submission explanation requests, mirroring the decision endpoint."""
+    own_invoice = await create_invoice(test_db, owner_id=finance_reviewer.id)
+    await add_rule_result(
+        test_db,
+        invoice_id=own_invoice.id,
+        outcome=RuleOutcome.FAIL,
+        rule_code="currency_allowed",
+        evidence={"currency": "CHF", "allowed_currencies": ["EUR", "GBP", "USD"]},
+    )
+    await test_db.commit()
+
+    response = await client.post(
+        explanation_url(own_invoice.id, "currency_allowed"),
+        headers=reviewer_headers,
+    )
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert response.json()["error"]["code"] == "CANNOT_EXPLAIN_OWN_INVOICE"

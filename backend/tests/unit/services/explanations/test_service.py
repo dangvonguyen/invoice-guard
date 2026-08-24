@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.core.errors import NotFoundError
+from app.core.errors import ForbiddenError, NotFoundError
 from app.database.models.explanation import Explanation
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.policy_document import PolicyDocChunk, PolicyDocument
@@ -28,6 +28,7 @@ GENERATION_MODEL = "gpt-5-mini"
 RETRIEVAL_TOP_K = 5
 
 OWNER_ID = UUID("00000000-0000-0000-0000-000000000001")
+REVIEWER_ID = UUID("00000000-0000-0000-0000-000000000010")
 INVOICE_ID = UUID("10000000-0000-0000-0000-000000000001")
 RULE_RESULT_ID = UUID("20000000-0000-0000-0000-000000000001")
 CHUNK_ID = UUID("30000000-0000-0000-0000-000000000001")
@@ -138,7 +139,9 @@ async def should_generate_an_explanation_grounded_in_the_retrieved_chunks(
 ) -> None:
     """Retrieve policy chunks, generate a grounded explanation, and return it."""
     result = await context.service.resolve(
-        invoice_id=INVOICE_ID, rule_code=RuleCode.CURRENCY_ALLOWED
+        invoice_id=INVOICE_ID,
+        rule_code=RuleCode.CURRENCY_ALLOWED,
+        reviewer_id=REVIEWER_ID,
     )
 
     assert result.explanation == CITED_NARRATIVE
@@ -159,7 +162,9 @@ async def should_raise_not_found_when_no_failed_flag_matches_the_rule_code(
     """The invoice has no FAIL result for the requested rule code."""
     with pytest.raises(NotFoundError):
         await context.service.resolve(
-            invoice_id=INVOICE_ID, rule_code=RuleCode.EXPENSE_WITHIN_AMOUNT_LIMIT
+            invoice_id=INVOICE_ID,
+            rule_code=RuleCode.EXPENSE_WITHIN_AMOUNT_LIMIT,
+            reviewer_id=REVIEWER_ID,
         )
 
 
@@ -169,7 +174,9 @@ async def should_raise_rule_not_explainable_for_a_non_explainable_rule_code(
     """The rule code isn't backed by a policy-configured threshold."""
     with pytest.raises(RuleNotExplainableError):
         await context.service.resolve(
-            invoice_id=INVOICE_ID, rule_code=RuleCode.LINE_ITEM_TOTAL_CONSISTENCY
+            invoice_id=INVOICE_ID,
+            rule_code=RuleCode.LINE_ITEM_TOTAL_CONSISTENCY,
+            reviewer_id=REVIEWER_ID,
         )
 
 
@@ -181,7 +188,9 @@ async def should_raise_no_active_policy_document_without_generating(
 
     with pytest.raises(NoActivePolicyDocumentError):
         await context.service.resolve(
-            invoice_id=INVOICE_ID, rule_code=RuleCode.CURRENCY_ALLOWED
+            invoice_id=INVOICE_ID,
+            rule_code=RuleCode.CURRENCY_ALLOWED,
+            reviewer_id=REVIEWER_ID,
         )
 
     context.generation_client.generate_explanation.assert_not_called()
@@ -194,8 +203,25 @@ async def should_return_the_cached_explanation_without_regenerating(
     context.explanation_repo.get_by_rule_result.return_value = PERSISTED_EXPLANATION
 
     await context.service.resolve(
-        invoice_id=INVOICE_ID, rule_code=RuleCode.CURRENCY_ALLOWED
+        invoice_id=INVOICE_ID,
+        rule_code=RuleCode.CURRENCY_ALLOWED,
+        reviewer_id=REVIEWER_ID,
     )
+
+    context.policy_repo.get_active_document.assert_not_called()
+    context.generation_client.generate_explanation.assert_not_called()
+
+
+async def should_raise_cannot_explain_own_invoice_for_the_owning_reviewer(
+    context: ExplanationContext,
+) -> None:
+    """A reviewer requesting an explanation for their own submission is blocked."""
+    with pytest.raises(ForbiddenError):
+        await context.service.resolve(
+            invoice_id=INVOICE_ID,
+            rule_code=RuleCode.CURRENCY_ALLOWED,
+            reviewer_id=OWNER_ID,
+        )
 
     context.policy_repo.get_active_document.assert_not_called()
     context.generation_client.generate_explanation.assert_not_called()

@@ -161,13 +161,14 @@ async def decide_invoice(
 async def explain_review_flag(
     invoice_id: UUID,
     rule_code: RuleCode,
-    reviewer: CurrentFinanceReviewer,  # noqa: ARG001
+    reviewer: CurrentFinanceReviewer,
     explanations: ExplanationServiceDep,
 ) -> ResponseEnvelope[ExplanationView, None]:
     """Retrieve a cached explanation, or generate and cache one, for one flag."""
     explanation = await explanations.resolve(
         invoice_id=invoice_id,
         rule_code=rule_code,
+        reviewer_id=reviewer.id,
     )
     return ResponseEnvelope(data=explanation)
 
