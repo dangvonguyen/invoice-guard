@@ -152,3 +152,17 @@ async def should_reject_explanation_requests_for_a_non_explainable_rule(
     )
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+async def should_reject_when_no_active_policy_document_exists(
+    client: AsyncClient,
+    employee_invoice: Invoice,
+    reviewer_headers: dict[str, str],
+) -> None:
+    """No policy document has ever been ingested, so fail without generating."""
+    response = await client.post(
+        explanation_url(employee_invoice.id, "currency_allowed"),
+        headers=reviewer_headers,
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND

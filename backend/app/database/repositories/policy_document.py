@@ -73,6 +73,15 @@ class PolicyDocumentRepository:
         await self._session.flush()
         return document
 
+    async def get_active_document(self) -> PolicyDocument | None:
+        """Return the active policy document, if one has ever been ingested."""
+        result = await self._session.execute(
+            select(PolicyDocument).where(
+                PolicyDocument.status == PolicyDocumentStatus.ACTIVE
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def search_similar_chunks(
         self, *, embedding: Sequence[float], top_k: int
     ) -> Sequence[PolicyDocChunk]:

@@ -19,6 +19,12 @@ class RuleNotExplainableError(ValidationError):
     code = "RULE_NOT_EXPLAINABLE"
 
 
+class NoActivePolicyDocumentError(NotFoundError):
+    """Raised when no policy document has ever been ingested."""
+
+    code = "NO_ACTIVE_POLICY_DOCUMENT"
+
+
 class ExplanationService:
     """Retrieve a cached explanation, or retrieve, generate, and cache a new one."""
 
@@ -62,6 +68,12 @@ class ExplanationService:
         if flag is None:
             raise NotFoundError(
                 f"No failed flag for rule {rule_code.value} on invoice {invoice_id}."
+            )
+
+        active_document = await self._policy_repo.get_active_document()
+        if active_document is None:
+            raise NoActivePolicyDocumentError(
+                "No active policy document has been ingested."
             )
 
         summary = (
