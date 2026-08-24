@@ -5,13 +5,18 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from app.core.errors import NotFoundError
 from app.database.models.explanation import Explanation
 from app.database.models.invoice import Invoice, InvoiceStatus
 from app.database.models.policy_document import PolicyDocChunk, PolicyDocument
 from app.database.models.rule_result import InvoiceRuleResult, RuleOutcome
 from app.schemas.explanation import CitationView
 from app.services.explanations.generation import GeneratedExplanation
-from app.services.explanations.service import ExplanationService
+from app.services.explanations.service import (
+    ExplanationService,
+    NoActivePolicyDocumentError,
+    RuleNotExplainableError,
+)
 from app.services.rules.result import RuleCode
 
 pytestmark = [
@@ -93,10 +98,20 @@ class ExplanationContext:
 @pytest.fixture
 def context() -> ExplanationContext:
     invoice_repo = AsyncMock()
+    invoice_repo.get_for_review_view.return_value = STORED_INVOICE
     policy_repo = AsyncMock()
+    policy_repo.get_active_document.return_value = ACTIVE_POLICY_DOCUMENT
+    policy_repo.search_similar_chunks.return_value = [RETRIEVED_CHUNK]
     explanation_repo = AsyncMock()
+    explanation_repo.get_by_rule_result.return_value = None
+    explanation_repo.create.return_value = PERSISTED_EXPLANATION
     embedding_client = AsyncMock()
+    embedding_client.embed_batch.return_value = [[0.1, 0.2, 0.3]]
     generation_client = AsyncMock()
+    generation_client.generate_explanation.return_value = GeneratedExplanation(
+        narrative=CITED_NARRATIVE,
+        cited_chunk_indexes=[0],
+    )
 
     service = ExplanationService(
         invoice_repo=invoice_repo,
@@ -122,17 +137,6 @@ async def should_generate_an_explanation_grounded_in_the_retrieved_chunks(
     context: ExplanationContext,
 ) -> None:
     """Retrieve policy chunks, generate a grounded explanation, and return it."""
-    context.invoice_repo.get_for_review_view.return_value = STORED_INVOICE
-    context.explanation_repo.get_by_rule_result.return_value = None
-    context.policy_repo.get_active_document.return_value = ACTIVE_POLICY_DOCUMENT
-    context.policy_repo.search_similar_chunks.return_value = [RETRIEVED_CHUNK]
-    context.embedding_client.embed_batch.return_value = [[0.1, 0.2, 0.3]]
-    context.generation_client.generate_explanation.return_value = GeneratedExplanation(
-        narrative=CITED_NARRATIVE,
-        cited_chunk_indexes=[0],
-    )
-    context.explanation_repo.create.return_value = PERSISTED_EXPLANATION
-
     result = await context.service.resolve(
         invoice_id=INVOICE_ID, rule_code=RuleCode.CURRENCY_ALLOWED
     )
@@ -145,3 +149,53 @@ async def should_generate_an_explanation_grounded_in_the_retrieved_chunks(
             content="Expenses must be submitted in USD, EUR, or GBP.",
         )
     ]
+    context.embedding_client.embed_batch.assert_awaited_once()
+    context.generation_client.generate_explanation.assert_awaited_once()
+
+
+async def should_raise_not_found_when_no_failed_flag_matches_the_rule_code(
+    context: ExplanationContext,
+) -> None:
+    """The invoice has no FAIL result for the requested rule code."""
+    with pytest.raises(NotFoundError):
+        await context.service.resolve(
+            invoice_id=INVOICE_ID, rule_code=RuleCode.EXPENSE_WITHIN_AMOUNT_LIMIT
+        )
+
+
+async def should_raise_rule_not_explainable_for_a_non_explainable_rule_code(
+    context: ExplanationContext,
+) -> None:
+    """The rule code isn't backed by a policy-configured threshold."""
+    with pytest.raises(RuleNotExplainableError):
+        await context.service.resolve(
+            invoice_id=INVOICE_ID, rule_code=RuleCode.LINE_ITEM_TOTAL_CONSISTENCY
+        )
+
+
+async def should_raise_no_active_policy_document_without_generating(
+    context: ExplanationContext,
+) -> None:
+    """No policy document has ever been ingested, so fail before generating."""
+    context.policy_repo.get_active_document.return_value = None
+
+    with pytest.raises(NoActivePolicyDocumentError):
+        await context.service.resolve(
+            invoice_id=INVOICE_ID, rule_code=RuleCode.CURRENCY_ALLOWED
+        )
+
+    context.generation_client.generate_explanation.assert_not_called()
+
+
+async def should_return_the_cached_explanation_without_regenerating(
+    context: ExplanationContext,
+) -> None:
+    """A previously persisted explanation is returned as-is, skipping generation."""
+    context.explanation_repo.get_by_rule_result.return_value = PERSISTED_EXPLANATION
+
+    await context.service.resolve(
+        invoice_id=INVOICE_ID, rule_code=RuleCode.CURRENCY_ALLOWED
+    )
+
+    context.policy_repo.get_active_document.assert_not_called()
+    context.generation_client.generate_explanation.assert_not_called()
