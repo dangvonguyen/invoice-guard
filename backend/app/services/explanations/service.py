@@ -1,9 +1,11 @@
 """Use case for retrieving or generating an explanation for one review flag."""
 
+from collections.abc import Sequence
 from uuid import UUID
 
 from app.core.errors import ForbiddenError, NotFoundError, ValidationError
 from app.database.models.explanation import Explanation
+from app.database.models.policy_document import PolicyDocChunk
 from app.database.models.rule_result import RuleOutcome
 from app.database.repositories.explanation import ExplanationRepository
 from app.database.repositories.invoice import InvoiceRepository
@@ -118,15 +120,7 @@ class ExplanationService:
             ],
         )
 
-        citations = [
-            CitationView(
-                chunk_id=chunks[index].id,
-                section_label=chunks[index].section_label,
-                content=chunks[index].content,
-            )
-            for index in generated.cited_chunk_indexes
-            if 0 <= index < len(chunks)
-        ]
+        citations = _verify_citations(chunks, generated.cited_chunk_indexes)
 
         persisted = await self._explanation_repo.create(
             rule_result_id=flag.id,
@@ -141,6 +135,21 @@ def _build_query_text(*, summary: str, evidence: dict[str, object]) -> str:
     """Build the retrieval query text from a flag's summary and evidence values."""
     evidence_text = ", ".join(f"{key}: {value}" for key, value in evidence.items())
     return f"{summary} ({evidence_text})".strip()
+
+
+def _verify_citations(
+    chunks: Sequence[PolicyDocChunk], cited_chunk_indexes: Sequence[int]
+) -> list[CitationView]:
+    """Keep only citations naming a chunk actually retrieved for this request."""
+    return [
+        CitationView(
+            chunk_id=chunks[index].id,
+            section_label=chunks[index].section_label,
+            content=chunks[index].content,
+        )
+        for index in cited_chunk_indexes
+        if 0 <= index < len(chunks)
+    ]
 
 
 def _to_view(explanation: Explanation) -> ExplanationView:
