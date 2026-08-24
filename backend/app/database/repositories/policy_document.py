@@ -73,6 +73,21 @@ class PolicyDocumentRepository:
         await self._session.flush()
         return document
 
+    async def search_similar_chunks(
+        self, *, embedding: Sequence[float], top_k: int
+    ) -> Sequence[PolicyDocChunk]:
+        """Return the active document's chunks nearest the query embedding."""
+        result = await self._session.execute(
+            select(PolicyDocChunk)
+            .join(
+                PolicyDocument, PolicyDocChunk.policy_document_id == PolicyDocument.id
+            )
+            .where(PolicyDocument.status == PolicyDocumentStatus.ACTIVE)
+            .order_by(PolicyDocChunk.embedding.cosine_distance(embedding))
+            .limit(top_k)
+        )
+        return result.scalars().all()
+
     async def list_all(self) -> Sequence[tuple[PolicyDocument, int]]:
         """Return every document with its chunk count, newest first."""
         chunk_counts = (

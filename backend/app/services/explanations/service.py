@@ -7,7 +7,7 @@ from app.database.repositories.invoice import InvoiceRepository
 from app.database.repositories.policy_document import PolicyDocumentRepository
 from app.schemas.explanation import CitationView, ExplanationView
 from app.services.embeddings.client import EmbeddingClient
-from app.services.explanations.generation import GenerationClient
+from app.services.explanations.generation import GenerationClient, RetrievedChunk
 from app.services.rules.flags import summary_for
 from app.services.rules.result import RuleCode
 
@@ -55,7 +55,16 @@ class ExplanationService:
         )
 
         generated = await self._generation_client.generate_explanation(
-            summary=summary, evidence=flag.evidence, chunks=chunks
+            summary=summary,
+            evidence=flag.evidence,
+            chunks=[
+                RetrievedChunk(
+                    chunk_id=chunk.id,
+                    section_label=chunk.section_label,
+                    content=chunk.content,
+                )
+                for chunk in chunks
+            ],
         )
 
         citations = [

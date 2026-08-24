@@ -5,15 +5,23 @@ from typing import Annotated
 from fastapi import Depends
 
 from app.core.config import get_settings
-from app.services.explanations.generation import GenerationClient
+from app.services.explanations.generation import (
+    GenerationClient,
+    OpenAIGenerationClient,
+)
 from app.services.explanations.service import ExplanationService
 
 from .invoices import InvoiceRepositoryDep
-from .policies import EmbeddingClientDep, PolicyDocumentRepositoryDep
+from .policies import EmbeddingClientDep, PolicyDocumentRepositoryDep, get_openai_client
 
 
 def get_generation_client() -> GenerationClient:
-    raise NotImplementedError
+    """Create the generation client."""
+    settings = get_settings()
+    return OpenAIGenerationClient(
+        client=get_openai_client(),
+        model=settings.OPENAI_GENERATION_MODEL,
+    )
 
 
 GenerationClientDep = Annotated[GenerationClient, Depends(get_generation_client)]

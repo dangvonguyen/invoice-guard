@@ -1,6 +1,6 @@
 """Acceptance scenarios for on-demand review-flag explanation generation."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
@@ -42,19 +42,14 @@ class FakeEmbeddingClient:
 class FakeGenerationClient:
     """Stand in for the generation-provider boundary."""
 
-    narrative: str = CITED_NARRATIVE
-    cited_chunk_indexes: list[int] = field(default_factory=lambda: [0])
-
     async def generate_explanation(
-        self, *, flag_summary: str, evidence: dict[str, Any], chunks: list[Any]
+        self, *, summary: str, evidence: dict[str, Any], chunks: list[Any]
     ) -> GeneratedExplanation:
-        return GeneratedExplanation(
-            narrative=self.narrative, cited_chunk_indexes=self.cited_chunk_indexes
-        )
+        return GeneratedExplanation(narrative=CITED_NARRATIVE, cited_chunk_indexes=[0])
 
 
 @pytest.fixture
-def fake_generation() -> FakeGenerationClient:
+def fake_generation() -> None:
     app.dependency_overrides[get_generation_client] = FakeGenerationClient
 
 
