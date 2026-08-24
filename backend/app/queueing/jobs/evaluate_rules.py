@@ -6,6 +6,7 @@ from uuid import UUID
 from app.database.repositories.rule_result import RuleResultRepository
 from app.services.extraction.model import ExtractedInvoice
 from app.services.rules.engine import RuleEngine
+from app.services.rules.result import to_rows
 
 
 async def evaluate_rules(
@@ -20,5 +21,5 @@ async def evaluate_rules(
     rule_evaluation = rule_engine.evaluate(extracted_invoice, today)
 
     await rule_results.replace_for_invoice(
-        invoice_id=invoice_id, results=rule_evaluation
+        invoice_id=invoice_id, results=to_rows(rule_evaluation)
     )

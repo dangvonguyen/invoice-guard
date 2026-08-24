@@ -6,7 +6,7 @@ from uuid import UUID
 import pytest
 
 from app.queueing.jobs.evaluate_rules import evaluate_rules
-from app.services.rules.result import RuleCode, RuleOutcome, RuleResult
+from app.services.rules.result import RuleCode, RuleOutcome, RuleResult, to_rows
 from tests.support.constants import EXTRACTED_INVOICE, TODAY
 
 pytestmark = [
@@ -39,5 +39,5 @@ async def should_evaluate_the_fields_and_replace_the_invoices_rule_results() -> 
 
     rule_engine.evaluate.assert_called_once_with(EXTRACTED_INVOICE, TODAY)
     rule_results.replace_for_invoice.assert_awaited_once_with(
-        invoice_id=INVOICE_ID, results=evaluation
+        invoice_id=INVOICE_ID, results=to_rows(evaluation)
     )

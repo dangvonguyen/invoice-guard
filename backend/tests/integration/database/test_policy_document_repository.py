@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.policy_document import (
+    EMBEDDING_DIMENSIONS,
     PolicyDocChunk,
     PolicyDocument,
     PolicyDocumentStatus,
@@ -13,7 +14,6 @@ from app.database.repositories.policy_document import (
     NewPolicyChunk,
     PolicyDocumentRepository,
 )
-from app.services.embeddings.client import EMBEDDING_DIMENSIONS
 
 pytestmark = [
     pytest.mark.integration,

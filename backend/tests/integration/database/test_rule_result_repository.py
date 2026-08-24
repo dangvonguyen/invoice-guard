@@ -12,8 +12,7 @@ from app.database.models.invoice import Invoice
 from app.database.models.rule_result import InvoiceRuleResult, RuleOutcome
 from app.database.models.user import User
 from app.database.repositories.invoice import InvoiceRepository
-from app.database.repositories.rule_result import RuleResultRepository
-from app.services.rules.result import RuleCode, RuleResult
+from app.database.repositories.rule_result import RuleResultRepository, RuleResultRow
 from tests.support.helpers import create_user
 
 pytestmark = [
@@ -48,26 +47,26 @@ def repository(test_db: AsyncSession) -> RuleResultRepository:
 
 
 RESULTS = [
-    RuleResult(
-        rule_code=RuleCode.EXPENSE_WITHIN_AMOUNT_LIMIT,
+    RuleResultRow(
+        rule_code="expense_within_amount_limit",
         outcome=RuleOutcome.PASS,
     ),
-    RuleResult(
-        rule_code=RuleCode.LINE_ITEM_TOTAL_CONSISTENCY,
+    RuleResultRow(
+        rule_code="line_item_total_consistency",
         outcome=RuleOutcome.NOT_APPLICABLE,
         evidence={},
     ),
-    RuleResult(
-        rule_code=RuleCode.CURRENCY_ALLOWED,
+    RuleResultRow(
+        rule_code="currency_allowed",
         outcome=RuleOutcome.FAIL,
         evidence={"currency": "CHF", "allowed_currencies": ["EUR", "GBP", "USD"]},
     ),
-    RuleResult(
-        rule_code=RuleCode.INVOICE_DATE_NOT_IN_FUTURE,
+    RuleResultRow(
+        rule_code="invoice_date_not_in_future",
         outcome=RuleOutcome.PASS,
     ),
-    RuleResult(
-        rule_code=RuleCode.EXPENSE_WITHIN_SUBMISSION_WINDOW,
+    RuleResultRow(
+        rule_code="expense_within_submission_window",
         outcome=RuleOutcome.PASS,
     ),
 ]
@@ -93,7 +92,7 @@ async def should_insert_one_row_per_rule_result_stamped_with_invoice_and_timesta
 
     assert len(stored) == len(RESULTS)
     assert all(row.invoice_id == invoice.id for row in stored)
-    assert {row.rule_code for row in stored} == {code.value for code in RuleCode}
+    assert {row.rule_code for row in stored} == {row.rule_code for row in RESULTS}
 
 
 async def should_delete_prior_rows_before_inserting_the_new_set(
@@ -103,7 +102,8 @@ async def should_delete_prior_rows_before_inserting_the_new_set(
     await repository.replace_for_invoice(invoice_id=invoice.id, results=RESULTS)
 
     updated_results = [
-        RuleResult(rule_code=code, outcome=RuleOutcome.PASS) for code in RuleCode
+        RuleResultRow(rule_code=row.rule_code, outcome=RuleOutcome.PASS)
+        for row in RESULTS
     ]
     await repository.replace_for_invoice(invoice_id=invoice.id, results=updated_results)
 

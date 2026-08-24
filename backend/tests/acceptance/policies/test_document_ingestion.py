@@ -6,8 +6,8 @@ from httpx import AsyncClient
 
 from app.api.deps import get_embedding_client
 from app.core.config import get_settings
+from app.database.models.policy_document import EMBEDDING_DIMENSIONS
 from app.main import app
-from app.services.embeddings.client import EMBEDDING_DIMENSIONS
 from tests.support.helpers import pdf_bytes
 
 pytestmark = [
