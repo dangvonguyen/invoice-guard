@@ -165,6 +165,7 @@ async def should_return_the_reviewer_projection_for_a_finance_reviewer(
     assert len(body["review_flags"]) == 1
     assert body["review_flags"][0]["code"] == "currency_allowed"
     assert body["review_flags"][0]["evidence"] == {"currency": "JPY"}
+    assert body["review_flags"][0]["explainable"] is True
     assert body["decision"] is None
 
 

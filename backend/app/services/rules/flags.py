@@ -10,10 +10,16 @@ _SUMMARIES: dict[tuple[RuleCode, RuleOutcome], str] = {
     for rule in RULES
     for outcome, summary in rule.summaries.items()
 }
+_EXPLAINABLE: dict[RuleCode, bool] = {rule.code: rule.explainable for rule in RULES}
 
 
 def summary_for(rule_code: RuleCode, outcome: RuleOutcome) -> str | None:
     return _SUMMARIES.get((rule_code, outcome))
+
+
+def is_explainable(rule_code: RuleCode) -> bool:
+    """Return whether a rule's failure may be explained from the policy handbook."""
+    return _EXPLAINABLE.get(rule_code, False)
 
 
 def to_review_flags(results: list[InvoiceRuleResult]) -> list[ReviewFlagView]:
@@ -26,7 +32,10 @@ def to_review_flags(results: list[InvoiceRuleResult]) -> list[ReviewFlagView]:
         summary = summary_for(rule_code, result.outcome) or f"{rule_code.value} failed."
         flags.append(
             ReviewFlagView(
-                code=result.rule_code, summary=summary, evidence=result.evidence
+                code=result.rule_code,
+                summary=summary,
+                evidence=result.evidence,
+                explainable=is_explainable(rule_code),
             )
         )
     return flags

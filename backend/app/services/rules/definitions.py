@@ -35,6 +35,7 @@ class RuleDefinition:
     summaries: Mapping[RuleOutcome, str] = field(
         default_factory=lambda: MappingProxyType({})
     )
+    explainable: bool = False
 
 
 RULES: tuple[RuleDefinition, ...] = (
@@ -46,6 +47,7 @@ RULES: tuple[RuleDefinition, ...] = (
                 RuleOutcome.FAIL: "Invoice total exceeds the configured review limit.",
             }
         ),
+        explainable=True,
     ),
     RuleDefinition(
         code=RuleCode.LINE_ITEM_TOTAL_CONSISTENCY,
@@ -69,6 +71,7 @@ RULES: tuple[RuleDefinition, ...] = (
                 RuleOutcome.FAIL: "Invoice currency is not in the allowed set.",
             }
         ),
+        explainable=True,
     ),
     RuleDefinition(
         code=RuleCode.INVOICE_DATE_NOT_IN_FUTURE,
@@ -89,5 +92,6 @@ RULES: tuple[RuleDefinition, ...] = (
                 ),
             }
         ),
+        explainable=True,
     ),
 )
