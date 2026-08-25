@@ -1,5 +1,5 @@
 import { createRoutesStub } from 'react-router';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay, http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -46,7 +46,12 @@ interface ReviewerInvoiceDetailResponse {
   extracted_fields: Record<string, unknown> | null;
   confidence: 'high' | 'low' | null;
   confidence_reason: string | null;
-  review_flags: { code: string; summary: string | null; evidence: Record<string, unknown> }[];
+  review_flags: {
+    code: string;
+    summary: string | null;
+    evidence: Record<string, unknown>;
+    explainable: boolean;
+  }[];
   decision: DecisionView | null;
 }
 
@@ -301,7 +306,12 @@ describe('InvoiceDetailPage reviewer view', () => {
             confidence: 'low',
             confidence_reason: 'Total amount was not clearly legible',
             review_flags: [
-              { code: 'duplicate_submission', summary: 'Possible duplicate', evidence: {} },
+              {
+                code: 'duplicate_submission',
+                summary: 'Possible duplicate',
+                evidence: {},
+                explainable: false,
+              },
             ],
             decision: null,
           }),
@@ -476,6 +486,172 @@ describe('DecisionForm submission', () => {
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
     expect(await screen.findByText('Login')).toBeInTheDocument();
+  });
+});
+
+describe('Explain review flag action', () => {
+  beforeEach(() => {
+    useAuthStore.getState().setAccessToken('signed.jwt.token');
+    mockCurrentUser('finance_reviewer');
+    server.use(
+      http.get(INVOICE_URL, () =>
+        HttpResponse.json(
+          reviewerDetailEnvelope({
+            id: INVOICE_ID,
+            status: 'awaiting_review',
+            employee: { id: 'emp-1', name: 'Priya Nair', email: 'priya@example.com' },
+            extracted_fields: null,
+            confidence: null,
+            confidence_reason: null,
+            review_flags: [
+              {
+                code: 'expense_within_amount_limit',
+                summary: 'Invoice total exceeds the configured review limit',
+                evidence: { limit: '500.00', total: '750.00' },
+                explainable: true,
+              },
+              {
+                code: 'line_item_total_consistency',
+                summary: 'Line items do not sum to the stated total',
+                evidence: {},
+                explainable: false,
+              },
+            ],
+            decision: null,
+          }),
+        ),
+      ),
+    );
+  });
+
+  afterEach(() => useAuthStore.getState().setAccessToken(null));
+
+  it('shows the Explain action only for explainable flags', async () => {
+    renderPage();
+
+    const amountLimitFlag = (
+      await screen.findByText(/exceeds the configured review limit/i)
+    ).closest('details');
+    const consistencyFlag = screen.getByText(/do not sum to the stated total/i).closest('details');
+
+    expect(amountLimitFlag).not.toBeNull();
+    expect(consistencyFlag).not.toBeNull();
+    expect(within(amountLimitFlag!).getByRole('button', { name: /explain/i })).toBeInTheDocument();
+    expect(
+      within(consistencyFlag!).queryByRole('button', { name: /explain/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders the explanation and citations after a successful request', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post(`${INVOICE_URL}/flags/expense_within_amount_limit/explanation`, () =>
+        HttpResponse.json({
+          success: true,
+          data: {
+            explanation:
+              'The invoice total of 750.00 exceeds the 500.00 policy limit for standard expenses.',
+            citations: [
+              {
+                chunk_id: 'chunk-1',
+                section_label: 'Section 3.2 Expense Limits',
+                content: 'Standard expenses may not exceed $500.00 without VP approval.',
+              },
+            ],
+            generated_by_model: 'gpt-5',
+            generated_at: '2026-08-20T10:00:00Z',
+          },
+          error: null,
+          meta: null,
+        }),
+      ),
+    );
+
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: /explain/i }));
+
+    expect(await screen.findByText(/exceeds the 500\.00 policy limit/i)).toBeInTheDocument();
+    expect(screen.getByText(/section 3\.2 expense limits/i)).toBeInTheDocument();
+    expect(screen.getByText(/standard expenses may not exceed \$500\.00/i)).toBeInTheDocument();
+  });
+
+  it('shows a loading state while the explanation is being generated', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post(`${INVOICE_URL}/flags/expense_within_amount_limit/explanation`, async () => {
+        await delay(50);
+        return HttpResponse.json({
+          success: true,
+          data: {
+            explanation: 'Exceeds the policy limit.',
+            citations: [],
+            generated_by_model: 'gpt-5',
+            generated_at: '2026-08-20T10:00:00Z',
+          },
+          error: null,
+          meta: null,
+        });
+      }),
+    );
+
+    renderPage();
+
+    const explainButton = await screen.findByRole('button', { name: /explain/i });
+    await user.click(explainButton);
+
+    expect(await screen.findByRole('button', { name: /explaining/i })).toBeDisabled();
+    expect(await screen.findByText(/exceeds the policy limit/i)).toBeInTheDocument();
+  });
+
+  it('shows a clear message when no policy document has ever been ingested', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post(`${INVOICE_URL}/flags/expense_within_amount_limit/explanation`, () =>
+        HttpResponse.json(
+          {
+            success: false,
+            data: null,
+            error: { code: 'NO_ACTIVE_POLICY_DOCUMENT', message: 'No active policy document.' },
+            meta: null,
+          },
+          { status: 404 },
+        ),
+      ),
+    );
+
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: /explain/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /no policy handbook has been ingested yet/i,
+    );
+  });
+
+  it('shows a clear message when the reviewer submitted the invoice themselves', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post(`${INVOICE_URL}/flags/expense_within_amount_limit/explanation`, () =>
+        HttpResponse.json(
+          {
+            success: false,
+            data: null,
+            error: { code: 'CANNOT_EXPLAIN_OWN_INVOICE', message: 'Cannot explain own invoice.' },
+            meta: null,
+          },
+          { status: 403 },
+        ),
+      ),
+    );
+
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: /explain/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /can't request an explanation for your own submission/i,
+    );
   });
 });
 

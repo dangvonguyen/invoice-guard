@@ -5,6 +5,16 @@ export class UnauthenticatedError extends Error {
   }
 }
 
+// Some error responses aren't declared in the generated OpenAPI schema (only
+// certain status codes are), so their shape has to be narrowed from `unknown`
+// by hand.
+export function errorCode(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null || !('error' in error)) return undefined;
+  const info = error.error;
+  if (typeof info !== 'object' || info === null || !('code' in info)) return undefined;
+  return typeof info.code === 'string' ? info.code : undefined;
+}
+
 // The single seam every invoice/user API call funnels transport failures
 // through, so a status code is translated into a typed domain error exactly
 // once rather than re-checked ad hoc in each call site. `statusOverrides`

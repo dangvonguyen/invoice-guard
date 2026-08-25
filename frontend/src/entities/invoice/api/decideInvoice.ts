@@ -1,6 +1,6 @@
 import { apiClient } from '@/shared/api/client';
 import { unwrapEnvelope } from '@/shared/api/envelope';
-import { translateApiError } from '@/shared/api/errors';
+import { errorCode, translateApiError } from '@/shared/api/errors';
 
 import { toDecision } from '../model/mapper';
 import type { Decision } from '../model/types';
@@ -17,15 +17,6 @@ export class NotAwaitingReviewError extends Error {
     super('This invoice is no longer awaiting review');
     this.name = 'NotAwaitingReviewError';
   }
-}
-
-// The 409 conflict response isn't declared in the generated OpenAPI schema
-// (only 201/422 are), so its shape has to be narrowed from `unknown` by hand.
-function conflictErrorCode(error: unknown): string | undefined {
-  if (typeof error !== 'object' || error === null || !('error' in error)) return undefined;
-  const info = error.error;
-  if (typeof info !== 'object' || info === null || !('code' in info)) return undefined;
-  return typeof info.code === 'string' ? info.code : undefined;
 }
 
 export async function decideInvoice(
@@ -45,7 +36,7 @@ export async function decideInvoice(
   if (error) {
     throw translateApiError(response, error, 'Failed to record decision', {
       409: (conflictError) =>
-        conflictErrorCode(conflictError) === 'INVOICE_NOT_AWAITING_REVIEW'
+        errorCode(conflictError) === 'INVOICE_NOT_AWAITING_REVIEW'
           ? new NotAwaitingReviewError()
           : new DecisionConflictError(),
     });

@@ -53,6 +53,7 @@ export interface ReviewFlag {
   code: string;
   summary: string | null;
   evidence: Record<string, unknown>;
+  explainable: boolean;
 }
 
 export interface ReviewerInvoiceDetail {
@@ -68,3 +69,16 @@ export interface ReviewerInvoiceDetail {
 }
 
 export type InvoiceDetailView = InvoiceDetail | ReviewerInvoiceDetail;
+
+export interface Citation {
+  chunkId: string;
+  sectionLabel: string | null;
+  content: string;
+}
+
+export interface Explanation {
+  explanation: string;
+  citations: Citation[];
+  generatedByModel: string;
+  generatedAt: Date;
+}
