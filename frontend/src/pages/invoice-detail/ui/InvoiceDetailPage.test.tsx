@@ -541,6 +541,40 @@ describe('Explain review flag action', () => {
       within(consistencyFlag!).queryByRole('button', { name: /explain/i }),
     ).not.toBeInTheDocument();
   });
+
+  it('renders the explanation and citations after a successful request', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post(`${INVOICE_URL}/flags/expense_within_amount_limit/explanation`, () =>
+        HttpResponse.json({
+          success: true,
+          data: {
+            explanation:
+              'The invoice total of 750.00 exceeds the 500.00 policy limit for standard expenses.',
+            citations: [
+              {
+                chunk_id: 'chunk-1',
+                section_label: 'Section 3.2 Expense Limits',
+                content: 'Standard expenses may not exceed $500.00 without VP approval.',
+              },
+            ],
+            generated_by_model: 'gpt-5',
+            generated_at: '2026-08-20T10:00:00Z',
+          },
+          error: null,
+          meta: null,
+        }),
+      ),
+    );
+
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: /explain/i }));
+
+    expect(await screen.findByText(/exceeds the 500\.00 policy limit/i)).toBeInTheDocument();
+    expect(screen.getByText(/section 3\.2 expense limits/i)).toBeInTheDocument();
+    expect(screen.getByText(/standard expenses may not exceed \$500\.00/i)).toBeInTheDocument();
+  });
 });
 
 describe('InvoiceDetailPage access control', () => {

@@ -1,8 +1,15 @@
+import { useFetcher } from 'react-router';
+import { Loader2 } from 'lucide-react';
+
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 
-import type { ReviewFlag } from '../model/types';
+import {
+  CannotExplainOwnInvoiceError,
+  NoActivePolicyDocumentError,
+} from '../api/explainReviewFlag';
+import type { Explanation, ReviewFlag } from '../model/types';
 
 export interface ReviewFlagListProps {
   flags: ReviewFlag[];
@@ -27,7 +34,24 @@ export function ReviewFlagList({ flags }: ReviewFlagListProps) {
   );
 }
 
+function explainErrorMessage(error: Error): string {
+  if (error instanceof NoActivePolicyDocumentError) {
+    return "No policy handbook has been ingested yet, so this flag can't be explained.";
+  }
+  if (error instanceof CannotExplainOwnInvoiceError) {
+    return "You can't request an explanation for your own submission.";
+  }
+  return error.message;
+}
+
 function ReviewFlagItem({ flag }: { flag: ReviewFlag }) {
+  const fetcher = useFetcher<Error | Explanation>();
+  const isLoading = fetcher.state !== 'idle';
+  const result = fetcher.data;
+  const explanation =
+    result !== undefined && result !== null && !(result instanceof Error) ? result : null;
+  const errorMessage = result instanceof Error ? explainErrorMessage(result) : null;
+
   return (
     <details className="rounded-lg bg-muted/50 p-3 text-sm">
       <summary className="flex cursor-pointer items-center justify-between gap-3 font-medium">
@@ -37,13 +61,53 @@ function ReviewFlagItem({ flag }: { flag: ReviewFlag }) {
       <pre className="mt-2 overflow-x-auto text-xs text-muted-foreground">
         {JSON.stringify(flag.evidence, null, 2)}
       </pre>
-      {flag.explainable && (
-        <div className="mt-3">
-          <Button type="button" size="sm" variant="outline">
-            Explain
-          </Button>
+      {flag.explainable && explanation === null && (
+        <div className="mt-3 flex flex-col gap-2">
+          <fetcher.Form method="post">
+            <input type="hidden" name="intent" value="explain" />
+            <input type="hidden" name="ruleCode" value={flag.code} />
+            <Button type="submit" size="sm" variant="outline" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="animate-spin" aria-hidden="true" />
+                  Explaining…
+                </>
+              ) : (
+                'Explain'
+              )}
+            </Button>
+          </fetcher.Form>
+          {errorMessage !== null && (
+            <p role="alert" className="text-destructive">
+              {errorMessage}
+            </p>
+          )}
         </div>
       )}
+      {explanation !== null && <ExplanationBlock explanation={explanation} />}
     </details>
+  );
+}
+
+function ExplanationBlock({ explanation }: { explanation: Explanation }) {
+  return (
+    <div className="mt-3 flex flex-col gap-2 rounded-md bg-background p-3">
+      <p>{explanation.explanation}</p>
+      {explanation.citations.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <p className="text-xs font-medium text-muted-foreground">Citations</p>
+          <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
+            {explanation.citations.map((citation) => (
+              <li key={citation.chunkId}>
+                {citation.sectionLabel !== null && (
+                  <span className="font-medium">{citation.sectionLabel}: </span>
+                )}
+                {citation.content}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }

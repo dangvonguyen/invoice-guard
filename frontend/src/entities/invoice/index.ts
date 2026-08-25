@@ -1,12 +1,19 @@
 export { decideInvoice, DecisionConflictError, NotAwaitingReviewError } from './api/decideInvoice';
+export {
+  CannotExplainOwnInvoiceError,
+  explainReviewFlag,
+  NoActivePolicyDocumentError,
+} from './api/explainReviewFlag';
 export { getInvoice, NotFoundError } from './api/getInvoice';
 export { listInvoices } from './api/listInvoices';
 export { listReviewQueue } from './api/listReviewQueue';
 export { uploadInvoice } from './api/uploadInvoice';
 export { invoiceStatusBadgeVariant, invoiceStatusLabel } from './model/statusLabel';
 export type {
+  Citation,
   Decision,
   EmployeeIdentity,
+  Explanation,
   ExtractionConfidence,
   Invoice,
   InvoiceDetail,

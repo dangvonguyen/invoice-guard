@@ -1,6 +1,8 @@
 import type {
+  CitationDto,
   DecisionDto,
   EmployeeIdentityDto,
+  ExplanationDto,
   InvoiceDetailDto,
   InvoiceListItemDto,
   InvoiceSummaryDto,
@@ -11,8 +13,10 @@ import type {
 } from '../api/types';
 
 import type {
+  Citation,
   Decision,
   EmployeeIdentity,
+  Explanation,
   Invoice,
   InvoiceDetail,
   InvoiceSummary,
@@ -86,6 +90,23 @@ export function toReviewerInvoiceDetail(dto: ReviewerInvoiceDetailDto): Reviewer
     confidenceReason: dto.confidence_reason,
     reviewFlags: dto.review_flags.map(toReviewFlag),
     decision: dto.decision === null ? null : toDecision(dto.decision),
+  };
+}
+
+export function toCitation(dto: CitationDto): Citation {
+  return {
+    chunkId: dto.chunk_id,
+    sectionLabel: dto.section_label,
+    content: dto.content,
+  };
+}
+
+export function toExplanation(dto: ExplanationDto): Explanation {
+  return {
+    explanation: dto.explanation,
+    citations: dto.citations.map(toCitation),
+    generatedByModel: dto.generated_by_model,
+    generatedAt: new Date(dto.generated_at),
   };
 }
 

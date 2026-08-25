@@ -9,3 +9,6 @@ export type ReviewQueueItemDto = components['schemas']['ReviewQueueItem'];
 export type EmployeeIdentityDto = components['schemas']['EmployeeIdentity'];
 export type ReviewFlagDto = components['schemas']['ReviewFlagView'];
 export type ReviewerInvoiceDetailDto = components['schemas']['ReviewerInvoiceDetailResponse'];
+export type CitationDto = components['schemas']['CitationView'];
+export type ExplanationDto = components['schemas']['ExplanationView'];
+export type RuleCodeDto = components['schemas']['RuleCode'];

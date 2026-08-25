@@ -34,6 +34,7 @@ export function DecisionForm() {
       </CardHeader>
       <CardContent>
         <fetcher.Form method="post">
+          <input type="hidden" name="intent" value="decide" />
           <FieldGroup>
             <Field>
               <FieldLabel>Decision</FieldLabel>
