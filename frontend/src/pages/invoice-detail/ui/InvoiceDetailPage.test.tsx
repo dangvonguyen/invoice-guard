@@ -575,6 +575,84 @@ describe('Explain review flag action', () => {
     expect(screen.getByText(/section 3\.2 expense limits/i)).toBeInTheDocument();
     expect(screen.getByText(/standard expenses may not exceed \$500\.00/i)).toBeInTheDocument();
   });
+
+  it('shows a loading state while the explanation is being generated', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post(`${INVOICE_URL}/flags/expense_within_amount_limit/explanation`, async () => {
+        await delay(50);
+        return HttpResponse.json({
+          success: true,
+          data: {
+            explanation: 'Exceeds the policy limit.',
+            citations: [],
+            generated_by_model: 'gpt-5',
+            generated_at: '2026-08-20T10:00:00Z',
+          },
+          error: null,
+          meta: null,
+        });
+      }),
+    );
+
+    renderPage();
+
+    const explainButton = await screen.findByRole('button', { name: /explain/i });
+    await user.click(explainButton);
+
+    expect(await screen.findByRole('button', { name: /explaining/i })).toBeDisabled();
+    expect(await screen.findByText(/exceeds the policy limit/i)).toBeInTheDocument();
+  });
+
+  it('shows a clear message when no policy document has ever been ingested', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post(`${INVOICE_URL}/flags/expense_within_amount_limit/explanation`, () =>
+        HttpResponse.json(
+          {
+            success: false,
+            data: null,
+            error: { code: 'NO_ACTIVE_POLICY_DOCUMENT', message: 'No active policy document.' },
+            meta: null,
+          },
+          { status: 404 },
+        ),
+      ),
+    );
+
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: /explain/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /no policy handbook has been ingested yet/i,
+    );
+  });
+
+  it('shows a clear message when the reviewer submitted the invoice themselves', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post(`${INVOICE_URL}/flags/expense_within_amount_limit/explanation`, () =>
+        HttpResponse.json(
+          {
+            success: false,
+            data: null,
+            error: { code: 'CANNOT_EXPLAIN_OWN_INVOICE', message: 'Cannot explain own invoice.' },
+            meta: null,
+          },
+          { status: 403 },
+        ),
+      ),
+    );
+
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: /explain/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /can't request an explanation for your own submission/i,
+    );
+  });
 });
 
 describe('InvoiceDetailPage access control', () => {
