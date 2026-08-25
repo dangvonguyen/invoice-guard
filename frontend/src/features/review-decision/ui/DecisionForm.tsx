@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useFetcher } from 'react-router';
 
 import { DecisionConflictError, NotAwaitingReviewError } from '@/entities/invoice';
+import { mapErrorMessage } from '@/shared/lib/errorMessage';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/shared/ui/field';
@@ -11,9 +12,11 @@ import { ToggleGroup, ToggleGroupItem } from '@/shared/ui/toggle-group';
 type Outcome = 'approved' | 'rejected';
 
 function getErrorMessage(error: Error | null | undefined): string | null {
-  if (error instanceof DecisionConflictError) return 'Already decided by another reviewer.';
-  if (error instanceof NotAwaitingReviewError) return 'This invoice is no longer awaiting review.';
-  return error?.message ?? null;
+  if (error === null || error === undefined) return null;
+  return mapErrorMessage(error, [
+    [DecisionConflictError, 'Already decided by another reviewer.'],
+    [NotAwaitingReviewError, 'This invoice is no longer awaiting review.'],
+  ]);
 }
 
 export function DecisionForm() {
