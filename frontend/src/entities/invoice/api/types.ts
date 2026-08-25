@@ -12,3 +12,15 @@ export type ReviewerInvoiceDetailDto = components['schemas']['ReviewerInvoiceDet
 export type CitationDto = components['schemas']['CitationView'];
 export type ExplanationDto = components['schemas']['ExplanationView'];
 export type RuleCodeDto = components['schemas']['RuleCode'];
+
+const RULE_CODES: Record<RuleCodeDto, true> = {
+  expense_within_amount_limit: true,
+  expense_within_submission_window: true,
+  invoice_date_not_in_future: true,
+  line_item_total_consistency: true,
+  currency_allowed: true,
+};
+
+export function isRuleCode(value: string): value is RuleCodeDto {
+  return value in RULE_CODES;
+}

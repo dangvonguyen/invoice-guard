@@ -21,13 +21,16 @@ export class CannotExplainOwnInvoiceError extends Error {
   }
 }
 
-export async function explainReviewFlag(invoiceId: string, ruleCode: string): Promise<Explanation> {
+export async function explainReviewFlag(
+  invoiceId: string,
+  ruleCode: RuleCodeDto,
+): Promise<Explanation> {
   const {
     data: envelope,
     error,
     response,
   } = await apiClient.POST('/invoices/{invoice_id}/flags/{rule_code}/explanation', {
-    params: { path: { invoice_id: invoiceId, rule_code: ruleCode as RuleCodeDto } },
+    params: { path: { invoice_id: invoiceId, rule_code: ruleCode } },
   });
 
   if (error) {

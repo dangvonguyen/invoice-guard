@@ -6,6 +6,7 @@ import {
   DecisionConflictError,
   explainReviewFlag,
   type Explanation,
+  isRuleCode,
   NoActivePolicyDocumentError,
   NotAwaitingReviewError,
 } from '@/entities/invoice';
@@ -59,7 +60,7 @@ async function explainAction(
 ): Promise<Error | Explanation | Response> {
   const ruleCode = formData.get('ruleCode');
 
-  if (typeof ruleCode !== 'string' || !ruleCode) {
+  if (typeof ruleCode !== 'string' || !isRuleCode(ruleCode)) {
     return new Error('Something went wrong. Please try again.');
   }
 
