@@ -12,8 +12,8 @@ import {
   InvoiceSummaryCard,
   NotFoundError,
   type ReviewerInvoiceDetail,
-  ReviewFlagList,
 } from '@/entities/invoice';
+import { ReviewFlagList } from '@/features/explain-review-flag';
 import { DecisionForm } from '@/features/review-decision';
 import { paths } from '@/shared/config/paths';
 import { Badge } from '@/shared/ui/badge';

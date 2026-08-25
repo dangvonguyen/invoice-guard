@@ -1,15 +1,16 @@
 import { useFetcher } from 'react-router';
 import { Loader2 } from 'lucide-react';
 
+import {
+  CannotExplainOwnInvoiceError,
+  type Explanation,
+  NoActivePolicyDocumentError,
+  type ReviewFlag,
+} from '@/entities/invoice';
+import { mapErrorMessage } from '@/shared/lib/errorMessage';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
-
-import {
-  CannotExplainOwnInvoiceError,
-  NoActivePolicyDocumentError,
-} from '../api/explainReviewFlag';
-import type { Explanation, ReviewFlag } from '../model/types';
 
 export interface ReviewFlagListProps {
   flags: ReviewFlag[];
@@ -35,13 +36,13 @@ export function ReviewFlagList({ flags }: ReviewFlagListProps) {
 }
 
 function explainErrorMessage(error: Error): string {
-  if (error instanceof NoActivePolicyDocumentError) {
-    return "No policy handbook has been ingested yet, so this flag can't be explained.";
-  }
-  if (error instanceof CannotExplainOwnInvoiceError) {
-    return "You can't request an explanation for your own submission.";
-  }
-  return error.message;
+  return mapErrorMessage(error, [
+    [
+      NoActivePolicyDocumentError,
+      "No policy handbook has been ingested yet, so this flag can't be explained.",
+    ],
+    [CannotExplainOwnInvoiceError, "You can't request an explanation for your own submission."],
+  ]);
 }
 
 function ReviewFlagItem({ flag }: { flag: ReviewFlag }) {
