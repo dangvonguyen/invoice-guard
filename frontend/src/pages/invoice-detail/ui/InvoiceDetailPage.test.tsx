@@ -1,5 +1,5 @@
 import { createRoutesStub } from 'react-router';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay, http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -46,7 +46,12 @@ interface ReviewerInvoiceDetailResponse {
   extracted_fields: Record<string, unknown> | null;
   confidence: 'high' | 'low' | null;
   confidence_reason: string | null;
-  review_flags: { code: string; summary: string | null; evidence: Record<string, unknown> }[];
+  review_flags: {
+    code: string;
+    summary: string | null;
+    evidence: Record<string, unknown>;
+    explainable: boolean;
+  }[];
   decision: DecisionView | null;
 }
 
@@ -301,7 +306,12 @@ describe('InvoiceDetailPage reviewer view', () => {
             confidence: 'low',
             confidence_reason: 'Total amount was not clearly legible',
             review_flags: [
-              { code: 'duplicate_submission', summary: 'Possible duplicate', evidence: {} },
+              {
+                code: 'duplicate_submission',
+                summary: 'Possible duplicate',
+                evidence: {},
+                explainable: false,
+              },
             ],
             decision: null,
           }),
@@ -476,6 +486,60 @@ describe('DecisionForm submission', () => {
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
     expect(await screen.findByText('Login')).toBeInTheDocument();
+  });
+});
+
+describe('Explain review flag action', () => {
+  beforeEach(() => {
+    useAuthStore.getState().setAccessToken('signed.jwt.token');
+    mockCurrentUser('finance_reviewer');
+    server.use(
+      http.get(INVOICE_URL, () =>
+        HttpResponse.json(
+          reviewerDetailEnvelope({
+            id: INVOICE_ID,
+            status: 'awaiting_review',
+            employee: { id: 'emp-1', name: 'Priya Nair', email: 'priya@example.com' },
+            extracted_fields: null,
+            confidence: null,
+            confidence_reason: null,
+            review_flags: [
+              {
+                code: 'expense_within_amount_limit',
+                summary: 'Invoice total exceeds the configured review limit',
+                evidence: { limit: '500.00', total: '750.00' },
+                explainable: true,
+              },
+              {
+                code: 'line_item_total_consistency',
+                summary: 'Line items do not sum to the stated total',
+                evidence: {},
+                explainable: false,
+              },
+            ],
+            decision: null,
+          }),
+        ),
+      ),
+    );
+  });
+
+  afterEach(() => useAuthStore.getState().setAccessToken(null));
+
+  it('shows the Explain action only for explainable flags', async () => {
+    renderPage();
+
+    const amountLimitFlag = (
+      await screen.findByText(/exceeds the configured review limit/i)
+    ).closest('details');
+    const consistencyFlag = screen.getByText(/do not sum to the stated total/i).closest('details');
+
+    expect(amountLimitFlag).not.toBeNull();
+    expect(consistencyFlag).not.toBeNull();
+    expect(within(amountLimitFlag!).getByRole('button', { name: /explain/i })).toBeInTheDocument();
+    expect(
+      within(consistencyFlag!).queryByRole('button', { name: /explain/i }),
+    ).not.toBeInTheDocument();
   });
 });
 

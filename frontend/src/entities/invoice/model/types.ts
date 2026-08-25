@@ -53,6 +53,7 @@ export interface ReviewFlag {
   code: string;
   summary: string | null;
   evidence: Record<string, unknown>;
+  explainable: boolean;
 }
 
 export interface ReviewerInvoiceDetail {

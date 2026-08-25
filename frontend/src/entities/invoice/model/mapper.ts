@@ -71,6 +71,7 @@ export function toReviewFlag(dto: ReviewFlagDto): ReviewFlag {
     code: dto.code,
     summary: dto.summary,
     evidence: dto.evidence,
+    explainable: dto.explainable,
   };
 }
 
