@@ -17,12 +17,15 @@ class ExtractedLineItem(BaseModel):
 
     description: str
     amount: Decimal
+    quantity: Decimal | None = None
+    unit_price: Decimal | None = None
 
 
 class ExtractedInvoice(BaseModel):
     """Schema-constrained fields the extraction model must return."""
 
     vendor_name: str
+    invoice_number: str | None = None
     invoice_date: date
     total_amount: Decimal
     currency: str
@@ -50,6 +53,10 @@ OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "vendor_name": {"type": "string"},
+        "invoice_number": {
+            "type": ["string", "null"],
+            "description": "Invoice number, if printed on the document",
+        },
         "invoice_date": {
             "type": "string",
             "description": "ISO 8601 date, e.g. 2000-01-01",
@@ -72,15 +79,27 @@ OUTPUT_SCHEMA: dict[str, Any] = {
                 "type": "object",
                 "properties": {
                     "description": {"type": "string"},
-                    "amount": {"type": "string"},
+                    "amount": {
+                        "type": "string",
+                        "description": "Decimal line amount as a string, e.g. 37.50",
+                    },
+                    "quantity": {
+                        "type": ["string", "null"],
+                        "description": "Decimal quantity as a string, e.g. 3, if printed",
+                    },
+                    "unit_price": {
+                        "type": ["string", "null"],
+                        "description": "Decimal unit price as a string, e.g. 12.50, if printed",
+                    },
                 },
-                "required": ["description", "amount"],
+                "required": ["description", "amount", "quantity", "unit_price"],
                 "additionalProperties": False,
             },
         },
     },
     "required": [
         "vendor_name",
+        "invoice_number",
         "invoice_date",
         "total_amount",
         "currency",

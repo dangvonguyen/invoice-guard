@@ -219,6 +219,125 @@ async def should_reprompt_with_the_previous_validation_error_on_retry(
     assert "total_amount" in second_call.kwargs["validation_error"]
 
 
+async def should_not_penalize_a_missing_invoice_number(
+    pipeline: ExtractionPipeline, model: AsyncMock, grounding_checker: Mock
+) -> None:
+    """A null invoice number is never checked for grounding."""
+    model.extract_raw_fields.return_value = {
+        **VALID_RAW_RESPONSE,
+        "invoice_number": None,
+    }
+    grounding_checker.is_grounded.return_value = True
+
+    result = await pipeline.run(document_text=DOCUMENT_TEXT)
+
+    assert result.fields.invoice_number is None
+    assert result.confidence == "high"
+    checked_field_names = {
+        call.kwargs["value"] for call in grounding_checker.is_grounded.call_args_list
+    }
+    assert None not in checked_field_names
+
+
+async def should_flag_a_fabricated_invoice_number_as_low_confidence(
+    model: AsyncMock,
+) -> None:
+    """An invoice number absent from the source text lowers confidence."""
+    model.extract_raw_fields.return_value = {
+        **VALID_RAW_RESPONSE,
+        "invoice_number": "INV-9999",
+    }
+    pipeline = ExtractionPipeline(model=model, grounding_checker=GroundingChecker())
+
+    result = await pipeline.run(document_text=DOCUMENT_TEXT)
+
+    assert result.confidence == "low"
+    assert result.confidence_reason is not None
+    assert "invoice_number" in result.confidence_reason
+
+
+async def should_treat_grounded_line_item_quantity_and_unit_price_as_high_confidence(
+    model: AsyncMock,
+) -> None:
+    """Literally-printed quantity and unit_price do not lower confidence."""
+    model.extract_raw_fields.return_value = {
+        **VALID_RAW_RESPONSE,
+        "line_items": [
+            {
+                "description": "Widgets",
+                "amount": "100.00",
+                "quantity": "4",
+                "unit_price": "25.00",
+            }
+        ],
+    }
+    pipeline = ExtractionPipeline(model=model, grounding_checker=GroundingChecker())
+    document_text = (
+        "Vendor: Acme Supplies\nInvoice date: 2026-08-03\n"
+        "Widgets 4 x 25.00 100.00\nTax: 32.10 USD\nTotal: 482.10 USD"
+    )
+
+    result = await pipeline.run(document_text=document_text)
+
+    assert result.confidence == "high"
+    assert result.confidence_reason is None
+
+
+async def should_not_penalize_a_missing_quantity_or_unit_price(
+    pipeline: ExtractionPipeline, model: AsyncMock, grounding_checker: Mock
+) -> None:
+    """Null quantity and unit_price on a line item are never checked."""
+    model.extract_raw_fields.return_value = {
+        **VALID_RAW_RESPONSE,
+        "line_items": [
+            {
+                "description": "Consulting",
+                "amount": "100.00",
+                "quantity": None,
+                "unit_price": None,
+            }
+        ],
+    }
+    grounding_checker.is_grounded.return_value = True
+
+    result = await pipeline.run(document_text=DOCUMENT_TEXT)
+
+    assert result.confidence == "high"
+    checked_field_names = {
+        call.kwargs["value"] for call in grounding_checker.is_grounded.call_args_list
+    }
+    assert None not in checked_field_names
+
+
+async def should_flag_a_fabricated_quantity_or_unit_price_as_low_confidence(
+    model: AsyncMock,
+) -> None:
+    """A fabricated quantity or unit_price lowers confidence and is named."""
+    model.extract_raw_fields.return_value = {
+        **VALID_RAW_RESPONSE,
+        "line_items": [
+            {
+                "description": "Consulting",
+                "amount": "100.00",
+                "quantity": "999",
+                "unit_price": "999.00",
+            }
+        ],
+    }
+    pipeline = ExtractionPipeline(model=model, grounding_checker=GroundingChecker())
+    document_text = (
+        "Vendor: Acme Supplies\nInvoice date: 2026-08-03\n"
+        "Consulting 100.00\nTax: 32.10 USD\nTotal: 482.10 USD"
+    )
+
+    result = await pipeline.run(document_text=document_text)
+
+    assert result.confidence == "low"
+    assert result.confidence_reason is not None
+    assert "line_items[0].quantity" in result.confidence_reason
+    assert "line_items[0].unit_price" in result.confidence_reason
+
+
 async def should_raise_after_exhausting_all_retry_attempts(
     pipeline: ExtractionPipeline, model: AsyncMock, grounding_checker: Mock
 ) -> None:
