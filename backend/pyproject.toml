@@ -6,9 +6,10 @@ readme = "README.md"
 requires-python = ">=3.13,<4.0"
 dependencies = [
 	"alembic>=1.18.5",
+	"anthropic>=1.0.0",
 	"asyncpg>=0.31.0",
 	"fastapi[standard]>=0.140.13",
-	"openai>=3.0.0",
+	"openai>=3.3.1",
 	"pgvector>=0.5.0",
 	"pwdlib[argon2]>=0.3.0",
 	"pydantic>=2.13.4",

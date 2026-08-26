@@ -1,13 +1,12 @@
 """Dependencies for policy document ingestion and listing."""
 
-from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends
-from openai import AsyncOpenAI
 
-from app.core.config import get_settings, unwrap_secret
+from app.core.config import get_settings
 from app.core.errors import ForbiddenError
+from app.core.llm import get_openai_client
 from app.database.models.user import User, UserRole
 from app.database.repositories.policy_document import PolicyDocumentRepository
 from app.services.embeddings.client import EmbeddingClient, OpenAIEmbeddingClient
@@ -69,13 +68,6 @@ def get_chunker() -> Chunker:
 
 
 ChunkerDep = Annotated[Chunker, Depends(get_chunker)]
-
-
-@lru_cache
-def get_openai_client() -> AsyncOpenAI:
-    """Return the shared async OpenAI client."""
-    settings = get_settings()
-    return AsyncOpenAI(api_key=unwrap_secret(settings.OPENAI_API_KEY))
 
 
 def get_embedding_client() -> EmbeddingClient:

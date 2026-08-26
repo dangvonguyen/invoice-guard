@@ -9,20 +9,21 @@ from app.database.repositories.explanation import ExplanationRepository
 from app.database.repositories.invoice import InvoiceRepository
 from app.services.explanations.generation import (
     GenerationClient,
-    OpenAIGenerationClient,
+    build_generation_client,
 )
 from app.services.explanations.service import ExplanationService
 
-from .policies import EmbeddingClientDep, PolicyDocumentRepositoryDep, get_openai_client
+from .policies import EmbeddingClientDep, PolicyDocumentRepositoryDep
 from .sessions import SessionDep
 
 
 def get_generation_client() -> GenerationClient:
     """Create the generation client."""
     settings = get_settings()
-    return OpenAIGenerationClient(
-        client=get_openai_client(),
-        model=settings.OPENAI_GENERATION_MODEL,
+    return build_generation_client(
+        provider=settings.GENERATION_PROVIDER,
+        model=settings.GENERATION_MODEL,
+        max_tokens=settings.GENERATION_MAX_TOKENS,
     )
 
 

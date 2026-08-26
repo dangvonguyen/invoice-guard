@@ -24,7 +24,7 @@ def openai_client() -> Mock:
 
 @pytest.fixture
 def model_client(openai_client: Mock) -> OpenAIModelClient:
-    return OpenAIModelClient(client=openai_client, model="gpt-5-mini")
+    return OpenAIModelClient(client=openai_client, model="gpt-5-mini", max_tokens=4096)
 
 
 async def should_return_the_parsed_json_response(
@@ -55,7 +55,7 @@ async def should_include_the_document_text_in_the_first_attempt(
     await model_client.extract_raw_fields(document_text=DOCUMENT_TEXT)
 
     _, kwargs = openai_client.responses.create.call_args
-    assert DOCUMENT_TEXT in kwargs["input"]
+    assert DOCUMENT_TEXT in kwargs["input"][0]["content"]
 
 
 async def should_include_the_prior_validation_error_when_retrying(
@@ -67,5 +67,5 @@ async def should_include_the_prior_validation_error_when_retrying(
     )
 
     _, kwargs = openai_client.responses.create.call_args
-    assert DOCUMENT_TEXT in kwargs["input"]
-    assert "total_amount: field required" in kwargs["input"]
+    assert DOCUMENT_TEXT in kwargs["input"][0]["content"]
+    assert "total_amount: field required" in kwargs["input"][0]["content"]

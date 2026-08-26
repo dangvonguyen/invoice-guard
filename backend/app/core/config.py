@@ -66,15 +66,22 @@ class Settings(BaseSettings):
     # adapter behind the same StorageClient protocol before deploying.
     STORAGE_LOCAL_PATH: str = "./data/invoices"
 
-    # Extraction model
+    # API keys
     OPENAI_API_KEY: SecretStr
-    OPENAI_EXTRACTION_MODEL: str = "gpt-5-mini"
+    ANTHROPIC_API_KEY: SecretStr
 
     # Embedding model
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
 
+    # Extraction settings
+    EXTRACTION_PROVIDER: Literal["openai", "anthropic"] = "openai"
+    EXTRACTION_MODEL: str = "gpt-5-mini"
+    EXTRACTION_MAX_TOKENS: PositiveInt = 4096
+
     # Explanation generation
-    OPENAI_GENERATION_MODEL: str = "gpt-5-mini"
+    GENERATION_PROVIDER: Literal["openai", "anthropic"] = "openai"
+    GENERATION_MODEL: str = "gpt-5-mini"
+    GENERATION_MAX_TOKENS: PositiveInt = 4096
     EXPLANATION_RETRIEVAL_TOP_K: PositiveInt = 5
 
     # Extraction reconciliation
