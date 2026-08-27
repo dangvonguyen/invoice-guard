@@ -1,0 +1,10 @@
+title: Classic single-vendor USD invoice with comma-grouped amounts
+template: classic-column
+dimensions:
+  - comma-grouped-amount
+  - iso-date
+label_overrides:
+  tax_amount: Sales Tax
+notes: >
+  Baseline layout; exercises comma grouping, ISO dates and a single label
+  override.

@@ -61,6 +61,10 @@ format.cmd = "ruff format ."
 ruff.help = "Run Ruff checks"
 ruff.cmd = "ruff check --output-format=concise ."
 
+# Golden-set
+"eval:render".help = "Regenerate the extraction golden set (PDFs, extracted text, expected fields, schema, formats.md)"
+"eval:render".cmd = "python -m eval.extraction.generation"
+
 # Testing tasks
 test.help = "Run all tests using Pytest"
 test.cmd = "pytest"

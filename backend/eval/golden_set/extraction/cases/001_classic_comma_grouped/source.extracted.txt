@@ -1,0 +1,15 @@
+INVOICE
+From
+Northwind Traders Inc.
+595 Hudson Valleys Apt. 985
+Port Trevortown, SC 36326
+mike@northwind.inc
+Invoice No.  NT-2024-0417
+Invoice Date  2024-03-15
+Description Qty Unit Price Amount
+Ergonomic mesh chair 5 249.00 1,245.00
+Sit-stand desk frame 2 610.00 1,220.00
+Cable management tray 10 12.50 125.00
+Subtotal  2,590.00 USD
+Sales Tax  207.20 USD
+Total  2,797.20 USD
