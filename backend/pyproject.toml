@@ -25,14 +25,18 @@ dependencies = [
 dev = [
 	"fpdf2>=2.8.8",
 	"import-linter>=2.5",
+	"jsonschema>=4.26.0",
 	"mypy>=2.3.0",
 	"poethepoet>=0.48.0",
 	"prek>=0.4.12",
 	"pytest>=9.1.1",
 	"pytest-asyncio>=1.4.0",
 	"pytest-cov>=7.1.0",
+	"pyyaml>=6.0.2",
 	"ruff>=0.16.0",
 	"testcontainers[postgres,redis]>=4.15.0",
+	"types-jsonschema>=4.26.0",
+	"types-pyyaml>=6.0.12",
 ]
 
 [tool.pytest.ini_options]
