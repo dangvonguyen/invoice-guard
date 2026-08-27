@@ -29,7 +29,7 @@ class ExtractedInvoice(BaseModel):
     invoice_date: date
     total_amount: Decimal
     currency: str
-    tax_amount: Decimal
+    tax_amount: Decimal | None = None
     line_items: list[ExtractedLineItem] = []
 
 
@@ -66,8 +66,12 @@ OUTPUT_SCHEMA: dict[str, Any] = {
             "description": "ISO 4217 currency code, e.g. USD",
         },
         "tax_amount": {
-            "type": "string",
-            "description": "Decimal amount as a string, e.g. 32.10",
+            "type": ["string", "null"],
+            "description": (
+                "Decimal tax amount as a string, e.g. 32.10. Use null when the "
+                'document states no tax at all; use "0.00" only when a zero tax '
+                "line is literally printed."
+            ),
         },
         "total_amount": {
             "type": "string",

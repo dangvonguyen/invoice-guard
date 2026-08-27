@@ -256,6 +256,43 @@ async def should_flag_a_fabricated_invoice_number_as_low_confidence(
     assert "invoice_number" in result.confidence_reason
 
 
+async def should_not_penalize_a_null_tax_amount(
+    pipeline: ExtractionPipeline, model: AsyncMock, grounding_checker: Mock
+) -> None:
+    """A null tax_amount (no tax stated) is never checked for grounding."""
+    model.extract_raw_fields.return_value = {
+        **VALID_RAW_RESPONSE,
+        "tax_amount": None,
+    }
+    grounding_checker.is_grounded.return_value = True
+
+    result = await pipeline.run(document_text=DOCUMENT_TEXT)
+
+    assert result.fields.tax_amount is None
+    assert result.confidence == "high"
+    checked_field_names = {
+        call.kwargs["value"] for call in grounding_checker.is_grounded.call_args_list
+    }
+    assert None not in checked_field_names
+
+
+async def should_flag_a_fabricated_tax_amount_as_low_confidence(
+    model: AsyncMock,
+) -> None:
+    """A tax amount absent from the source text lowers confidence."""
+    model.extract_raw_fields.return_value = {
+        **VALID_RAW_RESPONSE,
+        "tax_amount": "99.99",
+    }
+    pipeline = ExtractionPipeline(model=model, grounding_checker=GroundingChecker())
+
+    result = await pipeline.run(document_text=DOCUMENT_TEXT)
+
+    assert result.confidence == "low"
+    assert result.confidence_reason is not None
+    assert "tax_amount" in result.confidence_reason
+
+
 async def should_treat_grounded_line_item_quantity_and_unit_price_as_high_confidence(
     model: AsyncMock,
 ) -> None:

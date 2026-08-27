@@ -99,6 +99,16 @@ class TestLineItemReconciliation:
         assert result.outcome == RuleOutcome.FAIL
         assert result.rule_code == RuleCode.LINE_ITEM_TOTAL_CONSISTENCY
 
+    def should_treat_a_null_tax_amount_as_zero_when_reconciling(self) -> None:
+        """No tax stated reconciles as if tax were 0.00, not as a failure."""
+        invoice = COMPLIANT_INVOICE.model_copy(
+            update={"tax_amount": None, "total_amount": Decimal("450.00")}
+        )
+
+        result = check_line_item_reconciliation(invoice, RULE_CONFIG, TODAY)
+
+        assert result.outcome == RuleOutcome.PASS
+
     def should_fail_when_the_total_understates_the_line_items(self) -> None:
         """Flag understatement of the total, not just overstatement."""
         invoice = COMPLIANT_INVOICE.model_copy(

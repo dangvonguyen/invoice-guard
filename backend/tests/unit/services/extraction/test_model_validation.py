@@ -1,5 +1,7 @@
 """Specify how ExtractedInvoice/ExtractedLineItem validate the optional fields."""
 
+from decimal import Decimal
+
 import pytest
 
 from app.services.extraction.model import ExtractedInvoice
@@ -37,6 +39,26 @@ def should_parse_invoice_number_and_line_item_pricing_fields_when_present() -> N
     assert invoice.invoice_number == "INV-1001"
     assert str(invoice.line_items[0].quantity) == "4"
     assert str(invoice.line_items[0].unit_price) == "25.00"
+
+
+def should_default_tax_amount_to_none_when_omitted() -> None:
+    """A response with no tax line at all validates with tax_amount None."""
+    raw = {k: v for k, v in RAW_INVOICE_DATA.items() if k != "tax_amount"}
+
+    invoice = ExtractedInvoice.model_validate(raw)
+
+    assert invoice.tax_amount is None
+
+
+def should_distinguish_a_null_tax_amount_from_a_zero_tax_amount() -> None:
+    """`null` (no tax stated) and `"0.00"` (zero tax line printed) are distinct."""
+    no_tax = ExtractedInvoice.model_validate({**RAW_INVOICE_DATA, "tax_amount": None})
+    zero_tax = ExtractedInvoice.model_validate(
+        {**RAW_INVOICE_DATA, "tax_amount": "0.00"}
+    )
+
+    assert no_tax.tax_amount is None
+    assert zero_tax.tax_amount == Decimal("0.00")
 
 
 def should_accept_an_explicit_null_for_the_new_optional_fields() -> None:
