@@ -86,15 +86,25 @@ OUTPUT_SCHEMA: dict[str, Any] = {
                     "description": {"type": "string"},
                     "amount": {
                         "type": "string",
-                        "description": "Decimal line amount as a string, e.g. 37.50",
+                        "description": (
+                            "Decimal line amount as a string, e.g. 37.50. If a line "
+                            "shows both a pre-tax and a tax-inclusive amount, use the "
+                            "pre-tax one."
+                        ),
                     },
                     "quantity": {
                         "type": ["string", "null"],
-                        "description": "Decimal quantity as a string, e.g. 3, if printed",
+                        "description": (
+                            "Decimal quantity as a string, e.g. 3, taken from a "
+                            "dedicated column or field; null if absent."
+                        ),
                     },
                     "unit_price": {
                         "type": ["string", "null"],
-                        "description": "Decimal unit price as a string, e.g. 12.50, if printed",
+                        "description": (
+                            "Decimal unit price as a string, e.g. 12.50, taken from a "
+                            "dedicated column or field; null if absent."
+                        ),
                     },
                 },
                 "required": ["description", "amount", "quantity", "unit_price"],
