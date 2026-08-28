@@ -1,6 +1,9 @@
 data/
 scripts/users.json
 
+# Golden-set scoring: per-run debug dumps are local artifacts
+eval/reports/**/runs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
