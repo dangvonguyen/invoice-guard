@@ -3,12 +3,13 @@
 import json
 from datetime import date
 from decimal import Decimal
-from typing import Any, Literal, Protocol
+from typing import Any, Protocol
 
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
+from app.core.config import ModelProvider
 from app.core.llm import get_anthropic_client, get_openai_client
 
 
@@ -177,7 +178,7 @@ class AnthropicModelClient:
 
 
 def build_model_client(
-    *, provider: Literal["openai", "anthropic"], model: str, max_tokens: int
+    *, provider: ModelProvider, model: str, max_tokens: int
 ) -> ModelClient:
     """Return the `ModelClient` for the configured extraction provider."""
     if provider == "openai":

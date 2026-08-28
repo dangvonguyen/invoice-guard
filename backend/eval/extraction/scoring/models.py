@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
+from app.core.config import ModelProvider
 from eval.extraction.scoring.constants import LINE_ITEM_SUBFIELDS, RATE_DECIMALS
 
 
@@ -13,7 +14,7 @@ from eval.extraction.scoring.constants import LINE_ITEM_SUBFIELDS, RATE_DECIMALS
 class RunConfig:
     """The effective provider/model/execution settings for one run."""
 
-    provider: str
+    provider: ModelProvider
     model: str
     max_tokens: int
     concurrency: int

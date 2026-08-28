@@ -1,12 +1,13 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol
+from typing import Any, Protocol
 from uuid import UUID
 
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
+from app.core.config import ModelProvider
 from app.core.llm import get_anthropic_client, get_openai_client
 
 
@@ -134,7 +135,7 @@ class AnthropicGenerationClient:
 
 
 def build_generation_client(
-    *, provider: Literal["openai", "anthropic"], model: str, max_tokens: int
+    *, provider: ModelProvider, model: str, max_tokens: int
 ) -> GenerationClient:
     """Return the `GenerationClient` for the configured generation provider."""
     if provider == "openai":

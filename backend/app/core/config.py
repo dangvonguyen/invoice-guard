@@ -4,13 +4,17 @@ from __future__ import annotations
 
 from decimal import Decimal
 from functools import lru_cache
-from typing import Annotated, Literal
+from typing import Annotated, Literal, get_args
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PositiveInt = Annotated[int, Field(gt=0)]
 NonNegativeDecimal = Annotated[Decimal, Field(ge=0)]
+
+ModelProvider = Literal["openai", "anthropic"]
+
+MODEL_PROVIDERS: tuple[str, ...] = get_args(ModelProvider)
 
 
 def unwrap_secret(value: SecretStr | str) -> str:
@@ -74,12 +78,12 @@ class Settings(BaseSettings):
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
 
     # Extraction settings
-    EXTRACTION_PROVIDER: Literal["openai", "anthropic"] = "openai"
+    EXTRACTION_PROVIDER: ModelProvider = "openai"
     EXTRACTION_MODEL: str = "gpt-5-mini"
     EXTRACTION_MAX_TOKENS: PositiveInt = 4096
 
     # Explanation generation
-    GENERATION_PROVIDER: Literal["openai", "anthropic"] = "openai"
+    GENERATION_PROVIDER: ModelProvider = "openai"
     GENERATION_MODEL: str = "gpt-5-mini"
     GENERATION_MAX_TOKENS: PositiveInt = 4096
     EXPLANATION_RETRIEVAL_TOP_K: PositiveInt = 5
