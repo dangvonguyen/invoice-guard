@@ -5,7 +5,7 @@ in *is* the content-stream order, which is the point for the column-order,
 block-order and multi-column-scramble dimensions.
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -60,6 +60,13 @@ def title(pdf: FPDF, text: str) -> None:
     pdf.ln(2)
 
 
+def section(pdf: FPDF, text: str) -> None:
+    """Render a new section."""
+    pdf.set_font(FONT_FAMILY, style="B", size=BODY_SIZE)
+    pdf.cell(0, LINE_H * 1.6, text=text, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font(FONT_FAMILY, size=BODY_SIZE)
+
+
 def party_block(
     pdf: FPDF,
     *,
@@ -102,9 +109,11 @@ def line_item_table(
     *,
     columns: Sequence[Column],
     rows: Sequence[Sequence[str]],
+    size: int = LABEL_SIZE,
     repeat_headings: bool = True,
 ) -> None:
     """Render a line-item table. Column order is the caller's ``columns`` order."""
+    pdf.set_font(FONT_FAMILY, size=size)
     with pdf.table(
         col_widths=tuple(c.width for c in columns),
         text_align=tuple(c.align for c in columns),
@@ -131,3 +140,44 @@ def totals_block(pdf: FPDF, *, rows: Sequence[tuple[str, str]]) -> None:
             new_y="NEXT",
         )
     pdf.ln(2)
+
+
+def side_by_side(
+    pdf: FPDF,
+    *,
+    left: Callable[[FPDF], None],
+    right: Callable[[FPDF], None],
+    ratio: tuple[int, int] = (58, 42),
+) -> None:
+    """Lay two render callables out as columns, emitted left then right.
+
+    The two blocks share a vertical band but are written in separate cursor
+    passes, so ``pypdf`` interleaves their lines the way it does on real
+    two-column invoices.
+    """
+    start_y = pdf.get_y()
+    left_width = pdf.epw * ratio[0] / (ratio[0] + ratio[1])
+    right_x = pdf.l_margin + left_width
+
+    saved_r_margin = pdf.r_margin
+    pdf.set_right_margin(pdf.w - right_x)
+    pdf.set_xy(pdf.l_margin, start_y)
+    left(pdf)
+    left_end_y = pdf.get_y()
+
+    pdf.set_right_margin(saved_r_margin)
+    pdf.set_xy(right_x, start_y)
+    _run_indented(pdf, right, right_x)
+    right_end_y = pdf.get_y()
+
+    pdf.set_xy(pdf.l_margin, max(left_end_y, right_end_y))
+    pdf.ln(2)
+
+
+def _run_indented(pdf: FPDF, render: Callable[[FPDF], None], left_x: float) -> None:
+    saved_l_margin = pdf.l_margin
+    pdf.set_left_margin(left_x)
+    try:
+        render(pdf)
+    finally:
+        pdf.set_left_margin(saved_l_margin)

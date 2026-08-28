@@ -11,7 +11,7 @@ from eval.extraction.generation.templates._blocks import (
     party_block,
     title,
 )
-from eval.extraction.generation.templates._money import date_str
+from eval.extraction.generation.templates._money import date_doc_str
 from eval.extraction.generation.templates._sections import (
     qty_unit_amount_table,
     standard_totals,
@@ -37,7 +37,7 @@ def render(doc: SourceDocument, labels: Mapping[str, str]) -> bytes:
     meta: list[tuple[str, str]] = []
     if doc.invoice.number is not None:
         meta.append((labels["invoice_number"], doc.invoice.number))
-    meta.append((labels["invoice_date"], date_str(doc)))
+    meta.append((labels["invoice_date"], date_doc_str(doc)))
     meta_panel(pdf, rows=meta)
 
     qty_unit_amount_table(pdf, doc, labels)

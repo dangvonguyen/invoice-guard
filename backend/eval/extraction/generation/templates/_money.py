@@ -10,13 +10,13 @@ from eval.extraction.generation.formatting import (
 from eval.extraction.generation.models import SourceDocument
 
 
-def amount_fn(doc: SourceDocument) -> Callable[[str], str]:
+def amount_doc_fn(doc: SourceDocument) -> Callable[[str], str]:
     """Return a plain grouped-amount formatter (no symbol)."""
     grouping = doc.render.amount_grouping
     return lambda value: format_amount(value, grouping=grouping)
 
 
-def money_fn(doc: SourceDocument) -> Callable[[str], str]:
+def money_doc_fn(doc: SourceDocument) -> Callable[[str], str]:
     """Return a full currency formatter (grouping + symbol/code per directives)."""
     grouping = doc.render.amount_grouping
     code = doc.invoice.currency
@@ -26,6 +26,6 @@ def money_fn(doc: SourceDocument) -> Callable[[str], str]:
     )
 
 
-def date_str(doc: SourceDocument) -> str:
+def date_doc_str(doc: SourceDocument) -> str:
     """Return the invoice date rendered in the case's style."""
     return format_date(doc.invoice.date.isoformat(), doc.render.date_format)

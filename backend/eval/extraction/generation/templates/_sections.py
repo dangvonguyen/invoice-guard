@@ -10,14 +10,14 @@ from eval.extraction.generation.templates._blocks import (
     line_item_table,
     totals_block,
 )
-from eval.extraction.generation.templates._money import amount_fn, money_fn
+from eval.extraction.generation.templates._money import amount_doc_fn, money_doc_fn
 
 
 def qty_unit_amount_table(
     pdf: FPDF, doc: SourceDocument, labels: Mapping[str, str]
 ) -> None:
     """The ``Description | Qty | Unit price | Amount`` line table."""
-    amount = amount_fn(doc)
+    amount = amount_doc_fn(doc)
     columns = (
         Column("Description", "LEFT", 3.4),
         Column(labels["line_item_qty"], "RIGHT", 1.0),
@@ -38,7 +38,7 @@ def qty_unit_amount_table(
 
 def standard_totals(pdf: FPDF, doc: SourceDocument, labels: Mapping[str, str]) -> None:
     """Subtotal, optional tax, then total -- all in full currency."""
-    money = money_fn(doc)
+    money = money_doc_fn(doc)
     rows: list[tuple[str, str]] = [(labels["subtotal"], money(doc.subtotal))]
     if doc.invoice.tax_amount is not None:
         rows.append((labels["tax_amount"], money(doc.invoice.tax_amount)))

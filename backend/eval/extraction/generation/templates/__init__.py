@@ -1,9 +1,17 @@
 """The explicit layout-template registry."""
 
-from eval.extraction.generation.templates import classic_column
+from eval.extraction.generation.templates import (
+    classic_column,
+    itemized_vat,
+    service_minimal,
+)
 from eval.extraction.generation.templates._base import Template
 
-TEMPLATES: tuple[Template, ...] = (classic_column.TEMPLATE,)
+TEMPLATES: tuple[Template, ...] = (
+    classic_column.TEMPLATE,
+    itemized_vat.TEMPLATE,
+    service_minimal.TEMPLATE,
+)
 
 _BY_NAME: dict[str, Template] = {t.name: t for t in TEMPLATES}
 
