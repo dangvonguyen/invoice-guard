@@ -27,7 +27,7 @@ class RunConfig:
 
 @dataclass(frozen=True)
 class FieldComparison:
-    """One expected/actual pair and whether it matched, in serialised form."""
+    """One expected/actual pair and whether it matched, in serialized form."""
 
     expected: str | None
     actual: str | None
@@ -85,7 +85,7 @@ class CaseScore:
     latency_ms: int
     fields: Mapping[str, FieldComparison] | None
     line_items: LineItemComparison | None
-    expected_line_item_field_fields: int = 0
+    errored_line_item_field_total: int = 0
 
     def __post_init__(self) -> None:
         if self.is_errored and (self.fields is not None or self.line_items is not None):
@@ -107,7 +107,7 @@ class CaseScore:
     def line_item_field_total(self) -> int:
         if self.line_items is not None:
             return self.line_items.field_total
-        return self.expected_line_item_field_fields
+        return self.errored_line_item_field_total
 
     @classmethod
     def errored(
@@ -130,7 +130,8 @@ class CaseScore:
             latency_ms=latency_ms,
             fields=None,
             line_items=None,
-            expected_line_item_fields=expected_line_count * len(LINE_ITEM_SUBFIELDS),
+            errored_line_item_field_total=expected_line_count
+            * len(LINE_ITEM_SUBFIELDS),
         )
 
 
