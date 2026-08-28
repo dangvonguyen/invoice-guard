@@ -1,0 +1,39 @@
+{
+  "vendor": {
+    "name": "Cascade Office Supply LLC",
+    "address": ["4120 Marion Street", "Suite 210", "Portland, OR 97217"],
+    "contact": ["ar@cascadeoffice.example", "+1 503-555-0148"]
+  },
+  "invoice": {
+    "number": "CAS-88213",
+    "date": "2024-07-04",
+    "currency": "USD",
+    "tax_amount": "239.91",
+    "total_amount": "3147.91"
+  },
+  "line_items": [
+    {
+      "description": "Standing desk converter",
+      "amount": "1512.00",
+      "quantity": "8",
+      "unit_price": "189.00"
+    },
+    {
+      "description": "Monitor arm, dual",
+      "amount": "1146.00",
+      "quantity": "12",
+      "unit_price": "95.50"
+    },
+    {
+      "description": "Desk grommet cover",
+      "amount": "250.00",
+      "quantity": "40",
+      "unit_price": "6.25"
+    }
+  ],
+  "render": {
+    "amount_grouping": true,
+    "currency_display": "symbol-and-code",
+    "date_format": "us-slash"
+  }
+}

@@ -1,0 +1,16 @@
+INVOICE
+From
+Fifth Street Bookkeeping
+217 Fifth Street
+Suite B
+Boise, ID 83702
+hello@fifthstreetbooks.example
+Invoice No.  FSB-0419
+Invoice Date  2024-04-30
+Description Amount
+Monthly reconciliation, March 650.00
+Payroll runs (2) 240.00
+Year-end prep, phase 1 480.00
+Subtotal  1370.00 USD
+Tax  0.00 USD
+Total  1370.00 USD

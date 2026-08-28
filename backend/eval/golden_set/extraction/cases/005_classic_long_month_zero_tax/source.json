@@ -1,0 +1,39 @@
+{
+  "vendor": {
+    "name": "Meridian Print & Bindery",
+    "address": ["88 Foundry Lane", "Rochester, NY 14608"],
+    "contact": ["billing@meridianprint.example"]
+  },
+  "invoice": {
+    "number": "MPB-2024-159",
+    "date": "2024-11-08",
+    "currency": "USD",
+    "tax_amount": "0.00",
+    "total_amount": "2500.00"
+  },
+  "line_items": [
+    {
+      "description": "Perfect-bound catalogs, 500 run",
+      "amount": "2100.00",
+      "quantity": "500",
+      "unit_price": "4.20"
+    },
+    {
+      "description": "Softproof revision cycle",
+      "amount": "255.00",
+      "quantity": "3",
+      "unit_price": "85.00"
+    },
+    {
+      "description": "Freight, palletized",
+      "amount": "145.00",
+      "quantity": "1",
+      "unit_price": "145.00"
+    }
+  ],
+  "render": {
+    "amount_grouping": true,
+    "currency_display": "code",
+    "date_format": "long-month"
+  }
+}

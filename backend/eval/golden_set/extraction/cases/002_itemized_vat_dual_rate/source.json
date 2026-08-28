@@ -1,0 +1,50 @@
+{
+  "vendor": {
+    "name": "Nordwind Handels GmbH",
+    "address": ["Friedrichstrasse 88", "10117 Berlin", "Germany"],
+    "contact": ["Tax ID: DE123456789", "billing@nordwind-handels.de"]
+  },
+  "buyer": {
+    "name": "Lumen Office Solutions Ltd",
+    "address": ["12 St Andrew Square", "Edinburgh EH2 2BD", "United Kingdom"],
+    "contact": ["Tax ID: GB987654321"]
+  },
+  "invoice": {
+    "number": "2024/INV/0342",
+    "date": "2024-03-15",
+    "currency": "EUR",
+    "tax_amount": "1327.00",
+    "total_amount": "8427.00"
+  },
+  "line_items": [
+    {
+      "description": "Aluminium laptop stand",
+      "amount": "1800.00",
+      "quantity": "40",
+      "unit_price": "45.00",
+      "unit": "pcs",
+      "vat_rate": "23"
+    },
+    {
+      "description": "USB-C docking station",
+      "amount": "3600.00",
+      "quantity": "30",
+      "unit_price": "120.00",
+      "unit": "pcs",
+      "vat_rate": "23"
+    },
+    {
+      "description": "Printed user manuals",
+      "amount": "1700.00",
+      "quantity": "200",
+      "unit_price": "8.50",
+      "unit": "pcs",
+      "vat_rate": "5"
+    }
+  ],
+  "render": {
+    "amount_grouping": true,
+    "currency_display": "symbol",
+    "date_format": "eu-slash"
+  }
+}

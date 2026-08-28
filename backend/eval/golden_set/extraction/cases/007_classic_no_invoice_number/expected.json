@@ -1,0 +1,28 @@
+{
+  "vendor_name": "Tidewater Marine Services",
+  "invoice_number": null,
+  "invoice_date": "2024-02-19",
+  "currency": "USD",
+  "tax_amount": "312.60",
+  "total_amount": "5522.60",
+  "line_items": [
+    {
+      "description": "Hull inspection dive",
+      "amount": "1800.00",
+      "quantity": "4",
+      "unit_price": "450.00"
+    },
+    {
+      "description": "Zinc anode replacement",
+      "amount": "760.00",
+      "quantity": "20",
+      "unit_price": "38.00"
+    },
+    {
+      "description": "Antifoul coating, full",
+      "amount": "2650.00",
+      "quantity": "1",
+      "unit_price": "2650.00"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+INVOICE
+Invoice No.  2024/RK/1180
+Date of issue:  01.10.2024
+Seller:
+Rheintal Komponenten GmbH
+Deutzer Ring 47
+50679 Koeln
+Germany
+VAT ID: DE345678912
+buchhaltung@rheintal-komp.example
+Client:
+Northgate Instruments Ltd
+Unit 4, Trafford Park
+Manchester M17 1WA
+United Kingdom
+VAT ID: GB556677889
+ITEMS
+No. Description Qty UM Net price Net worth VAT %
+Gross
+worth
+1. Precision linear rail, 600mm 60 pcs 82.00 4,920.00 19% 5,854.80
+2. Ball screw assembly, 16mm 24 pcs 165.00 3,960.00 19% 4,712.40
+3. Mounting bracket set 120 pcs 12.50 1,500.00 19% 1,785.00
+SUMMARY
+VAT % Net Worth VAT Gross Worth
+19% 10,380.00 1,972.20 12,352.20
+Total 10,380.00 EUR 1,972.20 EUR 12,352.20 EUR

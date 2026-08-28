@@ -1,0 +1,15 @@
+INVOICE
+From
+Meridian Print & Bindery
+88 Foundry Lane
+Rochester, NY 14608
+billing@meridianprint.example
+Invoice No.  MPB-2024-159
+Invoice Date  November 8, 2024
+Description Qty Unit Price Amount
+Perfect-bound catalogs, 500 run 500 4.20 2,100.00
+Softproof revision cycle 3 85.00 255.00
+Freight, palletized 1 145.00 145.00
+Subtotal  2,500.00 USD
+Sales Tax  0.00 USD
+Total  2,500.00 USD

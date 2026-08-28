@@ -1,0 +1,12 @@
+title: Classic USD invoice with a spelled-out month date and an explicit zero tax
+template: classic-column
+dimensions:
+  - long-month-date
+  - zero-tax
+  - comma-grouped-amount
+label_overrides:
+  tax_amount: Sales Tax
+notes: >
+  Exercises a "November 8, 2024" long-month date and a printed "Sales Tax" line
+  of 0.00 (tax stated as zero, not omitted), so the expected tax_amount is
+  "0.00" rather than null.

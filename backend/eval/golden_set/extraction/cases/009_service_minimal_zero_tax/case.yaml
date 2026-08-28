@@ -1,0 +1,10 @@
+title: Minimal service invoice with an explicit zero tax and ungrouped amounts
+template: service-minimal
+dimensions:
+  - iso-date
+  - no-quantity
+  - zero-tax
+notes: >
+  Description/Amount columns only, no quantity or unit price, an ISO date and a
+  printed tax line of 0.00 (stated, not omitted) so the expected tax_amount is
+  "0.00". Amounts are rendered without thousands separators.

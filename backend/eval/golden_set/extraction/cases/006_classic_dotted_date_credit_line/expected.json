@@ -1,0 +1,28 @@
+{
+  "vendor_name": "Alpenlicht Ausruestung GmbH",
+  "invoice_number": "2024-DE-0771",
+  "invoice_date": "2024-09-15",
+  "currency": "EUR",
+  "tax_amount": "605.34",
+  "total_amount": "3791.34",
+  "line_items": [
+    {
+      "description": "Trekking poles, carbon",
+      "amount": "2340.00",
+      "quantity": "30",
+      "unit_price": "78.00"
+    },
+    {
+      "description": "Insulated flask, 1L",
+      "amount": "1200.00",
+      "quantity": "50",
+      "unit_price": "24.00"
+    },
+    {
+      "description": "Volume rebate, Q3",
+      "amount": "-354.00",
+      "quantity": null,
+      "unit_price": null
+    }
+  ]
+}
