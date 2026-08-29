@@ -42,7 +42,7 @@ class GenerationClient(Protocol):
         ...
 
 
-_OUTPUT_SCHEMA: dict[str, Any] = {
+OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "narrative": {"type": "string"},
@@ -52,7 +52,7 @@ _OUTPUT_SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-_GENERATION_INSTRUCTIONS = (
+GENERATION_INSTRUCTIONS = (
     "Explain why a policy rule check failed on an invoice, grounded only in "
     "the numbered policy excerpts provided. Cite an excerpt's index in "
     "cited_chunk_indexes only if its content was actually used; never cite an "
@@ -79,10 +79,10 @@ class LLMGenerationClient:
         chunks: Sequence[RetrievedChunk],
     ) -> GeneratedExplanation:
         raw = await self._llm.complete_json(
-            instructions=_GENERATION_INSTRUCTIONS,
-            schema=_OUTPUT_SCHEMA,
+            instructions=GENERATION_INSTRUCTIONS,
+            schema=OUTPUT_SCHEMA,
             schema_name="review_flag_explanation",
-            user_message=_build_prompt(
+            user_message=build_prompt(
                 summary=summary, evidence=evidence, chunks=chunks
             ),
         )
@@ -98,7 +98,7 @@ def build_generation_client(
     )
 
 
-def _build_prompt(
+def build_prompt(
     *, summary: str, evidence: dict[str, Any], chunks: Sequence[RetrievedChunk]
 ) -> str:
     excerpts = "\n\n".join(
