@@ -66,6 +66,10 @@ ruff.cmd = "ruff check --output-format=concise ."
 "eval:extract:build".cmd = "python -m eval.extraction.build"
 "eval:extract:score".help = "Score the extraction golden set against the production pipeline (needs API keys; writes reports/extraction/)"
 "eval:extract:score".cmd = "python -m eval.extraction.score"
+"eval:explain:build".help = "Regenerate the explanation golden set (handbook extraction, chunks, prompt/schema fixtures)"
+"eval:explain:build".cmd = "python -m eval.explanation.build"
+"eval:build".help = "Regenerate every golden set (extraction + explanation)"
+"eval:build".sequence = [{ ref = "eval:extract:build" }, { ref = "eval:explain:build" }]
 
 # Testing tasks
 test.help = "Run all tests using Pytest"

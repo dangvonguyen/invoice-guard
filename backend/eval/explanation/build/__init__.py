@@ -1,1 +1,1 @@
-"""Generate the explanation golden-set fixtures."""
+"""Offline, keyless build of the explanation golden-set fixtures."""
