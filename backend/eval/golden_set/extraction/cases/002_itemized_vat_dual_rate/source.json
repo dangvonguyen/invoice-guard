@@ -2,12 +2,12 @@
   "vendor": {
     "name": "Nordwind Handels GmbH",
     "address": ["Friedrichstrasse 88", "10117 Berlin", "Germany"],
-    "contact": ["Tax ID: DE123456789", "billing@nordwind-handels.de"]
+    "contact": ["VAT ID: DE123456789", "billing@nordwind-handels.de"]
   },
   "buyer": {
     "name": "Lumen Office Solutions Ltd",
     "address": ["12 St Andrew Square", "Edinburgh EH2 2BD", "United Kingdom"],
-    "contact": ["Tax ID: GB987654321"]
+    "contact": ["VAT ID: GB987654321"]
   },
   "invoice": {
     "number": "2024/INV/0342",
