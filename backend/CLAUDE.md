@@ -59,3 +59,7 @@ Three tiers, selected by marker; keep new tests in the tier that matches what th
 - `acceptance/` — real app through the HTTP boundary, grouped by user-facing capability, using fully wired objects.
 
 Test functions are behaviour sentences named `should_...` (pytest is configured to collect both `should_*` and `test_*`). Shared fixtures: `tests/conftest.py`, per-tier `conftest.py`; helpers and fixed constants in `tests/support/` (`create_user`, `pdf_bytes`). Integration and acceptance tiers need Docker.
+
+## Golden set
+
+`eval/` holds the extraction golden set. `poe eval:render` regenerates each case's PDF, extracted text and expected fields offline (CI diff-gates it). `poe eval:score` feeds every case through the production `ExtractionPipeline` and writes accuracy artifacts to `eval/reports/extraction/` — it makes live model calls, needs API keys, and is informational only (never a gate).
