@@ -62,10 +62,10 @@ ruff.help = "Run Ruff checks"
 ruff.cmd = "ruff check --output-format=concise ."
 
 # Golden-set
-"eval:render".help = "Regenerate the extraction golden set (PDFs, extracted text, expected fields, schema, formats.md)"
-"eval:render".cmd = "python -m eval.extraction.generation"
-"eval:score".help = "Score the extraction golden set against the production pipeline (needs API keys; writes reports/extraction/)"
-"eval:score".cmd = "python -m eval.extraction.scoring"
+"eval:extract:build".help = "Regenerate the extraction golden set (PDFs, extracted text, expected fields, schema, formats.md)"
+"eval:extract:build".cmd = "python -m eval.extraction.build"
+"eval:extract:score".help = "Score the extraction golden set against the production pipeline (needs API keys; writes reports/extraction/)"
+"eval:extract:score".cmd = "python -m eval.extraction.score"
 
 # Testing tasks
 test.help = "Run all tests using Pytest"

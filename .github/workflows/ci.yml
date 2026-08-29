@@ -58,7 +58,7 @@ jobs:
 
       - name: Check the golden set regenerates with no diff
         run: |
-          uv run python -m eval.extraction.generation
+          uv run python -m eval.extraction.build
           git diff --exit-code eval
 
   frontend:

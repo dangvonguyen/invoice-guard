@@ -10,8 +10,8 @@ See the root `CONTEXT.md` for the vocabulary (Golden Set, …) and `docs/adr/000
 eval/
   paths.py                Filesystem layout, resolved from this package
   extraction/
-    generation/           Authored source.json -> source.pdf / extracted text / expected.json
-    scoring/              Runs the production ExtractionPipeline over every case and scores it by exact typed comparison
+    build/                Authored source.json -> source.pdf / extracted text / expected.json
+    score/                Runs the production ExtractionPipeline over every case and scores it by exact typed comparison
   golden_set/
     extraction/
       cases/              One directory per case (see below)
@@ -28,11 +28,11 @@ eval/
 Both entry points are Python modules; run them from `backend/` so the `eval` and `app` packages import. There are Poe shortcuts:
 
 ```sh
-poe eval:render     # python -m eval.extraction.generation
-poe eval:score      # python -m eval.extraction.scoring
+poe eval:extract:build      # python -m eval.extraction.build
+poe eval:extract:score      # python -m eval.extraction.score
 ```
 
-`generation` needs no credentials. `scoring` calls a live model, so it needs `OPENAI_API_KEY` and/or `ANTHROPIC_API_KEY` in `backend/.env`.
+`build` needs no credentials. `score` calls a live model, so it needs `OPENAI_API_KEY` and/or `ANTHROPIC_API_KEY` in `backend/.env`.
 
 ## The extraction golden set
 
@@ -55,7 +55,7 @@ Because `expected.json` is projected from the same authored data that renders th
 ```yaml
 title: Classic single-vendor USD invoice with comma-grouped amounts
 template: classic-column # required; must be a registered template
-dimensions: # closed vocabulary, see generation/constants.py
+dimensions: # closed vocabulary, see build/vocab.py
   - comma-grouped-amount
   - iso-date
 label_overrides: # keys must be a subset of LABEL_SLOTS
@@ -64,40 +64,40 @@ notes: >
   Free-text description of what the case exercises.
 ```
 
-`dimensions` tags drive the per-dimension slices in a scoring report and the `--dimension` selector. The allowed tags live in `generation/constants.py::DIMENSIONS`.
+`dimensions` tags drive the per-dimension slices in a scoring report and the `--dimension` selector. The allowed tags live in `build/vocab.py::DIMENSIONS`.
 
 ### `source.json`
 
-Validated against `generation/models.py::SourceDocument` at load; unknown keys are rejected. Money is a canonical string (`-?\d+\.\d{2}`), dates are ISO. Key blocks:
+Validated against `build/source.py::SourceDocument` at load; unknown keys are rejected. Money is a canonical string (`-?\d+\.\d{2}`), dates are ISO. Key blocks:
 
 - `vendor` / `buyer` — party name, address, contact lines.
 - `invoice` — `number`, `date`, `currency`, `tax_amount` (`null` means the document states no tax; `"0.00"` means a zero-tax line is printed), `total_amount`.
 - `line_items` — `description`, `amount`, optional `quantity` / `unit_price` (projected), optional `unit` / `vat_rate` (render-only).
 - `distractors` — optional ambiguity traps (`po_number`, `bank_account`, `ship_to`); a template must declare the matching slot to place them.
 - `render` — data-shaped formatting: `amount_grouping`, `currency_display`, `date_format`.
-- `checks` — two arithmetic self-checks. Both default on; a self-check failure aborts generation.
+- `checks` — two arithmetic self-checks. Both default on; a self-check failure aborts build stage.
   - `line_arithmetic`: `quantity * unit_price == amount`
   - `total_reconciliation`: `sum(amounts) + tax == total_amount`
 
-## Generation
+## Build
 
 ```sh
-python -m eval.extraction.generation                            # regenerate every case + schema + formats.md
-python -m eval.extraction.generation 001_classic_comma_grouped  # one case
-python -m eval.extraction.generation --emit-schema              # only rewrite the JSON schema
+python -m eval.extraction.build                            # regenerate every case + schema + formats.md
+python -m eval.extraction.build 001_classic_comma_grouped  # one case
+python -m eval.extraction.build --emit-schema              # only rewrite the JSON schema
 ```
 
 For each case it loads `case.yaml` and `source.json`, checks the template can place every optional slot the document uses, renders `source.pdf`, extracts `source.extracted.txt`, runs the self-checks, and writes `expected.json`. A full run also regenerates `schema/expected_invoice.schema.json` (from `ExtractedInvoice`) and `formats.md` (from the template registry).
 
-CI runs the full generation and then `git diff --exit-code eval`, so a checked-in fixture that no longer matches its source fails the build.
+CI runs the full build stage and then `git diff --exit-code eval`, so a checked-in fixture that no longer matches its source fails the build.
 
-## Scoring
+## Score
 
 ```sh
-python -m eval.extraction.scoring    # whole set, settings from .env
-python -m eval.extraction.scoring 001_classic_comma_grouped 007_classic_no_invoice_number
-python -m eval.extraction.scoring --dimension itemized-vat --dimension zero-tax
-python -m eval.extraction.scoring --provider anthropic --model claude-... --max-tokens 4096 --concurrency 8
+python -m eval.extraction.score    # whole set, settings from .env
+python -m eval.extraction.score 001_classic_comma_grouped 007_classic_no_invoice_number
+python -m eval.extraction.score --dimension itemized-vat --dimension zero-tax
+python -m eval.extraction.score --provider anthropic --model claude-... --max-tokens 4096 --concurrency 8
 ```
 
 The harness loads the selected cases, drives the real `ExtractionPipeline` over each `source.extracted.txt` concurrently, and compares the result to `expected.json` with exact, typed equality — no fuzzy matching. Positional case names and `--dimension` are mutually exclusive.

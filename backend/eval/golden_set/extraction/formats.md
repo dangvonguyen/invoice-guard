@@ -1,6 +1,6 @@
 # Invoice layout templates
 
-Generated from the template registry by `python -m eval.extraction.generation`.
+Generated from the template registry by `python -m eval.extraction.build`.
 Do not edit by hand.
 
 ## `classic-column`

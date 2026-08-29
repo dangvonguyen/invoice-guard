@@ -62,4 +62,4 @@ Test functions are behaviour sentences named `should_...` (pytest is configured 
 
 ## Golden set
 
-`eval/` holds the extraction golden set. `poe eval:render` regenerates each case's PDF, extracted text and expected fields offline (CI diff-gates it). `poe eval:score` feeds every case through the production `ExtractionPipeline` and writes accuracy artifacts to `eval/reports/extraction/` — it makes live model calls, needs API keys, and is informational only (never a gate).
+`eval/` holds the extraction golden set. `poe eval:extract:build` regenerates each case's PDF, extracted text and expected fields offline (CI diff-gates it). `poe eval:extract:score` feeds every case through the production `ExtractionPipeline` and writes accuracy artifacts to `eval/reports/extraction/` — it makes live model calls, needs API keys, and is informational only (never a gate).
