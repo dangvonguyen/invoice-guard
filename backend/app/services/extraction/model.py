@@ -5,12 +5,10 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, Protocol
 
-from anthropic import AsyncAnthropic
-from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 from app.core.config import ModelProvider
-from app.core.llm import get_anthropic_client, get_openai_client
+from app.core.llm import StructuredLLM, build_structured_llm
 
 
 class ExtractedLineItem(BaseModel):
@@ -131,81 +129,38 @@ _EXTRACTION_INSTRUCTIONS = (
 )
 
 
-class OpenAIModelClient:
-    """`ModelClient` backed by OpenAI's structured outputs."""
+class LLMModelClient:
+    """`ModelClient` backed by a structured-output LLM."""
 
-    def __init__(self, *, client: AsyncOpenAI, model: str, max_tokens: int) -> None:
-        self._client = client
-        self._model = model
-        self._max_tokens = max_tokens
+    def __init__(self, *, llm: StructuredLLM) -> None:
+        self._llm = llm
 
     async def extract_raw_fields(
         self, *, document_text: str, validation_error: str | None = None
     ) -> dict[str, Any]:
-        response = await self._client.responses.create(
-            model=self._model,
+        raw = await self._llm.complete_json(
             instructions=_EXTRACTION_INSTRUCTIONS,
-            input=_build_messages(document_text, validation_error),
-            max_output_tokens=self._max_tokens,
-            text={
-                "format": {
-                    "type": "json_schema",
-                    "name": "invoice_fields",
-                    "schema": OUTPUT_SCHEMA,
-                    "strict": True,
-                }
-            },
+            schema=OUTPUT_SCHEMA,
+            schema_name="invoice_fields",
+            user_message=_build_prompt(document_text, validation_error),
         )
-        return json.loads(response.output_text)  # type: ignore[no-any-return]
-
-
-class AnthropicModelClient:
-    """`ModelClient` backed by Anthropic."""
-
-    def __init__(self, *, client: AsyncAnthropic, model: str, max_tokens: int) -> None:
-        self._client = client
-        self._model = model
-        self._max_tokens = max_tokens
-
-    async def extract_raw_fields(
-        self, *, document_text: str, validation_error: str | None = None
-    ) -> dict[str, Any]:
-        response = await self._client.messages.create(
-            max_tokens=self._max_tokens,
-            model=self._model,
-            system=_EXTRACTION_INSTRUCTIONS,
-            messages=_build_messages(document_text, validation_error),
-            output_config={
-                "format": {
-                    "type": "json_schema",
-                    "schema": OUTPUT_SCHEMA,
-                }
-            },
-        )
-        return json.loads(  # type: ignore[no-any-return]
-            next(block.text for block in response.content if block.type == "text")
-        )
+        return json.loads(raw)  # type: ignore[no-any-return]
 
 
 def build_model_client(
     *, provider: ModelProvider, model: str, max_tokens: int
 ) -> ModelClient:
     """Return the `ModelClient` for the configured extraction provider."""
-    if provider == "openai":
-        return OpenAIModelClient(
-            client=get_openai_client(), model=model, max_tokens=max_tokens
-        )
-    else:
-        return AnthropicModelClient(
-            client=get_anthropic_client(), model=model, max_tokens=max_tokens
-        )
+    return LLMModelClient(
+        llm=build_structured_llm(provider=provider, model=model, max_tokens=max_tokens)
+    )
 
 
-def _build_messages(document_text: str, validation_error: str | None) -> list[Any]:
+def _build_prompt(document_text: str, validation_error: str | None) -> str:
     content = f"Document text:\n\n{document_text}"
     if validation_error is not None:
         content += (
             f"\n\nYour previous response failed schema validation with this "
             f"error — correct it and respond again:\n{validation_error}"
         )
-    return [{"role": "user", "content": content}]
+    return content
