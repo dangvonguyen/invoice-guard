@@ -1,0 +1,28 @@
+{
+  "vendor_name": "Rowan & Vale Consulting Ltd",
+  "invoice_number": "RV-2024-231",
+  "invoice_date": "2024-06-12",
+  "currency": "GBP",
+  "tax_amount": "2240.00",
+  "total_amount": "13440.00",
+  "line_items": [
+    {
+      "description": "Market entry study",
+      "amount": "6500.00",
+      "quantity": null,
+      "unit_price": null
+    },
+    {
+      "description": "Stakeholder interviews (10)",
+      "amount": "3200.00",
+      "quantity": null,
+      "unit_price": null
+    },
+    {
+      "description": "Executive readout workshop",
+      "amount": "1500.00",
+      "quantity": null,
+      "unit_price": null
+    }
+  ]
+}

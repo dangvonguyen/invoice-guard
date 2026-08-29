@@ -50,10 +50,9 @@ def check_line_item_reconciliation(
             outcome=RuleOutcome.NOT_APPLICABLE,
         )
 
-    reconciled = (
-        sum((item.amount for item in extracted_voice.line_items), Decimal(0))
-        + extracted_voice.tax_amount
-    )
+    reconciled = sum(
+        (item.amount for item in extracted_voice.line_items), Decimal(0)
+    ) + (extracted_voice.tax_amount or Decimal(0))
     gap = abs(reconciled - extracted_voice.total_amount)
     if gap <= config.reconciliation_tolerance:
         return RuleResult(

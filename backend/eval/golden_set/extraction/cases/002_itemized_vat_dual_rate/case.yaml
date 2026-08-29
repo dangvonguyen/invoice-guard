@@ -1,0 +1,16 @@
+title: EU itemized-VAT invoice with two VAT rates and Seller/Client party blocks
+template: itemized-vat
+dimensions:
+  - itemized-vat
+  - two-candidate-vendors
+  - eu-slash-date
+  - comma-grouped-amount
+  - symbol-formatted-amount
+label_overrides:
+  subtotal: Net total
+  tax_amount: VAT
+notes: >
+  Exercises the EU itemized-VAT layout: No./Description/Qty/UM/Net price/Net
+  worth/VAT %/Gross worth columns, a VAT-by-rate summary over a 5% and a 23%
+  band, side-by-side Seller/Client blocks (two-candidate-vendor trap), a
+  DD/MM/YYYY date and euro-symbol totals.

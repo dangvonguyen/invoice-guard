@@ -7,13 +7,12 @@ from pathlib import Path
 from types import TracebackType
 from uuid import UUID
 
-from openai import AsyncOpenAI
 from redis import Redis
 from redis.exceptions import RedisError
 from rq import Callback, Queue, Retry
 from rq.job import Job, JobStatus
 
-from app.core.config import get_settings, unwrap_secret
+from app.core.config import get_settings
 from app.core.storage import LocalStorageClient
 from app.database.models.invoice import InvoiceStatus
 from app.database.repositories.invoice import InvoiceRepository
@@ -22,7 +21,7 @@ from app.database.session import get_session_factory
 from app.queueing.jobs.evaluate_rules import evaluate_rules
 from app.queueing.jobs.extract_invoice import InvoiceNotFoundError, extract_invoice
 from app.services.extraction.grounding import GroundingChecker
-from app.services.extraction.model import ExtractedInvoice, OpenAIModelClient
+from app.services.extraction.model import ExtractedInvoice, build_model_client
 from app.services.extraction.pipeline import ExtractionPipeline
 from app.services.extraction.text import PdfTextExtractor
 from app.services.rules.config import build_rule_config
@@ -110,11 +109,10 @@ async def execute(invoice_id: str) -> None:
                     ),
                     text_extractor=PdfTextExtractor(),
                     extraction_pipeline=ExtractionPipeline(
-                        model=OpenAIModelClient(
-                            client=AsyncOpenAI(
-                                api_key=unwrap_secret(settings.OPENAI_API_KEY)
-                            ),
-                            model=settings.OPENAI_EXTRACTION_MODEL,
+                        model=build_model_client(
+                            provider=settings.EXTRACTION_PROVIDER,
+                            model=settings.EXTRACTION_MODEL,
+                            max_tokens=settings.EXTRACTION_MAX_TOKENS,
                         ),
                         grounding_checker=GroundingChecker(),
                     ),

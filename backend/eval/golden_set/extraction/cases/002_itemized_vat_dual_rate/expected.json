@@ -1,0 +1,28 @@
+{
+  "vendor_name": "Nordwind Handels GmbH",
+  "invoice_number": "2024/INV/0342",
+  "invoice_date": "2024-03-15",
+  "currency": "EUR",
+  "tax_amount": "1327.00",
+  "total_amount": "8427.00",
+  "line_items": [
+    {
+      "description": "Aluminium laptop stand",
+      "amount": "1800.00",
+      "quantity": "40",
+      "unit_price": "45.00"
+    },
+    {
+      "description": "USB-C docking station",
+      "amount": "3600.00",
+      "quantity": "30",
+      "unit_price": "120.00"
+    },
+    {
+      "description": "Printed user manuals",
+      "amount": "1700.00",
+      "quantity": "200",
+      "unit_price": "8.50"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "vendor": {
+    "name": "Atelier Kern Studio",
+    "address": ["Oranienstrasse 140", "10969 Berlin"],
+    "contact": ["hello@atelierkern.de"]
+  },
+  "invoice": {
+    "number": "2024-044",
+    "date": "2024-03-07",
+    "currency": "EUR",
+    "tax_amount": null,
+    "total_amount": "5950.00"
+  },
+  "line_items": [
+    {
+      "description": "Brand identity design",
+      "amount": "3200.00"
+    },
+    {
+      "description": "Website UX audit",
+      "amount": "1800.00"
+    },
+    {
+      "description": "Copywriting, 12 pages",
+      "amount": "950.00"
+    }
+  ],
+  "render": {
+    "amount_grouping": true,
+    "currency_display": "symbol",
+    "date_format": "eu-slash"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "vendor_name": "Northwind Traders Inc.",
+  "invoice_number": "NT-2024-0417",
+  "invoice_date": "2024-03-15",
+  "currency": "USD",
+  "tax_amount": "207.20",
+  "total_amount": "2797.20",
+  "line_items": [
+    {
+      "description": "Ergonomic mesh chair",
+      "amount": "1245.00",
+      "quantity": "5",
+      "unit_price": "249.00"
+    },
+    {
+      "description": "Sit-stand desk frame",
+      "amount": "1220.00",
+      "quantity": "2",
+      "unit_price": "610.00"
+    },
+    {
+      "description": "Cable management tray",
+      "amount": "125.00",
+      "quantity": "10",
+      "unit_price": "12.50"
+    }
+  ]
+}

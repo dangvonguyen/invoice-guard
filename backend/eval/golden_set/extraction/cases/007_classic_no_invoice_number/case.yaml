@@ -1,0 +1,8 @@
+title: Classic USD invoice with no invoice number and ungrouped amounts
+template: classic-column
+dimensions:
+  - iso-date
+notes: >
+  The document prints no invoice number, so the expected invoice_number is null
+  and the model must not borrow a nearby token for it. Amounts are rendered
+  without thousands separators ("5210.00"), and the date is ISO.

@@ -1,0 +1,17 @@
+INVOICE
+From
+Alpenlicht Ausruestung GmbH
+Isarweg 12
+82467 Garmisch-Partenkirchen
+Germany
+VAT ID: DE234567891
+rechnung@alpenlicht.example
+Invoice No.  2024-DE-0771
+Rechnungsdatum  15.09.2024
+Description Qty Unit Price Amount
+Trekking poles, carbon 30 78.00 2,340.00
+Insulated flask, 1L 50 24.00 1,200.00
+Volume rebate, Q3 -354.00
+Subtotal  3,186.00 EUR
+USt.  605.34 EUR
+Total  3,791.34 EUR

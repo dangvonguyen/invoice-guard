@@ -1,0 +1,33 @@
+{
+  "vendor": {
+    "name": "Fifth Street Bookkeeping",
+    "address": ["217 Fifth Street", "Suite B", "Boise, ID 83702"],
+    "contact": ["hello@fifthstreetbooks.example"]
+  },
+  "invoice": {
+    "number": "FSB-0419",
+    "date": "2024-04-30",
+    "currency": "USD",
+    "tax_amount": "0.00",
+    "total_amount": "1370.00"
+  },
+  "line_items": [
+    {
+      "description": "Monthly reconciliation, March",
+      "amount": "650.00"
+    },
+    {
+      "description": "Payroll runs (2)",
+      "amount": "240.00"
+    },
+    {
+      "description": "Year-end prep, phase 1",
+      "amount": "480.00"
+    }
+  ],
+  "render": {
+    "amount_grouping": false,
+    "currency_display": "code",
+    "date_format": "iso"
+  }
+}

@@ -3,8 +3,10 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 from uuid import UUID
 
-from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
+
+from app.core.config import ModelProvider
+from app.core.llm import StructuredLLM, build_structured_llm
 
 
 @dataclass(frozen=True)
@@ -59,16 +61,15 @@ _GENERATION_INSTRUCTIONS = (
 )
 
 
-class OpenAIGenerationClient:
-    """`GenerationClient` backed by OpenAI's structured outputs."""
+class LLMGenerationClient:
+    """`GenerationClient` backed by a structured-output LLM."""
 
-    def __init__(self, *, client: AsyncOpenAI, model: str) -> None:
-        self._client = client
-        self._model = model
+    def __init__(self, *, llm: StructuredLLM) -> None:
+        self._llm = llm
 
     @property
     def model(self) -> str:
-        return self._model
+        return self._llm.model
 
     async def generate_explanation(
         self,
@@ -77,23 +78,27 @@ class OpenAIGenerationClient:
         evidence: dict[str, Any],
         chunks: Sequence[RetrievedChunk],
     ) -> GeneratedExplanation:
-        response = await self._client.responses.create(
-            model=self._model,
+        raw = await self._llm.complete_json(
             instructions=_GENERATION_INSTRUCTIONS,
-            input=_build_user_input(summary=summary, evidence=evidence, chunks=chunks),
-            text={
-                "format": {
-                    "type": "json_schema",
-                    "name": "review_flag_explanation",
-                    "schema": _OUTPUT_SCHEMA,
-                    "strict": True,
-                }
-            },
+            schema=_OUTPUT_SCHEMA,
+            schema_name="review_flag_explanation",
+            user_message=_build_prompt(
+                summary=summary, evidence=evidence, chunks=chunks
+            ),
         )
-        return GeneratedExplanation.model_validate_json(response.output_text)
+        return GeneratedExplanation.model_validate_json(raw)
 
 
-def _build_user_input(
+def build_generation_client(
+    *, provider: ModelProvider, model: str, max_tokens: int
+) -> GenerationClient:
+    """Return the `GenerationClient` for the configured generation provider."""
+    return LLMGenerationClient(
+        llm=build_structured_llm(provider=provider, model=model, max_tokens=max_tokens)
+    )
+
+
+def _build_prompt(
     *, summary: str, evidence: dict[str, Any], chunks: Sequence[RetrievedChunk]
 ) -> str:
     excerpts = "\n\n".join(

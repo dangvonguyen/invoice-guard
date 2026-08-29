@@ -27,6 +27,7 @@ class ExtractionPipeline:
 
     _REQUIRING_FIELDS = (
         "vendor_name",
+        "invoice_number",
         "invoice_date",
         "total_amount",
         "tax_amount",
@@ -83,6 +84,8 @@ class ExtractionPipeline:
         ungrounded: list[str] = []
         for field_name in self._REQUIRING_FIELDS:
             value = getattr(fields, field_name)
+            if value is None:
+                continue
             if not self._grounding_checker.is_grounded(
                 value=value, source_text=document_text
             ):
@@ -97,5 +100,19 @@ class ExtractionPipeline:
                 value=line_item.amount, source_text=document_text
             ):
                 ungrounded.append(f"line_items[{index}].amount")
+            if (
+                line_item.quantity is not None
+                and not self._grounding_checker.is_grounded(
+                    value=line_item.quantity, source_text=document_text
+                )
+            ):
+                ungrounded.append(f"line_items[{index}].quantity")
+            if (
+                line_item.unit_price is not None
+                and not self._grounding_checker.is_grounded(
+                    value=line_item.unit_price, source_text=document_text
+                )
+            ):
+                ungrounded.append(f"line_items[{index}].unit_price")
 
         return ungrounded
