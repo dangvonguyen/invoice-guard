@@ -2,16 +2,18 @@
 
 from collections.abc import Iterable, Sequence
 from statistics import fmean
+from typing import Protocol
 
 from eval._common.score.constants import RATE_DECIMALS
 from eval._common.score.dimensions import dimension_tags
-from eval.explanation.score.results import (
-    CaseResult,
-    JudgeResult,
-    RunTally,
-    Tally,
-    Totals,
-)
+from eval.explanation.score.results import CaseResult, RunTally, Tally, Totals
+
+
+class _IdVerdict(Protocol):
+    @property
+    def id(self) -> str: ...
+    @property
+    def passed(self) -> bool: ...
 
 
 def aggregate(results: Sequence[CaseResult]) -> Totals:
@@ -58,34 +60,28 @@ def _tally(results: Sequence[CaseResult]) -> RunTally:
 
 
 def _per_check(results: Sequence[CaseResult]) -> dict[str, Tally]:
-    scored_checks = [c for r in results if r.check is not None for c in r.check.results]
-    check_ids: dict[str, None] = {}
-    for check in scored_checks:
-        check_ids.setdefault(check.id, None)
-    tallies: dict[str, Tally] = {}
-    for check_id in check_ids:
-        present = [c for c in scored_checks if c.id == check_id]
-        tallies[check_id] = Tally(
-            passed=sum(1 for c in present if c.passed), total=len(present)
-        )
-    return tallies
+    return _tally_by_id(
+        check for r in results if r.check is not None for check in r.check.results
+    )
 
 
 def _per_rubric(results: Sequence[CaseResult], severity: str) -> dict[str, Tally]:
-    verdicts: list[JudgeResult] = [
-        v
+    return _tally_by_id(
+        verdict
         for r in results
         if r.judge is not None
-        for v in r.judge.results
-        if v.severity == severity
-    ]
-    statement_ids: dict[str, None] = {}
-    for verdict in verdicts:
-        statement_ids.setdefault(verdict.id, None)
+        for verdict in r.judge.results
+        if verdict.severity == severity
+    )
+
+
+def _tally_by_id(verdicts: Iterable[_IdVerdict]) -> dict[str, Tally]:
+    """Group pass/total counts by verdict ``id``, in first-seen order."""
+    materialized = list(verdicts)
     tallies: dict[str, Tally] = {}
-    for statement_id in statement_ids:
-        present = [v for v in verdicts if v.id == statement_id]
-        tallies[statement_id] = Tally(
+    for vid in dict.fromkeys(v.id for v in materialized):
+        present = [v for v in materialized if v.id == vid]
+        tallies[vid] = Tally(
             passed=sum(1 for v in present if v.passed), total=len(present)
         )
     return tallies

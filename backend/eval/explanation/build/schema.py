@@ -3,7 +3,7 @@
 import json
 
 from app.services.explanations.generation import GENERATION_INSTRUCTIONS, OUTPUT_SCHEMA
-from eval.explanation.score.judge import JUDGE_INSTRUCTIONS, JUDGE_OUTPUT_SCHEMA
+from eval.explanation.build.judge_prompt import JUDGE_INSTRUCTIONS, JUDGE_OUTPUT_SCHEMA
 
 
 def render_instructions() -> str:

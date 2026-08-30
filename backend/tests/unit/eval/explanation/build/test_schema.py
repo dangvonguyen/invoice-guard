@@ -6,7 +6,7 @@ import pytest
 
 from app.services.explanations.generation import GENERATION_INSTRUCTIONS, OUTPUT_SCHEMA
 from eval.explanation.build import schema
-from eval.explanation.score.judge import JUDGE_INSTRUCTIONS
+from eval.explanation.build.judge_prompt import JUDGE_INSTRUCTIONS
 
 pytestmark = pytest.mark.unit
 

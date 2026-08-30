@@ -5,13 +5,8 @@ from typing import Any, Literal
 import pytest
 
 from eval.explanation.build.casefile import Rubric
-from eval.explanation.score.judge import (
-    JUDGE_OUTPUT_SCHEMA,
-    JudgeVerdicts,
-    LLMJudgeClient,
-    build_judge_prompt,
-    to_judge_score,
-)
+from eval.explanation.build.judge_prompt import JUDGE_OUTPUT_SCHEMA, build_judge_prompt
+from eval.explanation.score.judge import JudgeVerdicts, LLMJudgeClient, to_judge_score
 
 pytestmark = pytest.mark.unit
 
