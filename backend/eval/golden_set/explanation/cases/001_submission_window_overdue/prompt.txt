@@ -1,0 +1,56 @@
+Review flag: Invoice was submitted after the allowed submission window.
+Evidence: {'invoice_age_days': 47, 'max_expense_age_days': 30}
+
+Policy excerpts:
+[0] 2. Lodging: Hotel accommodations required for business meetings, school visits, and other ABHES events are to be 
+charged on traveler’s personal credit card and then submitted for reimbursement. Designated ABHES 
+staff are responsible for securing hotel accommodations at a rate of $250 per night or less (excluding 
+taxes and fees). Award points earned by the traveler while on ABHES business is the property of the 
+traveler. ABHES will not reimburse for the value of any award points used to cover lodging.
+
+[1] 6. Expense Reimbursement Timelines: Reimbursement submissions must be submitted using Certify. Reference the ABHES Certify User Guide 
+for detailed instructions on how to seek reimbursement. 
+ 
+All requests for reimbursement for ABHES travel are to be submitted within 15 days and no later than 
+30 days upon conclusion of the event. Any submission received after 30 days shall require approval by 
+the Executive Director. Requests for an extension beyond the 30 -day deadline must identify mitigating 
+circumstances for consideration and may not be reimbursed. 
+ 
+ABHES strives to issue reimbursement payments within 10 business days upon receipt of error -free 
+expense report submissions. If an expense report is submitted on a Monday and contains no errors, it 
+will be processed for payment in Certify where payment will be received in the traveler’s account by the 
+following Friday through Bill.com. The ABHES Accounting Team will request clarification through the 
+Certify platform. Expense reports submitted with notable errors or out of compliance with the policies 
+stated within this document will be rejected and the user will be requested to resubmit, which may 
+extend or delay normal processing times.  
+ 
+All expenses must be properly substantiated with corresponding receipts  and other supporting 
+documentation as applicable. All required fields on the Certify platform must be completed with 
+accurate and detailed information, including the names of any team members related to an expense. In 
+the event a receipt has been destroyed or lost, the traveler must make a concerted effort to obtain an 
+original receipt from the vendor .  I f unsuccessful, travelers must provide a written statement to that 
+effect as well as an explanation for the expenditure.  Carbon copies of check payments are not sufficient 
+substitutes for a receipt. Prior approval from ABHES staff for expenses beyond specified limits (e.g., flight 
+4 | P a g e    Revised January 2024  
+over price limit or extra hotel stay) must be included when uploading receipts with expense reports and 
+justified with explanation to be noted in the “Reason” section in Certify . Reimbursements will be 
+adjusted in instances where the traveler does not upload proper support documentation or evidence of 
+prior approval. 
+ 
+To avoid processing delays, review and reference the one -page Expense Report Checklist, before you 
+travel and when uploading your expense reimbursement submission into Certify.
+
+[2] 3. Meals: While meals are eligible for reimbursement, ABHES staff and volunteers are expected to exercise 
+prudence and ensure that expenses remain within reasonable limits. Excessive or lavish meal expenses 
+may be subject to review and adjustment. All expenses, including meals, must be supported by original, 
+itemized receipts. Receipts must clearly show the date, vendor, items purchased, and the total amount. 
+Credit card statements alone are not sufficient . Failure to submit itemized receipts may hinder full 
+reimbursement of the noted expense. 
+ 
+Any e xpenses related to the purchase of alcoholic drinks will not be reimbursed under any 
+circumstances. ABHES will also not reimburse taxes or tips associated with the purchase of alcoholic 
+beverages. 
+ 
+Meal costs (including tax and tip) during days of travel should not exceed $75 per day. For example, if 
+traveling on a Monday for a business event occurring on Tuesday and Wednesday, total meal costs on 
+that Monday and Wednesday should not exceed $75 on each of those days).

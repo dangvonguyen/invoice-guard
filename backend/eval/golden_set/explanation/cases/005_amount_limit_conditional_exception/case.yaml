@@ -1,0 +1,59 @@
+title: Airfare invoice of $925, above the $700 prior-approval figure
+rule: EXPENSE_WITHIN_AMOUNT_LIMIT
+dimensions:
+  - conditional-limit
+
+evidence:
+  invoice_total: "925.00"
+  max_expense_amount: "700.00"
+  currency: USD
+
+context:
+  - "5. Non-Reimbursable Expenses#0"
+  - "1. Travel#0"
+  - "_preamble#0"
+
+grading:
+  citations:
+    ideal:
+      - "1. Travel#0"
+    min_recall: 1.0
+    max_spurious: 0
+  checks:
+    - id: names_threshold
+      kind: must_contain
+      pattern: '(?<![\d.])700(?![\d.])'
+  rubric:
+    - id: answers_this_flag
+      severity: must
+      statement: >-
+        Attributes the flag to the airfare cost exceeding the $700 figure above
+        which airfare must be approved prior to purchase.
+    - id: frames_as_conditional
+      severity: must
+      statement: >-
+        Presents $700 as the point above which prior purchase approval and
+        evidence of that approval are required, not an absolute ceiling that
+        bars reimbursement outright, and notes that failing to obtain the
+        approval results in only partial reimbursement.
+    - id: grounded
+      severity: must
+      statement: >-
+        Every factual claim is supported by the provided excerpts; nothing is
+        invented.
+    - id: neutral_tone
+      severity: should
+      statement: Tone is neutral and professional.
+
+notes: >-
+  The only handbook figure that speaks to an over-limit expense total is the
+  air-travel passage: "Airfare exceeding $700, must be approved prior to
+  purchase and evidence of such approval must be included when seeking
+  reimbursement. Failure to obtain the necessary approval will result in only
+  partial reimbursement." So the $700 is conditional, not a hard cap -- crossing
+  it triggers a prior-approval requirement, and the consequence of skipping that
+  approval is partial rather than zero reimbursement. Context pairs the air
+  travel chunk with two topical-but-off-target lures: the non-reimbursable
+  expenses passage (which also mentions airfare, but for personal-travel fare
+  comparisons) and the preamble's general "minimize travel costs" instruction.
+  max_spurious is 0, so citing either lure fails the case.

@@ -1,0 +1,63 @@
+title: EUR invoice flagged; the handbook is silent on currency, payment passage is a lure
+rule: CURRENCY_ALLOWED
+dimensions:
+  - hard-negative
+  - distractor-heavy
+
+evidence:
+  currency: EUR
+  allowed_currencies:
+    - USD
+
+context:
+  - "6. Expense Reimbursement Timelines#0"
+  - "_preamble#0"
+  - "1. Travel#0"
+  - "2. Lodging#0"
+
+grading:
+  citations:
+    ideal: []
+    min_recall: 1.0
+    max_spurious: 0
+  checks:
+    - id: no_invented_currency_rule
+      kind: must_absent
+      pattern: 'must be (?:paid |submitted |invoiced )?in USD|USD only|only (?:accepts?|reimburses?) USD'
+  rubric:
+    - id: states_policy_silent_on_currency
+      severity: must
+      statement: >-
+        States that the provided excerpts do not address or restrict which
+        currency an invoice may be in.
+    - id: no_invented_rule
+      severity: must
+      statement: >-
+        Invents no currency rule, allowed-currency list, or exchange-rate
+        requirement; any mention of the allowed set is attributed to the flag
+        evidence, not to the handbook.
+    - id: not_misread_payment_processing
+      severity: must
+      statement: >-
+        Does not treat the payment-processing passage (Certify, Bill.com,
+        10-business-day payment timing) as a currency restriction.
+    - id: grounded
+      severity: must
+      statement: >-
+        Every factual claim is supported by the provided excerpts; nothing is
+        invented.
+    - id: neutral_tone
+      severity: should
+      statement: Tone is neutral and professional.
+
+notes: >-
+  The extracted handbook says nothing about currency -- no allowed-currency
+  list, no exchange-rate rule, no restriction anywhere. The section-6 timelines
+  chunk is the near-miss: it is the only passage about money movement (Certify,
+  Bill.com payouts, "payment will be received in the traveler's account", the
+  10-business-day processing target) and could be misread as governing what
+  currency is acceptable. The preamble, section 1 ("most economical means",
+  fares), and section 2 ($250 per night, personal credit card) fill out the
+  distractor-heavy context as topical money lures. ideal is empty and
+  max_spurious is 0, so any citation fails; correct behaviour is to abstain and
+  say the policy does not address currency.
