@@ -2,8 +2,10 @@
 
 import re
 from collections.abc import Iterable, Mapping
+from pathlib import Path
 from typing import Any, Literal
 
+import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.database.models.rule_result import RuleOutcome
@@ -11,6 +13,7 @@ from app.services.rules.flags import is_explainable, summary_for
 from app.services.rules.result import RuleCode
 from eval.explanation.build.chunking import IdentifiedChunk
 from eval.explanation.build.constants import DIMENSIONS, EVIDENCE_KEYS
+from eval.explanation.paths import CASE_YAML, CASES_DIR
 
 HARD_NEGATIVE = "hard-negative"
 
@@ -172,3 +175,14 @@ def load_case(data: Mapping[str, Any], chunks: Iterable[IdentifiedChunk]) -> Cas
         raise ValueError(f"rule {case.rule.value!r} has no FAIL summary to explain")
 
     return case.model_copy(update={"summary": summary})
+
+
+def iter_case_dirs() -> list[Path]:
+    """Every case directory, in sequential numeric-prefix order."""
+    return sorted(p for p in CASES_DIR.iterdir() if p.is_dir())
+
+
+def load_case_dir(case_dir: Path, chunks: Iterable[IdentifiedChunk]) -> CaseFile:
+    """Load and validate the ``case.yaml`` under ``case_dir``."""
+    raw = yaml.safe_load((case_dir / CASE_YAML).read_text())
+    return load_case(raw, chunks)

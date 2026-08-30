@@ -35,3 +35,4 @@ HISTORY_JUDGE_PATH = REPORTS_DIR / "history.judge.jsonl"
 
 # Per-case fixture filenames
 CASE_YAML = "case.yaml"
+PROMPT_TXT = "prompt.txt"
