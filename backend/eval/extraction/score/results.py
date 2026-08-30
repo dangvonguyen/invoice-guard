@@ -156,9 +156,7 @@ class FieldTally:
 
     @property
     def rate(self) -> float:
-        if self.total == 0:
-            return 0.0
-        return round(self.correct / self.total, RATE_DECIMALS)
+        return _rate(self.correct, self.total)
 
 
 @dataclass(frozen=True)
@@ -184,15 +182,11 @@ class CaseTally:
 
     @property
     def fully_correct_rate(self) -> float:
-        if self.cases == 0:
-            return 0.0
-        return round(self.fully_correct / self.cases, RATE_DECIMALS)
+        return _rate(self.fully_correct, self.cases)
 
     @property
     def error_rate(self) -> float:
-        if self.cases == 0:
-            return 0.0
-        return round(self.error_count / self.cases, RATE_DECIMALS)
+        return _rate(self.error_count, self.cases)
 
 
 @dataclass(frozen=True)
@@ -213,3 +207,9 @@ class RunReport:
     selector: Mapping[str, Sequence[str]] | None
     cases: Sequence[CaseScore]
     totals: Totals
+
+
+def _rate(numerator: int, denominator: int) -> float:
+    if denominator == 0:
+        return 0.0
+    return round(numerator / denominator, RATE_DECIMALS)

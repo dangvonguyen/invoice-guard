@@ -1,8 +1,5 @@
-"""Orchestrate a scoring run: load cases, drive the production pipeline, write
-the run file and (for a whole-set run) the history line.
-"""
+"""Drive the production extraction pipeline over selected cases and write the run artifacts."""
 
-import argparse
 import asyncio
 import time
 from collections.abc import Sequence
@@ -12,12 +9,10 @@ from pathlib import Path
 
 import yaml
 
-from app.core.config import MODEL_PROVIDERS, get_settings
 from app.services.extraction.grounding import GroundingChecker
 from app.services.extraction.model import ExtractedInvoice, build_model_client
 from app.services.extraction.pipeline import ExtractionPipeline
 from eval._common.score import gitmeta
-from eval._common.score.constants import DEFAULT_CONCURRENCY
 from eval._common.score.harness_support import (
     ABORTING_ERRORS,
     ScoringError,
@@ -39,15 +34,17 @@ class _LoadedCase:
     expected: ExtractedInvoice
 
 
-async def main(argv: Sequence[str]) -> int:
-    """Score the selected cases and write artifacts. Returns the process exit code."""
-    args = _parse_args(argv)
-    config = _resolve_config(args)
-
+async def run(
+    *,
+    config: RunConfig,
+    names: Sequence[str],
+    dimensions: Sequence[str],
+) -> tuple[RunReport, Path]:
+    """Score the selected cases, write the run dump, and (whole-set only) history."""
     git_commit = gitmeta.head_commit()
     git_dirty = gitmeta.is_dirty()
 
-    cases = _select_cases(paths.CASES_DIR, args.names, args.dimensions)
+    cases = _select_cases(paths.CASES_DIR, names, dimensions)
     if not cases:
         raise ScoringError("no cases matched the selection")
 
@@ -71,65 +68,14 @@ async def main(argv: Sequence[str]) -> int:
         timestamp=datetime.now(UTC),
         git_commit=git_commit,
         git_dirty=git_dirty,
-        selector=selector(args.names, args.dimensions),
+        selector=selector(names, dimensions),
         cases=scores,
         totals=aggregate(scores),
     )
     run_path = write_run_file(report, paths.RUNS_DIR)
     if report.selector is None:
         append_history_line(report, paths.HISTORY_PATH, run_file=run_path.name)
-
-    print(_summary(report, run_path))
-    return 0
-
-
-def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        prog="python -m eval.extraction.score",
-        description="Score the extraction golden set against the production pipeline.",
-    )
-    parser.add_argument("names", nargs="*", help="case-directory names to score")
-    parser.add_argument(
-        "--provider",
-        choices=MODEL_PROVIDERS,
-        help="override EXTRACTION_PROVIDER",
-    )
-    parser.add_argument(
-        "--model",
-        help="override EXTRACTION_MODEL",
-    )
-    parser.add_argument(
-        "--max-tokens",
-        type=int,
-        help="override EXTRACTION_MAX_TOKENS",
-    )
-    parser.add_argument(
-        "--concurrency",
-        type=int,
-        help=f"parallel cases (default {DEFAULT_CONCURRENCY})",
-    )
-    parser.add_argument(
-        "--dimension",
-        action="append",
-        default=[],
-        dest="dimensions",
-        metavar="TAG",
-        help="score only cases carrying this dimension tag (repeatable)",
-    )
-    args = parser.parse_args(list(argv))
-    if args.names and args.dimensions:
-        parser.error("positional case names and --dimension are mutually exclusive")
-    return args
-
-
-def _resolve_config(args: argparse.Namespace) -> RunConfig:
-    settings = get_settings()
-    return RunConfig(
-        provider=args.provider or settings.EXTRACTION_PROVIDER,
-        model=args.model or settings.EXTRACTION_MODEL,
-        max_tokens=args.max_tokens or settings.EXTRACTION_MAX_TOKENS,
-        concurrency=args.concurrency or DEFAULT_CONCURRENCY,
-    )
+    return report, run_path
 
 
 def _select_cases(
@@ -198,7 +144,8 @@ async def _score_case(
     )
 
 
-def _summary(report: RunReport, run_path: Path) -> str:
+def format_summary(report: RunReport, run_path: Path) -> str:
+    """The run aggregates and per-field accuracy table, for stdout."""
     totals = report.totals
     lines = [
         f"scored {totals.cases} case(s) via {report.config.provider}/{report.config.model}",
