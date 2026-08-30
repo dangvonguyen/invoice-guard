@@ -1,4 +1,7 @@
-"""Git provenance for a run: the HEAD commit and working-tree cleanliness."""
+"""Git provenance for a run: the HEAD commit and working-tree cleanliness.
+
+Shared by both scoring harnesses (extraction and explanation).
+"""
 
 import subprocess
 

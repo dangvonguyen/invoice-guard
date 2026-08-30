@@ -24,14 +24,15 @@ HANDBOOK_SOURCE_MD = HANDBOOK_DIR / "SOURCE.md"
 # Static prompt / schema fixtures
 PROMPT_DIR = GOLDEN_SET_DIR / "prompt"
 INSTRUCTIONS_PATH = PROMPT_DIR / "instructions.txt"
+JUDGE_INSTRUCTIONS_PATH = PROMPT_DIR / "judge_instructions.txt"
 SCHEMA_DIR = GOLDEN_SET_DIR / "schema"
 GENERATED_SCHEMA_PATH = SCHEMA_DIR / "generated_explanation.schema.json"
+JUDGE_SCHEMA_PATH = SCHEMA_DIR / "judge_output.schema.json"
 
 # Reports
 REPORTS_DIR = EVAL_DIR / "reports" / "explanation"
 RUNS_DIR = REPORTS_DIR / "runs"
 HISTORY_PATH = REPORTS_DIR / "history.jsonl"
-HISTORY_JUDGE_PATH = REPORTS_DIR / "history.judge.jsonl"
 
 # Per-case fixture filenames
 CASE_YAML = "case.yaml"

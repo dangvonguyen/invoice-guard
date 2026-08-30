@@ -1,6 +1,8 @@
 """Wrap the app ``SectionChunker`` and derive a stable ID per chunk."""
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 
 from app.services.policies.chunking import Chunk, SectionChunker
 from eval.explanation.build.constants import CHUNKER
@@ -15,6 +17,15 @@ class IdentifiedChunk:
     id: str
     label: str
     content: str
+
+    def as_dict(self) -> dict[str, str]:
+        """The ``chunks.json`` record for this chunk."""
+        return {"id": self.id, "label": self.label, "content": self.content}
+
+    @classmethod
+    def from_dict(cls, record: dict[str, str]) -> "IdentifiedChunk":
+        """Rebuild a chunk from its ``chunks.json`` record."""
+        return cls(id=record["id"], label=record["label"], content=record["content"])
 
 
 def identify_chunks(chunks: list[Chunk]) -> list[IdentifiedChunk]:
@@ -54,3 +65,9 @@ def chunk_handbook(text: str) -> list[IdentifiedChunk]:
         min_tokens=CHUNKER["min_tokens"], max_tokens=CHUNKER["max_tokens"]
     )
     return identify_chunks(chunker.chunk(text))
+
+
+def read_chunks(path: Path) -> list[IdentifiedChunk]:
+    """Load a committed ``chunks.json`` back into :class:`IdentifiedChunk` objects."""
+    payload = json.loads(path.read_text())
+    return [IdentifiedChunk.from_dict(record) for record in payload["chunks"]]

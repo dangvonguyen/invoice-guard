@@ -20,8 +20,8 @@ from app.core.config import MODEL_PROVIDERS, get_settings
 from app.services.extraction.grounding import GroundingChecker
 from app.services.extraction.model import ExtractedInvoice, build_model_client
 from app.services.extraction.pipeline import ExtractionPipeline
+from eval import gitmeta
 from eval.extraction import paths
-from eval.extraction.score import gitmeta
 from eval.extraction.score.aggregate import aggregate
 from eval.extraction.score.artifacts import append_history_line, write_run_file
 from eval.extraction.score.compare import compare_case
