@@ -67,3 +67,7 @@ Chosen option: **hand-authored structured data, rendered to PDF by a committed g
 ### Hand-authored text fed straight to the pipeline, skipping PDF rendering
 
 - Bad, because with no real PDFs in the set, the text-extraction step is the only thing keeping fixtures honest about production input.
+
+## More Information
+
+Sibling of [ADR 0002](0002-explanation-golden-set-scope-and-scoring.md), which covers the Explanation Golden Set's scope and scoring. Both sets share the `eval/` tooling and the diff-gate discipline but measure different tasks.
