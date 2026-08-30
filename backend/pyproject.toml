@@ -44,6 +44,7 @@ testpaths = ["tests"]
 pythonpath = ["."]
 python_functions = ["test_*", "should_*"]
 addopts = ["--import-mode=importlib"]
+norecursedirs = ["*.egg", ".*", "_darcs", "CVS", "dist", "node_modules", "venv", "{arch}"] # Drop "build" from default set
 markers = [
 	"unit: fast, no external deps",
 	"integration: real DB, single adapter, no HTTP layer",
