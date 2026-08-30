@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 
+from eval._common.score.dimensions import dimension_tags
 from eval.extraction.score.fields import SCALAR_FIELDS
 from eval.extraction.score.results import CaseScore, CaseTally, FieldTally, Totals
 
@@ -11,7 +12,7 @@ def aggregate(results: Sequence[CaseScore]) -> Totals:
     base = _tally(results)
     by_dimension = {
         tag: _tally([r for r in results if tag in r.dimensions])
-        for tag in _dimension_tags(results)
+        for tag in dimension_tags(results)
     }
     return Totals(
         cases=base.cases,
@@ -59,11 +60,3 @@ def _tally(results: Sequence[CaseScore]) -> CaseTally:
         error_count=sum(1 for r in results if r.is_errored),
         field_accuracy=field_accuracy,
     )
-
-
-def _dimension_tags(results: Sequence[CaseScore]) -> list[str]:
-    seen: dict[str, None] = {}
-    for result in results:
-        for tag in result.dimensions:
-            seen.setdefault(tag, None)
-    return list(seen)

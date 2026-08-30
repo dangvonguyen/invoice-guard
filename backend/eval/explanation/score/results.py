@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from app.core.config import ModelProvider
-from eval.explanation.score.constants import RATE_DECIMALS
+from eval._common.score.constants import RATE_DECIMALS
 
 
 @dataclass(frozen=True)

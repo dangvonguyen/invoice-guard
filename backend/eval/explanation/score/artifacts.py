@@ -4,17 +4,13 @@
 - ``history.jsonl`` — one compact fixed-key-order line per whole-set run, committed.
 """
 
-import json
-import re
 from collections.abc import Mapping
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from eval.explanation.score.constants import (
-    HISTORY_LINE_VERSION,
-    RUN_SCHEMA_VERSION,
-)
+from eval._common.score.run_files import write_run_json
+from eval._common.score.serialization import append_jsonl, rfc3339
+from eval.explanation.score.constants import HISTORY_LINE_VERSION, RUN_SCHEMA_VERSION
 from eval.explanation.score.results import (
     CaseResult,
     CheckScore,
@@ -25,61 +21,28 @@ from eval.explanation.score.results import (
     Tally,
 )
 
-_UNSAFE_CHARS = re.compile(r"[^A-Za-z0-9._-]")
 
-
-def run_filename(
-    timestamp: datetime, provider: str, model: str, existing_dir: Path
-) -> str:
-    """Return a collision-free ``<basic-iso>_<provider>_<model>.json`` name."""
-    stem = f"{timestamp.strftime('%Y%m%dT%H%M%SZ')}_{provider}_{_UNSAFE_CHARS.sub('-', model)}"
-    candidate = f"{stem}.json"
-    suffix = 2
-    while (existing_dir / candidate).exists():
-        candidate = f"{stem}-{suffix}.json"
-        suffix += 1
-    return candidate
-
-
-def write_run_file(report: RunReport, directory: Path) -> Path:
-    """Write the full per-case run dump and return its path."""
-    directory.mkdir(parents=True, exist_ok=True)
-    name = run_filename(
-        report.timestamp, report.config.provider, report.config.model, directory
+def write_run_file(report: RunReport, dir: Path) -> Path:
+    """Write the run file and return its path."""
+    return write_run_json(
+        dir,
+        _run_payload(report),
+        report.timestamp,
+        report.config.provider,
+        report.config.model,
     )
-    path = directory / name
-    path.write_text(_dump_json(_run_payload(report)))
-    return path
 
 
 def append_history_line(report: RunReport, path: Path, *, run_file: str) -> None:
-    """Append exactly one compact history line, creating the file if absent."""
-    _append_jsonl(path, _history_payload(report, run_file))
-
-
-def append_history_if_whole_set(
-    report: RunReport, path: Path, *, run_file: str
-) -> bool:
-    """Append a deterministic history line only for a whole-set run (no selector)."""
-    if report.selector is not None:
-        return False
-    _append_jsonl(path, _history_payload(report, run_file))
-    return True
-
-
-def _append_jsonl(path: Path, payload: dict[str, Any]) -> None:
-    """Append exactly one compact JSON line, creating the file if absent."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    line = json.dumps(payload, ensure_ascii=False) + "\n"
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(line)
+    """Append one history line, creating the file if absent."""
+    append_jsonl(path, _history_payload(report, run_file))
 
 
 def _run_payload(report: RunReport) -> dict[str, Any]:
     return {
         "schema_version": RUN_SCHEMA_VERSION,
         "run": {
-            "timestamp": _rfc3339(report.timestamp),
+            "timestamp": rfc3339(report.timestamp),
             "provider": report.config.provider,
             "model": report.config.model,
             "max_tokens": report.config.max_tokens,
@@ -196,7 +159,7 @@ def _history_payload(report: RunReport, run_file: str) -> dict[str, Any]:
     totals = report.totals
     return {
         "v": HISTORY_LINE_VERSION,
-        "timestamp": _rfc3339(report.timestamp),
+        "timestamp": rfc3339(report.timestamp),
         "git_commit": report.git_commit,
         "git_dirty": report.git_dirty,
         "gen_provider": report.config.provider,
@@ -216,11 +179,3 @@ def _history_payload(report: RunReport, run_file: str) -> dict[str, Any]:
         "per_should": {sid: t.rate for sid, t in totals.per_should.items()},
         "run_file": run_file,
     }
-
-
-def _rfc3339(timestamp: datetime) -> str:
-    return timestamp.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def _dump_json(obj: Any) -> str:
-    return json.dumps(obj, indent=2, ensure_ascii=False) + "\n"

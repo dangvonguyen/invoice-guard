@@ -4,7 +4,6 @@ Also regenerates the per-set artifacts: the expected-fields JSON schema (from th
 extraction model) and ``formats.md`` (from the template registry).
 """
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +11,7 @@ import yaml
 
 from app.services.extraction.model import ExtractedInvoice
 from app.services.extraction.text import PdfTextExtractor
+from eval._common.score.serialization import dump_json
 from eval.extraction.build.projection import project
 from eval.extraction.build.source import SourceDocument, provided_optionals
 from eval.extraction.build.templates import TEMPLATES, get_template
@@ -53,13 +53,13 @@ def generate_case(case_dir: Path) -> None:
 
     (case_dir / SOURCE_PDF).write_bytes(pdf_bytes)
     (case_dir / SOURCE_EXTRACTED_TXT).write_text(_extractor.extract_text(pdf_bytes))
-    (case_dir / EXPECTED_JSON).write_text(_dump_json(project(doc)))
+    (case_dir / EXPECTED_JSON).write_text(dump_json(project(doc)))
 
 
 def emit_schema() -> None:
     """Write the expected-fields JSON schema from the extraction model."""
     SCHEMA_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SCHEMA_PATH.write_text(_dump_json(ExtractedInvoice.model_json_schema()))
+    SCHEMA_PATH.write_text(dump_json(ExtractedInvoice.model_json_schema()))
 
 
 def write_formats_md() -> None:
@@ -120,10 +120,6 @@ def _check_capabilities(
             f"{case_dir.name}: template {template.name!r} cannot place "
             f"{sorted(unplaceable)} (declares slots {sorted(template.optional_slots)})"
         )
-
-
-def _dump_json(obj: Any) -> str:
-    return json.dumps(obj, indent=2, ensure_ascii=False) + "\n"
 
 
 def _fmt_set(values: frozenset[str]) -> str:

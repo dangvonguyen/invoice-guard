@@ -11,34 +11,24 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
-from anthropic import APIConnectionError as _AnthropicConnError
-from anthropic import AuthenticationError as _AnthropicAuthError
-from openai import APIConnectionError as _OpenAIConnError
-from openai import AuthenticationError as _OpenAIAuthError
 
 from app.core.config import MODEL_PROVIDERS, get_settings
 from app.services.extraction.grounding import GroundingChecker
 from app.services.extraction.model import ExtractedInvoice, build_model_client
 from app.services.extraction.pipeline import ExtractionPipeline
-from eval import gitmeta
+from eval._common.score import gitmeta
+from eval._common.score.constants import DEFAULT_CONCURRENCY
+from eval._common.score.harness_support import (
+    ABORTING_ERRORS,
+    ScoringError,
+    elapsed_ms,
+    selector,
+)
 from eval.extraction import paths
 from eval.extraction.score.aggregate import aggregate
 from eval.extraction.score.artifacts import append_history_line, write_run_file
 from eval.extraction.score.compare import compare_case
-from eval.extraction.score.constants import DEFAULT_CONCURRENCY
 from eval.extraction.score.results import CaseScore, RunConfig, RunReport
-
-# Provider errors that mean no case can succeed — abort the whole run.
-_ABORTING_ERRORS = (
-    _OpenAIAuthError,
-    _OpenAIConnError,
-    _AnthropicAuthError,
-    _AnthropicConnError,
-)
-
-
-class ScoringError(RuntimeError):
-    """An operational failure that aborts the run before any artifact is written."""
 
 
 @dataclass(frozen=True)
@@ -76,18 +66,17 @@ async def main(argv: Sequence[str]) -> int:
         )
     )
 
-    selector = _selector(args)
     report = RunReport(
         config=config,
         timestamp=datetime.now(UTC),
         git_commit=git_commit,
         git_dirty=git_dirty,
-        selector=selector,
+        selector=selector(args.names, args.dimensions),
         cases=scores,
         totals=aggregate(scores),
     )
     run_path = write_run_file(report, paths.RUNS_DIR)
-    if selector is None:
+    if report.selector is None:
         append_history_line(report, paths.HISTORY_PATH, run_file=run_path.name)
 
     print(_summary(report, run_path))
@@ -143,14 +132,6 @@ def _resolve_config(args: argparse.Namespace) -> RunConfig:
     )
 
 
-def _selector(args: argparse.Namespace) -> dict[str, list[str]] | None:
-    if args.names:
-        return {"names": list(args.names)}
-    if args.dimensions:
-        return {"dimensions": list(args.dimensions)}
-    return None
-
-
 def _select_cases(
     cases_dir: Path, names: Sequence[str], dimensions: Sequence[str]
 ) -> list[_LoadedCase]:
@@ -196,14 +177,14 @@ async def _score_case(
         start = time.perf_counter()
         try:
             result = await pipeline.run(document_text=case.document_text)
-        except _ABORTING_ERRORS as exc:
+        except ABORTING_ERRORS as exc:
             raise ScoringError(f"provider unavailable: {exc}") from exc
         except Exception as exc:  # a measured outcome, not an operational failure
             return CaseScore.errored(
                 case.name,
                 case.dimensions,
                 str(exc),
-                latency_ms=_elapsed_ms(start),
+                latency_ms=elapsed_ms(start),
                 expected_line_count=len(case.expected.line_items),
             )
     return compare_case(
@@ -213,12 +194,8 @@ async def _score_case(
         dimensions=case.dimensions,
         confidence=result.confidence,
         confidence_reason=result.confidence_reason,
-        latency_ms=_elapsed_ms(start),
+        latency_ms=elapsed_ms(start),
     )
-
-
-def _elapsed_ms(start: float) -> int:
-    return round((time.perf_counter() - start) * 1000)
 
 
 def _summary(report: RunReport, run_path: Path) -> str:

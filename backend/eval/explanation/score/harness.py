@@ -13,37 +13,26 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from anthropic import APIConnectionError as _AnthropicConnError
-from anthropic import AuthenticationError as _AnthropicAuthError
-from openai import APIConnectionError as _OpenAIConnError
-from openai import AuthenticationError as _OpenAIAuthError
-
 from app.services.explanations.generation import (
     GenerationClient,
     build_generation_client,
 )
-from eval import gitmeta
+from eval._common.score import gitmeta
+from eval._common.score.harness_support import (
+    ABORTING_ERRORS,
+    ScoringError,
+    elapsed_ms,
+    selector,
+)
 from eval.explanation import paths
 from eval.explanation.build.casefile import CaseFile, iter_case_dirs, load_case_dir
 from eval.explanation.build.chunking import IdentifiedChunk, read_chunks
 from eval.explanation.build.prompts import resolve_context
 from eval.explanation.score.aggregate import aggregate
-from eval.explanation.score.artifacts import append_history_if_whole_set, write_run_file
+from eval.explanation.score.artifacts import append_history_line, write_run_file
 from eval.explanation.score.deterministic import score_case
 from eval.explanation.score.judge import JudgeClient, build_judge_client, to_judge_score
 from eval.explanation.score.results import CaseResult, RunConfig, RunReport
-
-# Provider errors that mean no case can succeed — abort the whole run.
-_ABORTING_ERRORS = (
-    _OpenAIAuthError,
-    _OpenAIConnError,
-    _AnthropicAuthError,
-    _AnthropicConnError,
-)
-
-
-class ScoringError(RuntimeError):
-    """An operational failure that aborts the run before any artifact is written."""
 
 
 @dataclass(frozen=True)
@@ -93,24 +82,14 @@ async def run(
         timestamp=datetime.now(UTC),
         git_commit=git_commit,
         git_dirty=git_dirty,
-        selector=_selector(names, dimensions),
+        selector=selector(names, dimensions),
         cases=results,
         totals=aggregate(results),
     )
     run_path = write_run_file(report, paths.RUNS_DIR)
-    append_history_if_whole_set(report, paths.HISTORY_PATH, run_file=run_path.name)
+    if report.selector is None:
+        append_history_line(report, paths.HISTORY_PATH, run_file=run_path.name)
     return report, run_path
-
-
-def _selector(
-    names: Sequence[str], dimensions: Sequence[str]
-) -> dict[str, list[str]] | None:
-    """The report's record of how this run was narrowed, or ``None`` for a bare run."""
-    if names:
-        return {"names": list(names)}
-    if dimensions:
-        return {"dimensions": list(dimensions)}
-    return None
 
 
 def _select_cases(
@@ -165,13 +144,13 @@ async def _score_case(
                 evidence=dict(case.evidence),
                 chunks=resolved_chunks,
             )
-        except _ABORTING_ERRORS as exc:
+        except ABORTING_ERRORS as exc:
             raise ScoringError(f"provider unavailable: {exc}") from exc
         except Exception as exc:  # a measured outcome, not an operational failure
             return CaseResult.errored(
-                loaded.name, loaded.dimensions, str(exc), latency_ms=_elapsed_ms(start)
+                loaded.name, loaded.dimensions, str(exc), latency_ms=elapsed_ms(start)
             )
-        latency_ms = _elapsed_ms(start)
+        latency_ms = elapsed_ms(start)
 
         deterministic = score_case(
             narrative=generated.narrative,
@@ -187,7 +166,7 @@ async def _score_case(
                 chunks=resolved_chunks,
                 rubric=case.grading.rubric,
             )
-        except _ABORTING_ERRORS as exc:
+        except ABORTING_ERRORS as exc:
             raise ScoringError(f"judge provider unavailable: {exc}") from exc
         except Exception as exc:  # a measured outcome, not an operational failure
             return CaseResult.errored(
@@ -213,10 +192,6 @@ async def _score_case(
         full_pass=deterministic.passed and judge.gate,
         latency_ms=latency_ms,
     )
-
-
-def _elapsed_ms(start: float) -> int:
-    return round((time.perf_counter() - start) * 1000)
 
 
 def format_summary(report: RunReport, run_path: Path) -> str:

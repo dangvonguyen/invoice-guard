@@ -1,11 +1,8 @@
-"""Git provenance for a run: the HEAD commit and working-tree cleanliness.
-
-Shared by both scoring harnesses (extraction and explanation).
-"""
+"""Git provenance for a run: the HEAD commit and working-tree cleanliness."""
 
 import subprocess
 
-from eval._layout import REPO_ROOT
+from eval._common.paths import REPO_ROOT
 
 
 class GitUnavailableError(RuntimeError):

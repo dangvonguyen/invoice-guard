@@ -1,6 +1,6 @@
 """Filesystem paths for the explanation eval, anchored at the eval root."""
 
-from eval._layout import EVAL_DIR
+from eval._common.paths import EVAL_DIR
 
 # Build package inputs/outputs
 BUILD_DIR = EVAL_DIR / "explanation" / "build"

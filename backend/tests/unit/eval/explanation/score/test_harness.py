@@ -7,6 +7,7 @@ import pytest
 from openai import APIConnectionError
 
 from app.services.explanations.generation import GeneratedExplanation, RetrievedChunk
+from eval._common.score.harness_support import ScoringError
 from eval.explanation import paths
 from eval.explanation.build.casefile import Rubric
 from eval.explanation.score import harness
@@ -17,7 +18,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
 
 
 class _StubConnError(APIConnectionError):
-    """A real ``APIConnectionError`` (so ``_ABORTING_ERRORS`` catches it) built
+    """A real ``APIConnectionError`` (so ``ABORTING_ERRORS`` catches it) built
     without the vendored ``httpx`` request the SDK constructor demands.
     """
 
@@ -140,7 +141,7 @@ async def should_abort_before_writing_any_artifact_on_a_provider_connection_erro
 ) -> None:
     _install(monkeypatch, client=_StubClient(error=_StubConnError()))
 
-    with pytest.raises(harness.ScoringError):
+    with pytest.raises(ScoringError):
         await harness.run(config=_CONFIG, names=[], dimensions=[])
 
     assert not (_redirect_artifacts / "runs").exists()
@@ -152,7 +153,7 @@ async def should_abort_before_writing_any_artifact_on_a_judge_connection_error(
 ) -> None:
     _install(monkeypatch, judge=_StubJudge(error=_StubConnError()))
 
-    with pytest.raises(harness.ScoringError):
+    with pytest.raises(ScoringError):
         await harness.run(config=_CONFIG, names=[], dimensions=[])
 
     assert not (_redirect_artifacts / "runs").exists()

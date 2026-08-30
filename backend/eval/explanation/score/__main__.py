@@ -6,8 +6,8 @@ import sys
 from collections.abc import Sequence
 
 from app.core.config import MODEL_PROVIDERS, get_settings
+from eval._common.score.constants import DEFAULT_CONCURRENCY
 from eval.explanation.score import harness
-from eval.explanation.score.constants import DEFAULT_CONCURRENCY
 from eval.explanation.score.results import RunConfig
 
 

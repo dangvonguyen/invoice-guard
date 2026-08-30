@@ -3,7 +3,8 @@
 from collections.abc import Iterable, Sequence
 from statistics import fmean
 
-from eval.explanation.score.constants import RATE_DECIMALS
+from eval._common.score.constants import RATE_DECIMALS
+from eval._common.score.dimensions import dimension_tags
 from eval.explanation.score.results import (
     CaseResult,
     JudgeResult,
@@ -18,7 +19,7 @@ def aggregate(results: Sequence[CaseResult]) -> Totals:
     base = _tally(results)
     by_dimension = {
         tag: _tally([r for r in results if tag in r.dimensions])
-        for tag in _dimension_tags(results)
+        for tag in dimension_tags(results)
     }
     return Totals(
         cases=base.cases,
@@ -88,14 +89,6 @@ def _per_rubric(results: Sequence[CaseResult], severity: str) -> dict[str, Tally
             passed=sum(1 for v in present if v.passed), total=len(present)
         )
     return tallies
-
-
-def _dimension_tags(results: Sequence[CaseResult]) -> list[str]:
-    seen: dict[str, None] = {}
-    for result in results:
-        for tag in result.dimensions:
-            seen.setdefault(tag, None)
-    return list(seen)
 
 
 def _mean(values: Iterable[float]) -> float:

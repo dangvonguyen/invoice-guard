@@ -2,5 +2,5 @@
 
 from pathlib import Path
 
-EVAL_DIR = Path(__file__).resolve().parent
+EVAL_DIR = Path(__file__).resolve().parents[1]
 REPO_ROOT = EVAL_DIR.parents[1]
