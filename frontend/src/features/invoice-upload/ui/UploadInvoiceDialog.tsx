@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { type SubmitEvent, useEffect, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useFetcher } from 'react-router';
 import { UploadCloud } from 'lucide-react';
@@ -40,6 +40,18 @@ export function UploadInvoiceDialog() {
     }
   }
 
+  function handleSubmit(event: SubmitEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    if (!file) return;
+    // react-dropzone keeps the selected file in component state, not on the
+    // native input, so <fetcher.Form>'s DOM serialization would miss it —
+    // build the multipart body from state and submit it ourselves instead.
+    setHasError(false);
+    const body = new FormData();
+    body.append('file', file);
+    void fetcher.submit(body, { method: 'post', encType: 'multipart/form-data' });
+  }
+
   useEffect(() => {
     if (fetcher.state !== 'idle' || fetcher.data === undefined) return;
 
@@ -57,7 +69,7 @@ export function UploadInvoiceDialog() {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<Button />}>Upload Invoice</DialogTrigger>
       <DialogContent>
-        <fetcher.Form method="post" encType="multipart/form-data">
+        <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="font-semibold">Upload Invoice</DialogTitle>
           </DialogHeader>
@@ -90,7 +102,7 @@ export function UploadInvoiceDialog() {
                   PDF only, up to 10MB.
                 </span>
               </div>
-              <input {...getInputProps({ id: 'invoice-file', name: 'file' })} />
+              <input {...getInputProps({ id: 'invoice-file' })} />
             </Field>
 
             <FieldError>{hasError ? 'Something went wrong. Please try again.' : null}</FieldError>
@@ -102,7 +114,7 @@ export function UploadInvoiceDialog() {
               Upload
             </Button>
           </DialogFooter>
-        </fetcher.Form>
+        </form>
       </DialogContent>
     </Dialog>
   );
