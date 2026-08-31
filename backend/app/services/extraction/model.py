@@ -122,7 +122,7 @@ OUTPUT_SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-_EXTRACTION_INSTRUCTIONS = (
+EXTRACTION_INSTRUCTIONS = (
     "Extract invoice fields from the document text the user provides. "
     "Only report values that literally appear in the text; never invent or "
     "estimate a value that isn't present."
@@ -139,10 +139,10 @@ class LLMModelClient:
         self, *, document_text: str, validation_error: str | None = None
     ) -> dict[str, Any]:
         raw = await self._llm.complete_json(
-            instructions=_EXTRACTION_INSTRUCTIONS,
+            instructions=EXTRACTION_INSTRUCTIONS,
             schema=OUTPUT_SCHEMA,
             schema_name="invoice_fields",
-            user_message=_build_prompt(document_text, validation_error),
+            user_message=build_prompt(document_text, validation_error),
         )
         return json.loads(raw)  # type: ignore[no-any-return]
 
@@ -156,7 +156,7 @@ def build_model_client(
     )
 
 
-def _build_prompt(document_text: str, validation_error: str | None) -> str:
+def build_prompt(document_text: str, validation_error: str | None) -> str:
     content = f"Document text:\n\n{document_text}"
     if validation_error is not None:
         content += (

@@ -1,0 +1,52 @@
+title: Reimbursement request filed 47 days after the event
+rule: EXPENSE_WITHIN_SUBMISSION_WINDOW
+dimensions:
+  - clean-passage
+
+evidence:
+  invoice_age_days: 47
+  max_expense_age_days: 30
+
+context:
+  - "2. Lodging#0"
+  - "6. Expense Reimbursement Timelines#0"
+  - "3. Meals#0"
+
+grading:
+  citations:
+    ideal:
+      - "6. Expense Reimbursement Timelines#0"
+    min_recall: 1.0
+    max_spurious: 0
+  checks:
+    - id: names_window
+      kind: must_contain
+      pattern: '30\s*days'
+    - id: names_invoice_age
+      kind: must_contain
+      pattern: '(?<![\d.])47(?![\d.])'
+  rubric:
+    - id: answers_this_flag
+      severity: must
+      statement: >-
+        Attributes the flag to the reimbursement request being submitted more
+        than 30 days after the event concluded.
+    - id: names_deadline
+      severity: must
+      statement: >-
+        States that requests must be submitted no later than 30 days after the
+        event concludes.
+    - id: grounded
+      severity: must
+      statement: >-
+        Every factual claim is supported by the provided excerpts; nothing is
+        invented.
+    - id: neutral_tone
+      severity: should
+      statement: Tone is neutral and professional.
+
+notes: >-
+  Baseline clean-passage case: the reimbursement-timelines excerpt states the
+  "within 15 days and no later than 30 days upon conclusion of the event" window
+  plainly, and a 47-day-old request is unambiguously outside it. Context carries
+  two unrelated dollar-limit chunks (lodging, meals) as light distractors.

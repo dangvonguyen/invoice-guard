@@ -88,6 +88,12 @@ class Settings(BaseSettings):
     GENERATION_MAX_TOKENS: PositiveInt = 4096
     EXPLANATION_RETRIEVAL_TOP_K: PositiveInt = 5
 
+    # Explanation golden-set judge (eval-only). Each unset value falls back to
+    # the matching GENERATION_* value.
+    JUDGE_PROVIDER: ModelProvider | None = None
+    JUDGE_MODEL: str | None = None
+    JUDGE_MAX_TOKENS: PositiveInt | None = None
+
     # Extraction reconciliation
     EXTRACTION_RECONCILE_INTERVAL_SECONDS: PositiveInt = 600
     EXTRACTION_RECONCILE_STALE_AFTER_SECONDS: PositiveInt = 1200

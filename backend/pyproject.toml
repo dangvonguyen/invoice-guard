@@ -44,6 +44,7 @@ testpaths = ["tests"]
 pythonpath = ["."]
 python_functions = ["test_*", "should_*"]
 addopts = ["--import-mode=importlib"]
+norecursedirs = ["*.egg", ".*", "_darcs", "CVS", "dist", "node_modules", "venv", "{arch}"] # Drop "build" from default set
 markers = [
 	"unit: fast, no external deps",
 	"integration: real DB, single adapter, no HTTP layer",
@@ -62,10 +63,18 @@ ruff.help = "Run Ruff checks"
 ruff.cmd = "ruff check --output-format=concise ."
 
 # Golden-set
-"eval:render".help = "Regenerate the extraction golden set (PDFs, extracted text, expected fields, schema, formats.md)"
-"eval:render".cmd = "python -m eval.extraction.generation"
-"eval:score".help = "Score the extraction golden set against the production pipeline (needs API keys; writes reports/extraction/)"
-"eval:score".cmd = "python -m eval.extraction.scoring"
+"eval:extract:build".help = "Regenerate the extraction golden set (PDFs, extracted text, expected fields, schema, formats.md)"
+"eval:extract:build".cmd = "python -m eval.extraction.build"
+"eval:extract:score".help = "Score the extraction golden set against the production pipeline"
+"eval:extract:score".cmd = "python -m eval.extraction.score"
+"eval:explain:build".help = "Regenerate the explanation golden set (handbook extraction, chunks, prompt/schema fixtures)"
+"eval:explain:build".cmd = "python -m eval.explanation.build"
+"eval:explain:score".help = "Score the explanation golden set against production generation"
+"eval:explain:score".cmd = "python -m eval.explanation.score"
+"eval:build".help = "Regenerate every golden set (extraction + explanation)"
+"eval:build".sequence = [{ ref = "eval:extract:build" }, { ref = "eval:explain:build" }]
+"eval:score".help = "Score every golden set (extraction + explanation)"
+"eval:score".sequence = [{ ref = "eval:extract:score" }, { ref = "eval:explain:score" }]
 
 # Testing tasks
 test.help = "Run all tests using Pytest"

@@ -1,0 +1,1 @@
+Explain why a policy rule check failed on an invoice, grounded only in the numbered policy excerpts provided. Cite an excerpt's index in cited_chunk_indexes only if its content was actually used; never cite an excerpt you did not rely on, and never state anything not supported by the excerpts.

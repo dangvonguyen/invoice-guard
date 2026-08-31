@@ -1,0 +1,63 @@
+Review flag: Invoice total exceeds the configured review limit.
+Evidence: {'invoice_total': '925.00', 'max_expense_amount': '700.00', 'currency': 'USD'}
+
+Policy excerpts:
+[0] 5. Non-Reimbursable Expenses: Alcoholic Beverages: To maintain transparency and adherence to responsible spending, this policy 
+explicitly prohibits reimbursement for alcoholic beverages and any associated tax and tip expenses  
+Violation of this travel expense reimbursement policy, including the submission of expenses related to 
+alcoholic beverages, tax, and tip, may result in the denial of reimbursement for those expenses.  
+ 
+Spouse/travel companion: ABHES does not pay for the travel , including meal  expenses, of a spouse, 
+partner, child or any other non -ABHES business travel companion.  When dining with a companion, 
+request a separate check or the itemized receipt should be adjusted to remove any additional incurred 
+meal and tip expenses. 
+ 
+Personal Travel: Personal travel expenses are not reimbursable. A traveler may incorporate personal 
+travel with a business trip only if they can document that the business expenses are not increased due 
+to combining personal travel.  In such instances, such as airfare  for an augmented flight  schedule, a 
+documented comparison of the roundtrip fare and the altered fare must be uploaded as additional 
+supporting documentation.
+
+[1] 1. Travel: Air Travel: ABHES will reimburse for air travel as required. Air travel reservations should be made at 
+least three weeks in advance of the departure date for more advantageous fares. Travelers are to use 
+the most economical means of air travel. ABHES will only reimburse for economy class flights. Seat 
+upgrades will not be reimbursed. ABHES will also only reimburse for one piece of checked luggage ; 
+excess or overweight luggage fees are not reimbursable.  Economy parking at  airports will also be 
+reimbursed. Airfare exceeding $700, must be approved prior to purchase and evidence of such approval 
+must be included when seeking reimbursement. Failure to obtain the necessary approval will result in 
+only partial reimbursement. 
+ 
+A traveler may use surface transportation (rail, bus, etc.) when appropriate; however, the expense must 
+be comparable to an economy class flight and pre-approved in advance. 
+ 
+Use of a personal vehicle :  A traveler will be reimbursed at the rate used by the federal government 
+(IRS). To receive reimbursement, the traveler must use the automated map feature in Certify , which 
+includes the number of miles traveled and the departure and arrival location for each trip. Fuel costs will 
+not be reimbursed as it is included in the federal government reimbursement rate. 
+ 
+Automobile Rental: Automobiles may be rented, and the expenses reimbursed, only if prior approval is 
+obtained by the designated ABHES staff member coordinating the event. If a traveler is requested to rent 
+a car to assist with transporting the team, for example, the charge for a rental car that fits the team and 
+their luggage will be reimbursed.  
+ 
+Rental Car Insurance : All insurance coverage offered by the rental agency should be declined. The 
+Company has primary Hired and Non -Owned Auto coverage as part of its overall corporate package. If 
+you get into an accident while renting a car on ABHES business, please call the Claims phone number at 
+866-455-9969 and reference ABHES policy # S 2275113. 
+ 
+Prepaid Fuel Option: All prepaid fuel options must be declined and will not be reimbursed.
+
+2 | P a g e    Revised January 2024  
+Other ground transportation. When other forms of ground transportation (including transportation to 
+and from the airport) are used, receipts must be submitted for reimbursement.
+
+[2] Untitled section: 1 | P a g e    Revised January 2024  
+ABHES Travel Reimbursement Policy 
+ 
+Any ABHES commissioner, officer, employee, or committee member shall be reimbursed for any 
+reasonable, proper, and necessary travel expenses incurred in connection with his or her performance 
+of the Commission's duties as delegated and as part of ABHES’ operation and services. Requests for 
+reimbursement must be submitted timely, with supporting receipts,  and in accordance with the 
+requirements stated within this Policy. As a reminder, ABHES operates as a non-profit organization and 
+commissioners, officers, employees, and committee members are expected to minimize travel costs as 
+much as possible within reason.

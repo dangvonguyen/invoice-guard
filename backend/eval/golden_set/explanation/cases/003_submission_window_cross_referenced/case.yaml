@@ -1,0 +1,56 @@
+title: Reimbursement request filed 52 days after the event
+rule: EXPENSE_WITHIN_SUBMISSION_WINDOW
+dimensions:
+  - cross-referenced
+  - distractor-heavy
+
+evidence:
+  invoice_age_days: 52
+  max_expense_age_days: 30
+
+context:
+  - "_preamble#0"
+  - "1. Travel#0"
+  - "6. Expense Reimbursement Timelines#0"
+  - "2. Lodging#0"
+  - "3. Meals#0"
+
+grading:
+  citations:
+    ideal:
+      - "6. Expense Reimbursement Timelines#0"
+    min_recall: 1.0
+    max_spurious: 0
+  checks:
+    - id: names_window
+      kind: must_contain
+      pattern: '30\s*days'
+  rubric:
+    - id: answers_this_flag
+      severity: must
+      statement: >-
+        Attributes the flag to the reimbursement request being submitted more
+        than 30 days after the event concluded.
+    - id: grounds_in_the_limit_statement
+      severity: must
+      statement: >-
+        Bases the explanation on the excerpt that actually states the 30-day
+        submission limit, not merely the preamble's general instruction to
+        submit reimbursement requests "timely".
+    - id: grounded
+      severity: must
+      statement: >-
+        Every factual claim is supported by the provided excerpts; nothing is
+        invented.
+    - id: neutral_tone
+      severity: should
+      statement: Tone is neutral and professional.
+
+notes: >-
+  The duty to submit on time is cross-referenced: the preamble says only that
+  reimbursement "must be submitted timely ... in accordance with the requirements
+  stated within this Policy" and defers the number to the reimbursement-timelines
+  excerpt, which sets the 15-day / 30-day window. The preamble sits at cite index
+  0 as a lure; a grounded explanation must cite the timelines excerpt, so
+  max_spurious is 0. Three unrelated dollar-limit chunks round out the
+  distractor-heavy context.

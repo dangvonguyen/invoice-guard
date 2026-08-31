@@ -8,7 +8,7 @@ _MAX_HEADING_LENGTH = 70
 
 # Match short, title-cased numbered headings, not numbered sentences.
 _HEADING_PATTERN = re.compile(
-    rf"^\d+(?:\.\d+)*[ \t]+[A-Z][^.\n]{{0,{_MAX_HEADING_LENGTH - 1}}}$",
+    rf"^\d+(?:\.\d+)*(?:\.)?[ \t]+[A-Z][^.\n]{{0,{_MAX_HEADING_LENGTH - 1}}}$",
     re.MULTILINE,
 )
 
