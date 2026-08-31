@@ -6,7 +6,7 @@ from decimal import Decimal
 from functools import lru_cache
 from typing import Annotated, Literal, get_args
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PositiveInt = Annotated[int, Field(gt=0)]
@@ -66,9 +66,17 @@ class Settings(BaseSettings):
     UPLOAD_RATE_LIMIT: PositiveInt = 20
     UPLOAD_RATE_LIMIT_WINDOW_SECONDS: PositiveInt = 60
 
-    # Local-disk object storage. Dev/CI only - swap for an S3-compatible
-    # adapter behind the same StorageClient protocol before deploying.
+    # Object storage
+    STORAGE_BACKEND: Literal["local", "s3"] = "local"
+    # "local" writes to disk (dev/CI)
     STORAGE_LOCAL_PATH: str = "./data/invoices"
+    # S3-compatible object storage
+    STORAGE_S3_ENDPOINT_URL: str | None = None
+    STORAGE_S3_REGION: str = "us-east-1"
+    STORAGE_S3_BUCKET: str | None = None
+    STORAGE_S3_ACCESS_KEY_ID: str | None = None
+    STORAGE_S3_SECRET_ACCESS_KEY: SecretStr | None = None
+    STORAGE_S3_PREFIX: str = ""
 
     # API keys
     OPENAI_API_KEY: SecretStr
@@ -128,6 +136,15 @@ class Settings(BaseSettings):
         if len(value.get_secret_value()) < 32:
             raise ValueError("JWT_SECRET_KEY must be at least 32 characters")
         return value
+
+    @model_validator(mode="after")
+    def check_s3_storage_configured(self) -> Settings:
+        """Require a bucket name before the app can use the S3 backend."""
+        if self.STORAGE_BACKEND == "s3" and not self.STORAGE_S3_BUCKET:
+            raise ValueError(
+                "STORAGE_S3_BUCKET is required when STORAGE_BACKEND is 's3'"
+            )
+        return self
 
 
 @lru_cache

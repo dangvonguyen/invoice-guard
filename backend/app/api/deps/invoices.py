@@ -1,6 +1,5 @@
 """Dependencies for invoice intake and extraction queueing."""
 
-from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends
@@ -9,7 +8,8 @@ from rq import Queue
 from app.core.config import get_settings
 from app.core.queue import get_extraction_queue
 from app.core.rate_limit import RateLimiter, RedisRateLimiter
-from app.core.storage import LocalStorageClient, StorageClient
+from app.core.storage import StorageClient
+from app.core.storage import get_storage_client as get_storage_client
 from app.database.repositories.invoice import InvoiceRepository
 from app.services.upload.intake import UploadService
 from app.services.upload.validation import UploadValidator
@@ -47,12 +47,6 @@ def get_upload_rate_limiter(redis: RedisDep) -> RateLimiter:
 
 
 UploadRateLimiterDep = Annotated[RateLimiter, Depends(get_upload_rate_limiter)]
-
-
-def get_storage_client() -> StorageClient:
-    """Create the object storage client - Local disk."""
-    settings = get_settings()
-    return LocalStorageClient(base_path=Path(settings.STORAGE_LOCAL_PATH))
 
 
 StorageClientDep = Annotated[StorageClient, Depends(get_storage_client)]

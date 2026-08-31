@@ -3,7 +3,6 @@
 import asyncio
 import logging
 from datetime import date
-from pathlib import Path
 from types import TracebackType
 from uuid import UUID
 
@@ -13,7 +12,7 @@ from rq import Callback, Queue, Retry
 from rq.job import Job, JobStatus
 
 from app.core.config import get_settings
-from app.core.storage import LocalStorageClient
+from app.core.storage import get_storage_client
 from app.database.models.invoice import InvoiceStatus
 from app.database.repositories.invoice import InvoiceRepository
 from app.database.repositories.rule_result import RuleResultRepository
@@ -104,9 +103,7 @@ async def execute(invoice_id: str) -> None:
                 extracted_invoice = await extract_invoice(
                     invoice_uuid,
                     invoices=invoices,
-                    storage=LocalStorageClient(
-                        base_path=Path(settings.STORAGE_LOCAL_PATH)
-                    ),
+                    storage=get_storage_client(),
                     text_extractor=PdfTextExtractor(),
                     extraction_pipeline=ExtractionPipeline(
                         model=build_model_client(
