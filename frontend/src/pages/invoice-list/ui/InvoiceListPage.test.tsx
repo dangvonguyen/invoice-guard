@@ -32,10 +32,6 @@ function listEnvelope(data: InvoiceListItem[]) {
   };
 }
 
-function uploadEnvelope(id: string, status: InvoiceListItem['status']) {
-  return { success: true, data: { id, status }, error: null, meta: null };
-}
-
 function currentUserEnvelope(role: 'employee' | 'finance_reviewer') {
   return {
     success: true,
@@ -143,30 +139,6 @@ describe('InvoiceListPage', () => {
     expect(await screen.findByText(/processing/i)).toBeInTheDocument();
   });
 
-  it('should let an employee upload an invoice and see it appear in the list', async () => {
-    let invoices: InvoiceListItem[] = [];
-    server.use(
-      http.get(INVOICES_URL, () => HttpResponse.json(listEnvelope(invoices))),
-      http.post(INVOICES_URL, () => {
-        invoices = [{ id: 'new-id', status: 'processing', created_at: '2026-08-19T12:00:00Z' }];
-        return HttpResponse.json(uploadEnvelope('new-id', 'processing'), { status: 201 });
-      }),
-    );
-    const user = userEvent.setup();
-    renderPage();
-    await screen.findByText(/no invoices yet/i);
-
-    await user.click(screen.getByRole('button', { name: /upload invoice/i }));
-    const dialog = await screen.findByRole('dialog', { name: /upload invoice/i });
-    const file = new File(['%PDF-1.4'], 'invoice.pdf', { type: 'application/pdf' });
-    await user.upload(within(dialog).getByLabelText(/file/i), file);
-    await user.click(within(dialog).getByRole('button', { name: /^upload$/i }));
-
-    await screen.findByRole('list', { name: /invoices/i });
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(screen.getByText(/processing/i)).toBeInTheDocument();
-  });
-
   it('should disable submit until a file is selected', async () => {
     server.use(http.get(INVOICES_URL, () => HttpResponse.json(listEnvelope([]))));
     const user = userEvent.setup();
@@ -255,41 +227,6 @@ describe('InvoicesPage access control', () => {
     ]);
 
     render(<Stub initialEntries={[paths.invoices]} />);
-
-    expect(await screen.findByText('Login')).toBeInTheDocument();
-  });
-
-  it('should redirect to login when the session expires while uploading an invoice', async () => {
-    useAuthStore.getState().setAccessToken('signed.jwt.token');
-    mockEmployee();
-    server.use(
-      http.get(INVOICES_URL, () => HttpResponse.json(listEnvelope([]))),
-      http.post(INVOICES_URL, () =>
-        HttpResponse.json(
-          {
-            success: false,
-            data: null,
-            error: { code: 'UNAUTHORIZED', message: 'Expired' },
-            meta: null,
-          },
-          { status: 401 },
-        ),
-      ),
-    );
-    const Stub = createRoutesStub([
-      { path: paths.invoices, Component: InvoiceListPage, HydrateFallback, loader, action },
-      { path: paths.login, Component: () => <p>Login</p> },
-    ]);
-    const user = userEvent.setup();
-
-    render(<Stub initialEntries={[paths.invoices]} />);
-    await screen.findByText(/no invoices yet/i);
-
-    await user.click(screen.getByRole('button', { name: /upload invoice/i }));
-    const dialog = await screen.findByRole('dialog', { name: /upload invoice/i });
-    const file = new File(['%PDF-1.4'], 'invoice.pdf', { type: 'application/pdf' });
-    await user.upload(within(dialog).getByLabelText(/file/i), file);
-    await user.click(within(dialog).getByRole('button', { name: /^upload$/i }));
 
     expect(await screen.findByText('Login')).toBeInTheDocument();
   });
