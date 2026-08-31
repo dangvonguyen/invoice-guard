@@ -60,6 +60,10 @@ Three tiers, selected by marker; keep new tests in the tier that matches what th
 
 Test functions are behaviour sentences named `should_...` (pytest is configured to collect both `should_*` and `test_*`). Shared fixtures: `tests/conftest.py`, per-tier `conftest.py`; helpers and fixed constants in `tests/support/` (`create_user`, `pdf_bytes`). Integration and acceptance tiers need Docker.
 
-## Golden set
+## Golden sets
 
-`eval/` holds the extraction golden set. `poe eval:extract:build` regenerates each case's PDF, extracted text and expected fields offline (CI diff-gates it). `poe eval:extract:score` feeds every case through the production `ExtractionPipeline` and writes accuracy artifacts to `eval/reports/extraction/` — it makes live model calls, needs API keys, and is informational only (never a gate).
+`eval/` holds two offline golden sets — extraction and explanation; see `eval/README.md`. Each has a `build` stage that regenerates its fixtures with no credentials (CI diff-gates it) and a `score` stage that runs the real production path over every case, makes live model calls, needs API keys, and is informational only (never a gate).
+
+- `poe eval:extract:build` / `poe eval:extract:score` — invoice-field extraction; artifacts under `eval/reports/extraction/`.
+- `poe eval:explain:build` / `poe eval:explain:score` — Review Flag explanation generation, scored by deterministic checks plus an LLM judge; artifacts under `eval/reports/explanation/`.
+- `poe eval:build` / `poe eval:score` — both tasks in sequence.
