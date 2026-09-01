@@ -1,6 +1,8 @@
 openapi: 3.1.0
 info:
   title: Invoice Guard API
+  description: Accepts uploaded invoices, extracts their key fields, and checks them
+    against policy, before routing to a reviewer for a decision.
   version: 0.1.0
 paths:
   /auth/login:

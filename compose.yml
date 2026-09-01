@@ -1,3 +1,8 @@
+# Shared service definitions. This file is not runnable on its own — always
+# combine it with exactly one environment overlay:
+#
+#   docker compose -f compose.yml -f compose.local.yml up      # local development
+#   docker compose -f compose.yml -f compose.prod.yml up -d    # production
 services:
   postgres:
     image: pgvector/pgvector:pg18
@@ -6,8 +11,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql
     healthcheck:
@@ -19,8 +22,6 @@ services:
   redis:
     image: redis:8-alpine
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -29,44 +30,8 @@ services:
       timeout: 3s
       retries: 5
 
-  minio:
-    image: minio/minio
-    restart: unless-stopped
-    command: ["server", "/data", "--console-address", ":9001"]
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_data:/data
-
-  createbucket:
-    image: minio/mc
-    depends_on:
-      minio:
-        condition: service_started
-    env_file:
-      - ./backend/.env
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET}
-    entrypoint:
-      - /bin/sh
-      - -c
-      - >
-        until mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"; do
-          echo 'waiting for minio...'; sleep 1;
-        done;
-        mc mb --ignore-existing "local/$${STORAGE_S3_BUCKET}";
-
   migrator:
     image: ${DOCKER_BACKEND_IMAGE}:${TAG:-latest}
-    build:
-      context: ./backend
-      target: dev
     env_file:
       - ./backend/.env
     environment:
@@ -75,12 +40,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      STORAGE_BACKEND: s3
-      STORAGE_S3_ENDPOINT_URL: http://minio:9000
-      STORAGE_S3_REGION: us-east-1
-      STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET}
-      STORAGE_S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
-      STORAGE_S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
     command: ["alembic", "upgrade", "head"]
     depends_on:
       postgres:
@@ -88,9 +47,6 @@ services:
 
   api:
     image: ${DOCKER_BACKEND_IMAGE}:${TAG:-latest}
-    build:
-      context: ./backend
-      target: dev
     env_file:
       - ./backend/.env
     environment:
@@ -101,25 +57,12 @@ services:
       POSTGRES_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      STORAGE_BACKEND: s3
-      STORAGE_S3_ENDPOINT_URL: http://minio:9000
-      STORAGE_S3_REGION: us-east-1
-      STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET}
-      STORAGE_S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
-      STORAGE_S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
-      - /app/.venv
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       migrator:
-        condition: service_completed_successfully
-      createbucket:
         condition: service_completed_successfully
     healthcheck:
       test:
@@ -135,9 +78,6 @@ services:
 
   worker:
     image: ${DOCKER_BACKEND_IMAGE}:${TAG:-latest}
-    build:
-      context: ./backend
-      target: dev
     env_file:
       - ./backend/.env
     environment:
@@ -148,16 +88,7 @@ services:
       POSTGRES_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      STORAGE_BACKEND: s3
-      STORAGE_S3_ENDPOINT_URL: http://minio:9000
-      STORAGE_S3_REGION: us-east-1
-      STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET}
-      STORAGE_S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
-      STORAGE_S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
     command: ["rq", "worker", "extraction", "--with-scheduler"]
-    volumes:
-      - ./backend:/app
-      - /app/.venv
     depends_on:
       postgres:
         condition: service_healthy
@@ -165,38 +96,14 @@ services:
         condition: service_healthy
       migrator:
         condition: service_completed_successfully
-      minio:
-        condition: service_started
-      createbucket:
-        condition: service_completed_successfully
 
   web:
     image: ${DOCKER_FRONTEND_IMAGE}:${TAG:-latest}
-    build: ./frontend
     env_file:
       - ./frontend/.env
-    environment:
-      VITE_API_URL: http://api:8000
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     depends_on:
       - api
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://localhost:5173').then(response => { if (!response.ok) process.exit(1) }).catch(() => process.exit(1))",
-        ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
 
 volumes:
   pg_data:
   redis_data:
-  minio_data:

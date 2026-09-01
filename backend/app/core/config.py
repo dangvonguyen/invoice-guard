@@ -38,7 +38,6 @@ class Settings(BaseSettings):
     )
 
     API_ROOT: str = "/api"
-    API_TITLE: str = "Invoice Guard API"
 
     CORS_ORIGINS: str = "*"
 

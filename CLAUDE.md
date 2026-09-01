@@ -28,11 +28,14 @@ Single-context layout (root CONTEXT.md + docs/adr/). See `docs/agents/domain.md`
 ## Layout
 
 ```
-backend/    FastAPI service (Python 3.13, uv)   — see backend/CLAUDE.md
-frontend/   React SPA (Vite, pnpm)              — see frontend/CLAUDE.md
-compose.yml Postgres, Redis, api, worker, web
-Makefile    Docker Compose wrappers
+backend/           FastAPI service (Python 3.13, uv)   — see backend/CLAUDE.md
+frontend/          React SPA (Vite, pnpm)              — see frontend/CLAUDE.md
+compose.yml        Shared service definitions (postgres, redis, migrator, api, worker, web)
+compose.local.yml  Local-dev overlay: file sync, published ports, MinIO storage
+compose.prod.yml   Production overlay: built prod images, restart policies, managed S3
 ```
+
+`compose.yml` is not runnable alone — always pass one overlay: `docker compose -f compose.yml -f compose.local.yml up` (dev) or `-f compose.yml -f compose.prod.yml up -d` (prod).
 
 Work inside the app you are changing; each has its own `CLAUDE.md` with the conventions for that side.
 
@@ -40,7 +43,7 @@ Work inside the app you are changing; each has its own `CLAUDE.md` with the conv
 
 - The API is mounted under `root_path` `/api` (`API_ROOT`). Vite proxies `/api` to the backend in dev.
 - Every response uses the shared envelope: `{ data, error, meta, success }`. `error` is `{ code, message, details }`; `meta` is `{ total, offset, limit }` on list routes.
-- `frontend/api/openapi.yml` is the exported FastAPI schema. After changing any request/response model, re-export it and run `pnpm gen:api` in `frontend/` to regenerate `src/shared/api/schema.d.ts` (that file is generated — never hand-edit it).
+- `frontend/api/openapi.yml` is the exported FastAPI schema. After changing any request/response model, re-export it with `poe openapi:export` in `backend/`, then run `pnpm gen:api` in `frontend/` to regenerate `src/shared/api/schema.d.ts` (that file is generated — never hand-edit it).
 
 ## Quality gates
 

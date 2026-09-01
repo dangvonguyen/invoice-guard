@@ -1,73 +1,28 @@
-# Invoice Guard - Backend
+# Invoice Guard — Backend
 
-The backend is a FastAPI application backed by PostgreSQL and Redis. It can be run either as part of the Docker Compose stack or directly on your machine for local development.
+FastAPI service backed by PostgreSQL and Redis. Run it as part of the Docker Compose stack — see the [root README](../README.md) for prerequisites, environment files, and the `docker compose` workflow — or directly on your machine as described below.
 
 ## Stack
 
-- **FastAPI** as the API framework.
-- **Pydantic** for request, response, and settings validation.
-- **PostgreSQL** as the relational database.
+- **FastAPI** for the API framework, **Pydantic** for request, response, and settings validation.
+- **PostgreSQL** via **SQLAlchemy** with `asyncpg`; **Alembic** for migrations, configured for async engines.
 - **Redis** for per-user invoice upload rate limiting and the RQ extraction queue.
-- **OpenAI structured outputs** for schema-constrained invoice field extraction.
-- **SQLAlchemy** with `asyncpg` for asynchronous ORM and database access.
-- **Alembic** for migrations, configured for async engines.
+- **OpenAI** and **Anthropic** structured outputs for schema-constrained invoice field extraction and Review Flag explanations.
 - **Argon2** and **PyJWT** for password hashing and JWT bearer authentication.
-- **pytest**, **HTTPX**, and **Testcontainers** for automated testing with real PostgreSQL instances.
-- **Ruff** and **mypy** for formatting, linting, and strict type checking.
-- **uv** for dependency and virtual environment management.
+- **pytest**, **HTTPX**, and **Testcontainers** for automated testing against real PostgreSQL and Redis instances.
+- **Ruff** and **mypy** for formatting, linting, and strict type checking; **uv** for dependency and environment management.
 
-## Prerequisites
+## Run the backend on your machine
 
-Before getting started, ensure you have the following installed:
-
-- Docker and Docker Compose
-- Python 3.13
-- [`uv`](https://docs.astral.sh/uv/) for dependency management
-
-## Environment setup
-
-From the repository root, create the environment files:
+Only the backend process runs on the host. PostgreSQL and Redis stay in Docker, so you do not install either locally — the local overlay publishes them on `localhost:5432` and `localhost:6379`:
 
 ```sh
-cp .env.example .env
-cp backend/.env.example backend/.env
+docker compose -f compose.yml -f compose.local.yml up -d postgres redis
 ```
 
-Update the root `.env` file with your PostgreSQL credentials, then set `OPENAI_API_KEY` in `backend/.env`. The example files also contain the Redis connection, invoice upload, and extraction model settings used by local development.
+Alternatively, use PostgreSQL and Redis servers installed on your machine: create the database and user configured in the root `.env`, then adjust the `POSTGRES_*` / `REDIS_*` host and port settings in `backend/.env` if either service does not use the local defaults.
 
-> **NOTE**
->
-> The default PostgreSQL and Redis hosts are intended for a backend process hosted locally. Docker Compose supplies the service host names to its containers.
-
-## Run with Docker Compose
-
-From the repository root, start PostgreSQL and Redis, apply database migrations, and run the backend, extraction worker, and frontend. Add `-d` to start the same stack in the background:
-
-```sh
-docker compose up --build
-docker compose up --build -d
-```
-
-The API will be available at <http://localhost:8000>.
-
-The remaining Compose commands manage a running stack:
-
-- `docker compose up -d postgres redis` starts only PostgreSQL and Redis in the background.
-- `docker compose logs -f` follows logs from all containers.
-- `docker compose down` stops the stack and removes its containers and networks.
-- `docker compose down -v` also removes its volumes and permanently deletes the local PostgreSQL and Redis data.
-
-## Run the backend locally
-
-In this workflow, only the backend process is hosted directly on your machine. PostgreSQL and Redis still run in Docker, so you do not need to install either service locally. Start both containers from the repository root; `compose.yml` publishes them on `localhost:5432` and `localhost:6379`.
-
-```sh
-docker compose up -d postgres redis
-```
-
-Alternatively, you can use PostgreSQL and Redis servers installed directly on your machine. Ensure PostgreSQL contains the database and user configured in the root `.env` file, then update the corresponding host and port settings if either service does not use the local defaults.
-
-Then install the dependencies, apply migrations, and start FastAPI from the `backend` directory:
+Then, from the `backend` directory, install dependencies, apply migrations, and start FastAPI:
 
 ```sh
 cd backend
@@ -76,7 +31,7 @@ uv run alembic upgrade head
 uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
 ```
 
-Start the extraction worker in a second terminal from the `backend` directory:
+Start the extraction worker in a second terminal from the same directory:
 
 ```sh
 uv run rq worker extraction --with-scheduler
@@ -97,7 +52,7 @@ Upload behavior is configured in `backend/.env`:
 | `UPLOAD_RATE_LIMIT_WINDOW_SECONDS` | `60`              | Fixed rate-limit window duration                        |
 | `STORAGE_LOCAL_PATH`               | `./data/invoices` | Local directory used to store accepted files            |
 
-Local file storage is intended for development and CI only. Deployments should provide an object-storage adapter through the existing storage interface.
+Local file storage is intended for development and CI only. Deployments should set `STORAGE_BACKEND=s3` and supply the S3-compatible `STORAGE_S3_*` settings.
 
 The endpoint can return:
 

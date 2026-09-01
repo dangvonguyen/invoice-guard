@@ -1,14 +1,29 @@
 """Shared fixtures for acceptance scenarios."""
 
+from collections.abc import Iterator
+from pathlib import Path
 from uuid import UUID
 
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_access_token_codec
+from app.api.deps import get_access_token_codec, get_storage_client
+from app.core.storage import LocalStorageClient
 from app.database.models.user import User, UserRole
+from app.main import app
 from tests.support.helpers import create_user
+
+
+@pytest.fixture(autouse=True)
+def storage_backend(tmp_path: Path) -> Iterator[LocalStorageClient]:
+    """Bind acceptance uploads to a real local-disk backend."""
+    storage = LocalStorageClient(base_path=tmp_path / "storage")
+    app.dependency_overrides[get_storage_client] = lambda: storage
+    try:
+        yield storage
+    finally:
+        app.dependency_overrides.pop(get_storage_client, None)
 
 
 def _bearer_headers(user: User) -> dict[str, str]:

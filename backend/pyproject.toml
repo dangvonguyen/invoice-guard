@@ -1,7 +1,8 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = ""
+title = "Invoice Guard API"
+description = "Accepts uploaded invoices, extracts their key fields, and checks them against policy, before routing to a reviewer for a decision."
 readme = "README.md"
 requires-python = ">=3.13,<4.0"
 dependencies = [
@@ -63,6 +64,12 @@ format.help = "Format code with Ruff"
 format.cmd = "ruff format ."
 ruff.help = "Run Ruff checks"
 ruff.cmd = "ruff check --output-format=concise ."
+
+# OpenAPI contract
+"openapi:export".help = "Write the OpenAPI schema to frontend/api/openapi.yml"
+"openapi:export".cmd = "python -m scripts.export_openapi"
+"openapi:check".help = "Fail if frontend/api/openapi.yml is stale"
+"openapi:check".cmd = "python -m scripts.export_openapi --check"
 
 # Golden-set
 "eval:extract:build".help = "Regenerate the extraction golden set (PDFs, extracted text, expected fields, schema, formats.md)"

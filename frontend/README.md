@@ -1,40 +1,10 @@
-# Invoice Guard - Frontend
+# Invoice Guard — Frontend
 
-The frontend is a React application built with Vite, TypeScript, and Tailwind CSS. It can be run either as part of the Docker Compose stack or directly on your machine for local development.
+React SPA built with Vite, TypeScript, and Tailwind CSS, organized by Feature-Sliced Design. Run it as part of the Docker Compose stack — see the [root README](../README.md) for prerequisites, environment files, and the `docker compose` workflow — or directly on your machine as described below.
 
-## Prerequisites
+## Run the frontend on your machine
 
-Before getting started, ensure you have the following installed:
-
-- Docker and Docker Compose
-- Node.js 24
-- [`pnpm`](https://pnpm.io/)
-
-## Environment setup
-
-From the repository root, create the frontend environment file:
-
-```sh
-cp frontend/.env.example frontend/.env
-```
-
-The default `VITE_API_URL=http://localhost:8000` connects the frontend to the locally exposed backend API.
-
-The Compose value uses `api`, the backend service name on the Compose network. Do not put that value in `frontend/.env`: the hostname `api` is not available when Vite runs directly on your machine.
-
-## Run with Docker Compose
-
-From the repository root, start the full development stack:
-
-```sh
-docker compose up --build
-```
-
-Add `-d` to run the stack in the background. The frontend will be available at <http://localhost:5173>.
-
-## Run the frontend locally
-
-First, ensure the backend is running at <http://localhost:8000>. Then install the dependencies and start the Vite development server:
+Ensure the backend is running at <http://localhost:8000> (see [`backend/README.md`](../backend/README.md)), then from the `frontend` directory:
 
 ```sh
 cd frontend
@@ -42,15 +12,8 @@ pnpm install
 pnpm dev
 ```
 
-## Available commands
+The dev server runs at <http://localhost:5173> and proxies `/api` to the backend. `VITE_API_URL` in `frontend/.env` (default `http://localhost:8000`) points it at the API. Do not set it to the Compose service name `api` — that hostname does not resolve when Vite runs on the host.
 
-Run these commands from the `frontend` directory:
+## Architecture
 
-- `pnpm dev` starts the development server.
-- `pnpm build` creates a production build.
-- `pnpm preview` previews the production build locally.
-- `pnpm lint` checks the code with ESLint.
-- `pnpm lint:fix` fixes supported ESLint issues.
-- `pnpm format` formats the code with Prettier.
-- `pnpm format:check` checks code formatting.
-- `pnpm check` runs linting, formatting checks, and a production build.
+Layers run `app → pages → widgets → features → entities → shared`; a slice may import only from layers below it. `api/openapi.yml` is the exported FastAPI schema — after a backend model change, re-export it and run `pnpm gen:api`. See [`CLAUDE.md`](CLAUDE.md) for the full conventions.
