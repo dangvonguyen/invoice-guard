@@ -11,6 +11,7 @@ from app.api.handlers import register_exception_handlers
 from app.api.middleware import RequestBodyLimitMiddleware, RequestLoggingMiddleware
 from app.api.router import api_router
 from app.core.config import get_settings
+from app.core.helpers import get_api_description, get_api_title, get_api_version
 from app.core.logging import configure_logging
 from app.core.queue import get_extraction_queue
 from app.queueing import reconcile
@@ -39,7 +40,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
 
 app = FastAPI(
-    title=get_settings().API_TITLE,
+    title=get_api_title(),
+    description=get_api_description(),
+    version=get_api_version(),
     root_path=get_settings().API_ROOT,
     lifespan=lifespan,
 )

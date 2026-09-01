@@ -1,7 +1,8 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = ""
+title = "Invoice Guard API"
+description = "Accepts uploaded invoices, extracts their key fields, and checks them against policy, before routing to a reviewer for a decision."
 readme = "README.md"
 requires-python = ">=3.13,<4.0"
 dependencies = [
