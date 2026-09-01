@@ -65,6 +65,12 @@ format.cmd = "ruff format ."
 ruff.help = "Run Ruff checks"
 ruff.cmd = "ruff check --output-format=concise ."
 
+# OpenAPI contract
+"openapi:export".help = "Write the OpenAPI schema to frontend/api/openapi.yml"
+"openapi:export".cmd = "python -m scripts.export_openapi"
+"openapi:check".help = "Fail if frontend/api/openapi.yml is stale"
+"openapi:check".cmd = "python -m scripts.export_openapi --check"
+
 # Golden-set
 "eval:extract:build".help = "Regenerate the extraction golden set (PDFs, extracted text, expected fields, schema, formats.md)"
 "eval:extract:build".cmd = "python -m eval.extraction.build"

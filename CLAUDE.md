@@ -40,7 +40,7 @@ Work inside the app you are changing; each has its own `CLAUDE.md` with the conv
 
 - The API is mounted under `root_path` `/api` (`API_ROOT`). Vite proxies `/api` to the backend in dev.
 - Every response uses the shared envelope: `{ data, error, meta, success }`. `error` is `{ code, message, details }`; `meta` is `{ total, offset, limit }` on list routes.
-- `frontend/api/openapi.yml` is the exported FastAPI schema. After changing any request/response model, re-export it and run `pnpm gen:api` in `frontend/` to regenerate `src/shared/api/schema.d.ts` (that file is generated — never hand-edit it).
+- `frontend/api/openapi.yml` is the exported FastAPI schema. After changing any request/response model, re-export it with `poe openapi:export` in `backend/`, then run `pnpm gen:api` in `frontend/` to regenerate `src/shared/api/schema.d.ts` (that file is generated — never hand-edit it).
 
 ## Quality gates
 
