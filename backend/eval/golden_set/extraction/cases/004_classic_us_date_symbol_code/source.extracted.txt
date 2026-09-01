@@ -1,0 +1,17 @@
+INVOICE
+From
+Cascade Office Supply LLC
+4120 Marion Street
+Suite 210
+Portland, OR 97217
+ar@cascadeoffice.example
++1 503-555-0148
+Invoice #  CAS-88213
+Invoice Date  07/04/2024
+Description Qty Unit Price Amount
+Standing desk converter 8 189.00 1,512.00
+Monitor arm, dual 12 95.50 1,146.00
+Desk grommet cover 40 6.25 250.00
+Subtotal  $2,908.00 USD
+Sales Tax  $239.91 USD
+Total  $3,147.91 USD

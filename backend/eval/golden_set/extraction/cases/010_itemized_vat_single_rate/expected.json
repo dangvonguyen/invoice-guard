@@ -1,0 +1,28 @@
+{
+  "vendor_name": "Rheintal Komponenten GmbH",
+  "invoice_number": "2024/RK/1180",
+  "invoice_date": "2024-10-01",
+  "currency": "EUR",
+  "tax_amount": "1972.20",
+  "total_amount": "12352.20",
+  "line_items": [
+    {
+      "description": "Precision linear rail, 600mm",
+      "amount": "4920.00",
+      "quantity": "60",
+      "unit_price": "82.00"
+    },
+    {
+      "description": "Ball screw assembly, 16mm",
+      "amount": "3960.00",
+      "quantity": "24",
+      "unit_price": "165.00"
+    },
+    {
+      "description": "Mounting bracket set",
+      "amount": "1500.00",
+      "quantity": "120",
+      "unit_price": "12.50"
+    }
+  ]
+}

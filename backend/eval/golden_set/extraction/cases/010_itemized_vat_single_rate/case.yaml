@@ -1,0 +1,15 @@
+title: EU itemized-VAT invoice with a single VAT rate, dotted date and code currency
+template: itemized-vat
+dimensions:
+  - itemized-vat
+  - two-candidate-vendors
+  - dotted-date
+  - comma-grouped-amount
+label_overrides:
+  subtotal: Net total
+  tax_amount: VAT
+notes: >
+  Companion to case 002 with one VAT band instead of two: every line is at 19%,
+  so the VAT-by-rate summary has a single row plus a total. Date is DD.MM.YYYY
+  (01.10.2024) and amounts print as "12,352.20 EUR" (ISO code, no symbol).
+  Side-by-side Seller/Client blocks arm the two-candidate-vendor trap.

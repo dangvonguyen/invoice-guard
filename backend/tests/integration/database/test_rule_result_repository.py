@@ -1,0 +1,146 @@
+"""Specify SQL-backed rule-result persistence behavior."""
+
+from collections.abc import Sequence
+from uuid import UUID
+
+import pytest
+import pytest_asyncio
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database.models.invoice import Invoice
+from app.database.models.rule_result import InvoiceRuleResult, RuleOutcome
+from app.database.models.user import User
+from app.database.repositories.invoice import InvoiceRepository
+from app.database.repositories.rule_result import RuleResultRepository, RuleResultRow
+from tests.support.helpers import create_user
+
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.asyncio,
+]
+
+
+@pytest_asyncio.fixture
+async def owner(test_db: AsyncSession) -> User:
+    """Persist the user that owns the invoice used in these scenarios."""
+    return await create_user(
+        test_db,
+        id=UUID("00000000-0000-0000-0000-000000000020"),
+        email="owner-rules@example.com",
+    )
+
+
+@pytest_asyncio.fixture
+async def invoice(test_db: AsyncSession, owner: User) -> Invoice:
+    """Persist an invoice for rule results to attach to."""
+    repository = InvoiceRepository(session=test_db)
+    return await repository.create_processing(
+        owner_id=owner.id, storage_key="rules-key.pdf", original_filename="invoice.pdf"
+    )
+
+
+@pytest.fixture
+def repository(test_db: AsyncSession) -> RuleResultRepository:
+    """Return a rule-result repository using the test database session."""
+    return RuleResultRepository(session=test_db)
+
+
+RESULTS = [
+    RuleResultRow(
+        rule_code="expense_within_amount_limit",
+        outcome=RuleOutcome.PASS,
+    ),
+    RuleResultRow(
+        rule_code="line_item_total_consistency",
+        outcome=RuleOutcome.NOT_APPLICABLE,
+        evidence={},
+    ),
+    RuleResultRow(
+        rule_code="currency_allowed",
+        outcome=RuleOutcome.FAIL,
+        evidence={"currency": "CHF", "allowed_currencies": ["EUR", "GBP", "USD"]},
+    ),
+    RuleResultRow(
+        rule_code="invoice_date_not_in_future",
+        outcome=RuleOutcome.PASS,
+    ),
+    RuleResultRow(
+        rule_code="expense_within_submission_window",
+        outcome=RuleOutcome.PASS,
+    ),
+]
+
+
+async def _stored_rows(
+    test_db: AsyncSession, invoice_id: UUID
+) -> Sequence[InvoiceRuleResult]:
+    """Read back the rule-result rows persisted for an invoice."""
+    result = await test_db.execute(
+        select(InvoiceRuleResult).where(InvoiceRuleResult.invoice_id == invoice_id)
+    )
+    return result.scalars().all()
+
+
+async def should_insert_one_row_per_rule_result_stamped_with_invoice_and_timestamp(
+    test_db: AsyncSession, repository: RuleResultRepository, invoice: Invoice
+) -> None:
+    """Persist every rule's outcome, whatever it is, with the invoice's FK."""
+    await repository.replace_for_invoice(invoice_id=invoice.id, results=RESULTS)
+
+    stored = await _stored_rows(test_db, invoice.id)
+
+    assert len(stored) == len(RESULTS)
+    assert all(row.invoice_id == invoice.id for row in stored)
+    assert {row.rule_code for row in stored} == {row.rule_code for row in RESULTS}
+
+
+async def should_delete_prior_rows_before_inserting_the_new_set(
+    test_db: AsyncSession, repository: RuleResultRepository, invoice: Invoice
+) -> None:
+    """Replace, never accumulate, rows across a retried evaluation."""
+    await repository.replace_for_invoice(invoice_id=invoice.id, results=RESULTS)
+
+    updated_results = [
+        RuleResultRow(rule_code=row.rule_code, outcome=RuleOutcome.PASS)
+        for row in RESULTS
+    ]
+    await repository.replace_for_invoice(invoice_id=invoice.id, results=updated_results)
+
+    stored = await _stored_rows(test_db, invoice.id)
+
+    assert len(stored) == len(RESULTS)
+    assert all(row.outcome == RuleOutcome.PASS for row in stored)
+
+
+async def should_leave_zero_rows_when_handed_an_empty_list(
+    test_db: AsyncSession, repository: RuleResultRepository, invoice: Invoice
+) -> None:
+    """Persist nothing for an invoice that was never evaluated."""
+    await repository.replace_for_invoice(invoice_id=invoice.id, results=[])
+
+    stored = await _stored_rows(test_db, invoice.id)
+
+    assert stored == []
+
+
+async def should_return_an_empty_sequence_for_an_invoice_never_evaluated(
+    repository: RuleResultRepository, invoice: Invoice
+) -> None:
+    """Return no rows for an invoice that was never evaluated."""
+    rows = await repository.list_by_invoice(invoice.id)
+
+    assert rows == []
+
+
+async def should_cascade_delete_rule_results_when_the_invoice_is_deleted(
+    test_db: AsyncSession, repository: RuleResultRepository, invoice: Invoice
+) -> None:
+    """Delete an invoice's rule-result rows rather than orphan or FK-error."""
+    await repository.replace_for_invoice(invoice_id=invoice.id, results=RESULTS)
+
+    await test_db.delete(invoice)
+    await test_db.flush()
+
+    stored = await _stored_rows(test_db, invoice.id)
+    assert stored == []

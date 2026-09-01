@@ -1,0 +1,28 @@
+{
+  "vendor_name": "Fifth Street Bookkeeping",
+  "invoice_number": "FSB-0419",
+  "invoice_date": "2024-04-30",
+  "currency": "USD",
+  "tax_amount": "0.00",
+  "total_amount": "1370.00",
+  "line_items": [
+    {
+      "description": "Monthly reconciliation, March",
+      "amount": "650.00",
+      "quantity": null,
+      "unit_price": null
+    },
+    {
+      "description": "Payroll runs (2)",
+      "amount": "240.00",
+      "quantity": null,
+      "unit_price": null
+    },
+    {
+      "description": "Year-end prep, phase 1",
+      "amount": "480.00",
+      "quantity": null,
+      "unit_price": null
+    }
+  ]
+}

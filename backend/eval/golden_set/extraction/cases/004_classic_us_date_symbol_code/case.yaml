@@ -1,0 +1,13 @@
+title: Classic USD invoice with a US-slash date and symbol-and-code amounts
+template: classic-column
+dimensions:
+  - us-slash-date
+  - symbol-formatted-amount
+  - comma-grouped-amount
+label_overrides:
+  invoice_number: "Invoice #"
+  tax_amount: Sales Tax
+notes: >
+  Baseline classic layout printing a MM/DD/YYYY date (07/04/2024) and totals
+  formatted as "$3,147.91 USD" (symbol and ISO code together), so the model must
+  strip both the symbol and the trailing code to recover the canonical amount.

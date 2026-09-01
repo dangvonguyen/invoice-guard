@@ -1,0 +1,63 @@
+ci:
+  autofix_commit_msg: "style: auto-fix pre-commit hooks"
+
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^backend/eval/golden_set/
+      - id: end-of-file-fixer
+        exclude: ^backend/eval/golden_set/
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.49.0
+    hooks:
+      - id: typos
+        args: [--force-exclude]
+        exclude: ^backend/eval/golden_set/
+
+  - repo: local
+    hooks:
+      - id: local-ruff-check
+        name: ruff check
+        entry: uv run --project backend ruff check --force-exclude --fix --exit-non-zero-on-fix
+        require_serial: true
+        language: system
+        types: [python]
+
+      - id: local-ruff-format
+        name: ruff format
+        entry: uv run --project backend ruff format --force-exclude --exit-non-zero-on-format
+        require_serial: true
+        language: system
+        types: [python]
+
+      - id: local-mypy
+        name: mypy check
+        entry: uv run --project backend mypy backend/app
+        language: system
+        files: ^backend/
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: local-eslint
+        name: run eslint
+        entry: pnpm --dir frontend run lint:fix
+        language: system
+        files: ^frontend/
+        pass_filenames: false
+
+      - id: local-prettier
+        name: run prettier
+        entry: pnpm --dir frontend run format
+        language: system
+        files: ^frontend/
+        pass_filenames: false

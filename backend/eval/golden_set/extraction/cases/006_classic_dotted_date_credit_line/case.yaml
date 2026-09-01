@@ -1,0 +1,14 @@
+title: Classic EUR invoice with a dotted date and a negative volume-rebate line
+template: classic-column
+dimensions:
+  - dotted-date
+  - credit-line
+  - comma-grouped-amount
+label_overrides:
+  invoice_date: Rechnungsdatum
+  tax_amount: USt.
+notes: >
+  Exercises a DD.MM.YYYY date (15.09.2024) and a credit line ("Volume rebate,
+  Q3", amount -354.00) that pulls the subtotal down before 19% USt. is applied.
+  The credit line carries no quantity or unit price, so the line-arithmetic
+  self-check skips it while total reconciliation still holds.

@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "properties": {
+    "narrative": {
+      "type": "string"
+    },
+    "cited_chunk_indexes": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    }
+  },
+  "required": [
+    "narrative",
+    "cited_chunk_indexes"
+  ],
+  "additionalProperties": false
+}

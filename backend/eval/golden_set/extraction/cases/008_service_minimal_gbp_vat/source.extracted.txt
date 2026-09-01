@@ -1,0 +1,17 @@
+INVOICE
+From
+Rowan & Vale Consulting Ltd
+3 Prince's Court
+London EC2N 4AG
+United Kingdom
+VAT ID: GB412233445
+accounts@rowanvale.example
+Invoice Ref  RV-2024-231
+Invoice Date  June 12, 2024
+Description Amount
+Market entry study 6,500.00
+Stakeholder interviews (10) 3,200.00
+Executive readout workshop 1,500.00
+Subtotal  £11,200.00
+VAT @ 20%  £2,240.00
+Total  £13,440.00

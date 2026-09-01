@@ -1,0 +1,50 @@
+{
+  "vendor": {
+    "name": "Rheintal Komponenten GmbH",
+    "address": ["Deutzer Ring 47", "50679 Koeln", "Germany"],
+    "contact": ["VAT ID: DE345678912", "buchhaltung@rheintal-komp.example"]
+  },
+  "buyer": {
+    "name": "Northgate Instruments Ltd",
+    "address": ["Unit 4, Trafford Park", "Manchester M17 1WA", "United Kingdom"],
+    "contact": ["VAT ID: GB556677889"]
+  },
+  "invoice": {
+    "number": "2024/RK/1180",
+    "date": "2024-10-01",
+    "currency": "EUR",
+    "tax_amount": "1972.20",
+    "total_amount": "12352.20"
+  },
+  "line_items": [
+    {
+      "description": "Precision linear rail, 600mm",
+      "amount": "4920.00",
+      "quantity": "60",
+      "unit_price": "82.00",
+      "unit": "pcs",
+      "vat_rate": "19"
+    },
+    {
+      "description": "Ball screw assembly, 16mm",
+      "amount": "3960.00",
+      "quantity": "24",
+      "unit_price": "165.00",
+      "unit": "pcs",
+      "vat_rate": "19"
+    },
+    {
+      "description": "Mounting bracket set",
+      "amount": "1500.00",
+      "quantity": "120",
+      "unit_price": "12.50",
+      "unit": "pcs",
+      "vat_rate": "19"
+    }
+  ],
+  "render": {
+    "amount_grouping": true,
+    "currency_display": "code",
+    "date_format": "dotted"
+  }
+}

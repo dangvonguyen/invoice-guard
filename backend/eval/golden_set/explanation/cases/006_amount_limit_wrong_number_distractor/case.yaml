@@ -1,0 +1,59 @@
+title: Airfare invoice of $812.50 over the $700 limit, amid per-night and per-day figures
+rule: EXPENSE_WITHIN_AMOUNT_LIMIT
+dimensions:
+  - wrong-number-distractor
+  - distractor-heavy
+
+evidence:
+  invoice_total: "812.50"
+  max_expense_amount: "700.00"
+  currency: USD
+
+context:
+  - "2. Lodging#0"
+  - "3. Meals#0"
+  - "1. Travel#0"
+  - "4. Tipping Guide#0"
+  - "_preamble#0"
+
+grading:
+  citations:
+    ideal:
+      - "1. Travel#0"
+    min_recall: 1.0
+    max_spurious: 0
+  checks:
+    - id: names_threshold
+      kind: must_contain
+      pattern: '(?<![\d.])700(?![\d.])'
+  rubric:
+    - id: answers_this_flag
+      severity: must
+      statement: >-
+        Attributes the flag to the airfare cost exceeding the $700 figure above
+        which prior purchase approval is required.
+    - id: cites_correct_figure
+      severity: must
+      statement: >-
+        Identifies $700 as the figure this invoice crossed and does not present
+        the $250-per-night lodging rate or the $75-per-day meal limit as the
+        threshold that was exceeded.
+    - id: grounded
+      severity: must
+      statement: >-
+        Every factual claim is supported by the provided excerpts; nothing is
+        invented.
+    - id: neutral_tone
+      severity: should
+      statement: Tone is neutral and professional.
+
+notes: >-
+  The lodging chunk ("a rate of $250 per night or less") and the meals chunk
+  ("should not exceed $75 per day") sit in context as numerically plausible but
+  wrong: both are per-unit category limits, not a figure an invoice total is
+  measured against. Only the air travel passage states a dollar figure tied to
+  an over-limit expense ("Airfare exceeding $700, must be approved prior to
+  purchase"). A grounded explanation cites the air travel chunk alone; because
+  max_spurious is 0, any citation of the lodging, meals, tipping, or preamble
+  chunks fails the case. Tipping guide and preamble round out the
+  distractor-heavy context as topical noise.

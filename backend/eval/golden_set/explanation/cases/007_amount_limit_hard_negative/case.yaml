@@ -1,0 +1,53 @@
+title: Invoice total of $1,450 over a $1,000 review limit the handbook never states
+rule: EXPENSE_WITHIN_AMOUNT_LIMIT
+dimensions:
+  - hard-negative
+
+evidence:
+  invoice_total: "1450.00"
+  max_expense_amount: "1000.00"
+  currency: USD
+
+context:
+  - "1. Travel#0"
+  - "2. Lodging#0"
+
+grading:
+  citations:
+    ideal: []
+    min_recall: 1.0
+    max_spurious: 0
+  checks: []
+  rubric:
+    - id: declines_absent_limit
+      severity: must
+      statement: >-
+        Declines to identify a handbook limit for this invoice's total,
+        explaining that the excerpts set only category-specific figures -- such
+        as the $700 airfare prior-approval threshold and the $250-per-night
+        lodging rate -- and none of them governs an overall invoice total, still
+        less the $1,000 review limit in the flag evidence.
+    - id: no_invented_rule
+      severity: must
+      statement: >-
+        Does not invent an overall spending cap and does not restate a
+        category-specific figure as if it applied to this invoice's total.
+    - id: grounded
+      severity: must
+      statement: >-
+        Every factual claim is supported by the provided excerpts; nothing is
+        invented.
+    - id: neutral_tone
+      severity: should
+      statement: Tone is neutral and professional.
+
+notes: >-
+  The flag says only that an invoice total ($1,450) exceeded a configured review
+  limit ($1,000); nothing identifies the expense as airfare, lodging, or meals.
+  The handbook has no overall per-invoice cap -- its only dollar figures are
+  category-specific ($700 airfare, $250 per night lodging, $75 per day meals),
+  and the $1,000 review limit appears nowhere in the extracted text. Correct
+  behaviour is to abstain: state that the excerpts do not carry a limit that
+  explains this flag rather than stretch the airfare or lodging figure to fit.
+  The air travel and lodging chunks are seeded as the closest numeric lures;
+  ideal is empty and max_spurious is 0, so any citation fails the case.

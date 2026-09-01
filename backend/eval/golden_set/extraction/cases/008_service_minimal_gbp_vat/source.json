@@ -1,0 +1,33 @@
+{
+  "vendor": {
+    "name": "Rowan & Vale Consulting Ltd",
+    "address": ["3 Prince's Court", "London EC2N 4AG", "United Kingdom"],
+    "contact": ["VAT ID: GB412233445", "accounts@rowanvale.example"]
+  },
+  "invoice": {
+    "number": "RV-2024-231",
+    "date": "2024-06-12",
+    "currency": "GBP",
+    "tax_amount": "2240.00",
+    "total_amount": "13440.00"
+  },
+  "line_items": [
+    {
+      "description": "Market entry study",
+      "amount": "6500.00"
+    },
+    {
+      "description": "Stakeholder interviews (10)",
+      "amount": "3200.00"
+    },
+    {
+      "description": "Executive readout workshop",
+      "amount": "1500.00"
+    }
+  ],
+  "render": {
+    "amount_grouping": true,
+    "currency_display": "symbol",
+    "date_format": "long-month"
+  }
+}

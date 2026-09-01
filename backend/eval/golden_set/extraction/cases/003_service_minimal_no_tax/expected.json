@@ -1,0 +1,28 @@
+{
+  "vendor_name": "Atelier Kern Studio",
+  "invoice_number": "2024-044",
+  "invoice_date": "2024-03-07",
+  "currency": "EUR",
+  "tax_amount": null,
+  "total_amount": "5950.00",
+  "line_items": [
+    {
+      "description": "Brand identity design",
+      "amount": "3200.00",
+      "quantity": null,
+      "unit_price": null
+    },
+    {
+      "description": "Website UX audit",
+      "amount": "1800.00",
+      "quantity": null,
+      "unit_price": null
+    },
+    {
+      "description": "Copywriting, 12 pages",
+      "amount": "950.00",
+      "quantity": null,
+      "unit_price": null
+    }
+  ]
+}

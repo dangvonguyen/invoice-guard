@@ -1,0 +1,159 @@
+"""Specify how the extraction job handles transient provider failures."""
+
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock
+from uuid import UUID
+
+import pytest
+
+from app.database.models.invoice import Invoice, InvoiceStatus
+from app.queueing.jobs.extract_invoice import InvoiceNotFoundError, extract_invoice
+from app.services.extraction.model import ExtractedInvoice
+from app.services.extraction.pipeline import ExtractionResult, InvalidModelOutputError
+from app.services.extraction.text import NoTextLayerError
+from tests.support.constants import EXTRACTED_INVOICE
+
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.asyncio,
+]
+
+OWNER_ID = UUID("00000000-0000-0000-0000-000000000001")
+INVOICE_ID = UUID("10000000-0000-0000-0000-000000000001")
+STORAGE_KEY = "20000000-0000-0000-0000-000000000001"
+PDF_CONTENT = b"%PDF-1.4\ninvoice content\n"
+DOCUMENT_TEXT = "Vendor: Acme Supplies\nTotal: 482.10 USD"
+
+
+@dataclass(frozen=True)
+class JobContext:
+    """Expose the job and collaborator roles used by each scenario."""
+
+    invoices: AsyncMock
+    storage: AsyncMock
+    text_extractor: Mock
+    extraction_pipeline: AsyncMock
+
+    async def run(self) -> ExtractedInvoice | None:
+        """Run the job with its external boundaries replaced."""
+        return await extract_invoice(
+            INVOICE_ID,
+            invoices=self.invoices,
+            storage=self.storage,
+            text_extractor=self.text_extractor,
+            extraction_pipeline=self.extraction_pipeline,
+        )
+
+
+@pytest.fixture
+def stored_invoice() -> Invoice:
+    """Build the processing invoice loaded by the extraction job."""
+    timestamp = datetime(2000, 1, 1, tzinfo=UTC)
+    return Invoice(
+        id=INVOICE_ID,
+        owner_id=OWNER_ID,
+        status=InvoiceStatus.PROCESSING,
+        storage_key=STORAGE_KEY,
+        original_filename="invoice.pdf",
+        created_at=timestamp,
+    )
+
+
+@pytest.fixture
+def extraction_result() -> ExtractionResult:
+    """Build the successful schema-valid result returned by extraction."""
+    return ExtractionResult(
+        fields=EXTRACTED_INVOICE, confidence="high", confidence_reason=None
+    )
+
+
+@pytest.fixture
+def context(stored_invoice: Invoice, extraction_result: ExtractionResult) -> JobContext:
+    """Build an extraction job context with mocked external boundaries."""
+    invoices = AsyncMock()
+    invoices.get_by_id.return_value = stored_invoice
+    storage = AsyncMock()
+    storage.read.return_value = PDF_CONTENT
+    text_extractor = Mock()
+    text_extractor.extract_text.return_value = DOCUMENT_TEXT
+    extraction_pipeline = AsyncMock()
+    extraction_pipeline.run.return_value = extraction_result
+    return JobContext(
+        invoices=invoices,
+        storage=storage,
+        text_extractor=text_extractor,
+        extraction_pipeline=extraction_pipeline,
+    )
+
+
+async def should_persist_extracted_fields_on_first_successful_attempt(
+    context: JobContext, extraction_result: ExtractionResult
+) -> None:
+    """Read, extract, and persist a valid invoice without retrying."""
+    extracted_invoice = await context.run()
+
+    context.invoices.get_by_id.assert_awaited_once_with(INVOICE_ID)
+    context.storage.read.assert_awaited_once_with(key=STORAGE_KEY)
+    context.text_extractor.extract_text.assert_called_once_with(content=PDF_CONTENT)
+    context.extraction_pipeline.run.assert_awaited_once_with(
+        document_text=DOCUMENT_TEXT
+    )
+    context.invoices.mark_extracted.assert_awaited_once_with(
+        invoice_id=INVOICE_ID,
+        fields=extraction_result.fields.model_dump(mode="json"),
+        confidence=extraction_result.confidence,
+        confidence_reason=extraction_result.confidence_reason,
+    )
+    assert extracted_invoice == extraction_result.fields
+
+
+async def should_reject_an_unknown_invoice_before_reading_storage(
+    context: JobContext,
+) -> None:
+    """Fail clearly when a queued invoice no longer exists."""
+    context.invoices.get_by_id.return_value = None
+
+    with pytest.raises(InvoiceNotFoundError, match=str(INVOICE_ID)):
+        await context.run()
+
+    context.storage.read.assert_not_awaited()
+    context.extraction_pipeline.run.assert_not_awaited()
+    context.invoices.mark_extracted.assert_not_awaited()
+
+
+async def should_mark_processing_error_without_calling_the_model_when_pdf_has_no_text_layer(
+    context: JobContext,
+) -> None:
+    """Route a scanned/image-only PDF to processing_error before any model call."""
+    context.text_extractor.extract_text.side_effect = NoTextLayerError(
+        "PDF has no extractable text layer"
+    )
+
+    extracted_invoice = await context.run()
+
+    context.text_extractor.extract_text.assert_called_once_with(content=PDF_CONTENT)
+    context.extraction_pipeline.run.assert_not_awaited()
+    context.invoices.mark_processing_error.assert_awaited_once_with(
+        invoice_id=INVOICE_ID
+    )
+    context.invoices.mark_extracted.assert_not_awaited()
+    assert extracted_invoice is None
+
+
+async def should_mark_processing_error_when_validation_retries_are_exhausted(
+    context: JobContext,
+) -> None:
+    """Route to review when the model never returns a schema-valid response."""
+    context.extraction_pipeline.run.side_effect = InvalidModelOutputError()
+
+    extracted_invoice = await context.run()
+
+    context.extraction_pipeline.run.assert_awaited_once_with(
+        document_text=DOCUMENT_TEXT
+    )
+    context.invoices.mark_processing_error.assert_awaited_once_with(
+        invoice_id=INVOICE_ID
+    )
+    context.invoices.mark_extracted.assert_not_awaited()
+    assert extracted_invoice is None

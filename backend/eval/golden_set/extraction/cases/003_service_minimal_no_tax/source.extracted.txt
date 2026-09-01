@@ -1,0 +1,14 @@
+INVOICE
+From
+Atelier Kern Studio
+Oranienstrasse 140
+10969 Berlin
+hello@atelierkern.de
+Invoice No.  2024-044
+Invoice Date  07/03/2024
+Description Amount
+Brand identity design 3,200.00
+Website UX audit 1,800.00
+Copywriting, 12 pages 950.00
+Subtotal  €5,950.00
+Total  €5,950.00

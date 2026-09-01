@@ -1,0 +1,11 @@
+title: Minimal service invoice, no quantities, no tax line, euro symbol amounts
+template: service-minimal
+dimensions:
+  - no-quantity
+  - no-tax-line
+  - symbol-formatted-amount
+  - ambiguous-date
+notes: >
+  Description/Amount columns only, no quantity or unit price, no tax line, euro
+  symbol amounts and a slash date (07/03/2024) that reads as either 7 March or
+  3 July.

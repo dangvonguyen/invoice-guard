@@ -1,0 +1,14 @@
+title: Minimal service invoice in GBP with a spelled-out month date and a VAT line
+template: service-minimal
+dimensions:
+  - long-month-date
+  - symbol-formatted-amount
+  - no-quantity
+label_overrides:
+  invoice_number: Invoice Ref
+  tax_amount: VAT @ 20%
+notes: >
+  Description/Amount columns only, no quantity or unit price, pound-symbol
+  amounts ("£13,440.00") and a "June 12, 2024" date. Unlike case 003 this
+  service invoice does state tax, so the service-minimal totals block renders its
+  tax row and the expected tax_amount is "2240.00".
