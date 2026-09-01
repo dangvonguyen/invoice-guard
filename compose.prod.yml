@@ -13,6 +13,7 @@ x-backend-prod: &backend-prod
   restart: unless-stopped
   environment:
     STORAGE_BACKEND: s3
+    STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET}
 
 services:
   migrator:
