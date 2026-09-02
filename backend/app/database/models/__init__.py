@@ -1,5 +1,13 @@
 """Database model definitions."""
 
+from .claim import (
+    Claim,
+    ClaimCategory,
+    ClaimEntryMethod,
+    ClaimLineItem,
+    ClaimStatus,
+    LineItemSource,
+)
 from .decision import InvoiceDecision, InvoiceDecisionOutcome
 from .explanation import Explanation
 from .invoice import Invoice, InvoiceStatus
@@ -8,12 +16,18 @@ from .rule_result import InvoiceRuleResult, RuleOutcome
 from .user import User, UserRole
 
 __all__ = [
+    "Claim",
+    "ClaimCategory",
+    "ClaimEntryMethod",
+    "ClaimLineItem",
+    "ClaimStatus",
     "Explanation",
     "Invoice",
     "InvoiceDecision",
     "InvoiceDecisionOutcome",
     "InvoiceRuleResult",
     "InvoiceStatus",
+    "LineItemSource",
     "PolicyDocChunk",
     "PolicyDocument",
     "PolicyDocumentStatus",

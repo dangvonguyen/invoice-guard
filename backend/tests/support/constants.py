@@ -40,3 +40,22 @@ EXTRACTED_INVOICE = ExtractedInvoice.model_validate(RAW_INVOICE_DATA)
 
 # Canonical invoice passing all deterministic rule checks
 COMPLIANT_INVOICE = EXTRACTED_INVOICE
+
+
+VALID_SUBMISSION_PAYLOAD: dict[str, object] = {
+    "expense_title": "Annual Figma subscription",
+    "business_purpose": "Design tooling for the product team's roadmap work.",
+    "category": "software_hosting",
+    "cost_center": "PRODUCT-DESIGN",
+    "vendor": "Figma Inc.",
+    "invoice_number": "FIG-2026-00417",
+    "invoice_date": "2026-02-14",
+    "total_amount": "144.00",
+    "currency": "usd",
+    "tax_amount": "0.00",
+    "line_items": [
+        {"description": "Design seat", "amount": "120.00", "quantity": "1"},
+        {"description": "Dev seat", "amount": "24.00"},
+    ],
+    "certified": True,
+}
