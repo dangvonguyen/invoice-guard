@@ -10,7 +10,11 @@ import pytest
 
 from app.database.models.claim import Claim
 from app.schemas.claim import ClaimSubmissionRequest
-from app.services.claims.submission import ClaimSubmissionService
+from app.services.claims.submission import (
+    ClaimSubmissionRateLimitExceededError,
+    ClaimSubmissionService,
+)
+from app.services.upload.validation import UnsupportedMediaTypeError
 from tests.support.constants import VALID_SUBMISSION_PAYLOAD
 
 pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
@@ -100,10 +104,38 @@ async def should_write_storage_before_creating_the_row(
     """A submitted claim must never exist without its stored document."""
     call_order: list[str] = []
     context.storage.save.side_effect = lambda **_: call_order.append("save")
-    context.claim_repo.create.side_effect = lambda claim: (
-        call_order.append("create") or claim
-    )
+    context.claim_repo.create.side_effect = lambda _: call_order.append("create")
 
     await submit(context)
 
     assert call_order == ["save", "create"]
+
+
+async def should_reject_the_submission_when_the_rate_limit_denies_it(
+    context: SubmissionContext,
+) -> None:
+    """Stop before storage or persistence once the quota is spent."""
+    context.rate_limiter.allow.return_value = False
+
+    with pytest.raises(ClaimSubmissionRateLimitExceededError):
+        await submit(context)
+
+    context.validator.validate.assert_called_once()
+    context.storage.save.assert_not_awaited()
+    context.claim_repo.create.assert_not_awaited()
+
+
+async def should_propagate_validation_failures_without_touching_anything_else(
+    context: SubmissionContext,
+) -> None:
+    """Never rate-limit, store, or persist an attachment that fails validation."""
+    context.validator.validate.side_effect = UnsupportedMediaTypeError(
+        "image/jpeg is not yet supported"
+    )
+
+    with pytest.raises(UnsupportedMediaTypeError):
+        await submit(context)
+
+    context.rate_limiter.allow.assert_not_awaited()
+    context.storage.save.assert_not_awaited()
+    context.claim_repo.create.assert_not_awaited()

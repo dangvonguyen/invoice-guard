@@ -2,7 +2,9 @@
 
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database.models.claim import Claim
 
@@ -21,5 +23,10 @@ class ClaimRepository:
         return claim
 
     async def get_by_id(self, claim_id: UUID) -> Claim | None:
-        """Return the claim associated with an ID, if one exists."""
-        return await self._session.get(Claim, claim_id)
+        """Return the claim with its line items loaded, if one exists."""
+        result = await self._session.execute(
+            select(Claim)
+            .where(Claim.id == claim_id)
+            .options(selectinload(Claim.line_items))
+        )
+        return result.scalar_one_or_none()

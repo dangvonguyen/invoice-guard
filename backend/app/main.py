@@ -67,7 +67,7 @@ app.add_middleware(
 app.add_middleware(
     RequestBodyLimitMiddleware,
     max_body_bytes=get_settings().UPLOAD_MAX_BYTES + 64 * 1024,
-    paths={"/invoices"},
+    paths={"/invoices", "/claims"},
 )
 app.add_middleware(
     RequestBodyLimitMiddleware,
