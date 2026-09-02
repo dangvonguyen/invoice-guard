@@ -53,6 +53,40 @@ paths:
                 $ref: '#/components/schemas/ResponseEnvelope_NoneType_NoneType_'
       security:
         - HTTPBearer: []
+  /claims:
+    post:
+      tags:
+        - Claims
+      summary: Submit Claim
+      description: Submit a claim with associated document.
+      operationId: submit_claim_claims_post
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_submit_claim_claims_post'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEnvelope_ClaimSubmissionResponse_NoneType_'
+        '401':
+          description: Missing or invalid bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEnvelope_NoneType_NoneType_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+        - HTTPBearer: []
   /invoices:
     post:
       tags:
@@ -339,6 +373,20 @@ paths:
                 title: Response Ready Health Ready Get
 components:
   schemas:
+    Body_submit_claim_claims_post:
+      properties:
+        data:
+          type: string
+          title: Data
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+      type: object
+      required:
+        - data
+        - file
+      title: Body_submit_claim_claims_post
     Body_upload_invoice_invoices_post:
       properties:
         file:
@@ -380,6 +428,31 @@ components:
         - content
       title: CitationView
       description: One policy chunk cited by a generated explanation.
+    ClaimStatus:
+      type: string
+      enum:
+        - submitted
+        - under_review
+        - returned_for_info
+        - approved
+        - rejected
+        - withdrawn
+      title: ClaimStatus
+      description: Lifecycle states for a claim.
+    ClaimSubmissionResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        status:
+          $ref: '#/components/schemas/ClaimStatus'
+      type: object
+      required:
+        - id
+        - status
+      title: ClaimSubmissionResponse
+      description: Response for a successful claim submission.
     CurrentUserResponse:
       properties:
         id:
@@ -707,6 +780,27 @@ components:
         - chunk_count
       title: PolicyDocumentUploadResponse
       description: Response for a successful policy document upload.
+    ResponseEnvelope_ClaimSubmissionResponse_NoneType_:
+      properties:
+        data:
+          anyOf:
+            - $ref: '#/components/schemas/ClaimSubmissionResponse'
+            - type: 'null'
+        error:
+          anyOf:
+            - $ref: '#/components/schemas/ErrorInfo'
+            - type: 'null'
+        meta:
+          type: 'null'
+          title: Meta
+        success:
+          type: boolean
+          title: Success
+          readOnly: true
+      type: object
+      required:
+        - success
+      title: ResponseEnvelope[ClaimSubmissionResponse, NoneType]
     ResponseEnvelope_CurrentUserResponse_NoneType_:
       properties:
         data:

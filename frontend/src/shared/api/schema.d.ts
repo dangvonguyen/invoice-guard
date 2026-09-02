@@ -44,6 +44,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/claims": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Claim
+         * @description Submit a claim with associated document.
+         */
+        post: operations["submit_claim_claims_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invoices": {
         parameters: {
             query?: never;
@@ -218,6 +238,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Body_submit_claim_claims_post */
+        Body_submit_claim_claims_post: {
+            /** Data */
+            data: string;
+            /** File */
+            file: string;
+        };
         /** Body_upload_invoice_invoices_post */
         Body_upload_invoice_invoices_post: {
             /** File */
@@ -242,6 +269,24 @@ export interface components {
             section_label: string | null;
             /** Content */
             content: string;
+        };
+        /**
+         * ClaimStatus
+         * @description Lifecycle states for a claim.
+         * @enum {string}
+         */
+        ClaimStatus: "submitted" | "under_review" | "returned_for_info" | "approved" | "rejected" | "withdrawn";
+        /**
+         * ClaimSubmissionResponse
+         * @description Response for a successful claim submission.
+         */
+        ClaimSubmissionResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["ClaimStatus"];
         };
         /**
          * CurrentUserResponse
@@ -475,6 +520,15 @@ export interface components {
             status: components["schemas"]["PolicyDocumentStatus"];
             /** Chunk Count */
             chunk_count: number;
+        };
+        /** ResponseEnvelope[ClaimSubmissionResponse, NoneType] */
+        ResponseEnvelope_ClaimSubmissionResponse_NoneType_: {
+            data?: components["schemas"]["ClaimSubmissionResponse"] | null;
+            error?: components["schemas"]["ErrorInfo"] | null;
+            /** Meta */
+            meta?: null;
+            /** Success */
+            readonly success: boolean;
         };
         /** ResponseEnvelope[CurrentUserResponse, NoneType] */
         ResponseEnvelope_CurrentUserResponse_NoneType_: {
@@ -743,6 +797,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResponseEnvelope_NoneType_NoneType_"];
+                };
+            };
+        };
+    };
+    submit_claim_claims_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_submit_claim_claims_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_ClaimSubmissionResponse_NoneType_"];
+                };
+            };
+            /** @description Missing or invalid bearer token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_NoneType_NoneType_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
