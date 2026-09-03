@@ -47,7 +47,7 @@ const attachment = z
     'Attachment must be a PDF.',
   );
 
-export const claimSubmissionSchema = z
+export const submitClaimSchema = z
   .object({
     expenseTitle: z.string().trim().min(1, 'Expense title is required.').max(120),
     businessPurpose: z.string().trim().min(1, 'Business purpose is required.').max(2000),
@@ -65,7 +65,8 @@ export const claimSubmissionSchema = z
     taxAmount: z
       .string()
       .trim()
-      .transform((value) => (value === '' ? null : value))
+      .optional()
+      .transform((value) => (value === undefined || value === '' ? null : value))
       .pipe(z.union([z.null(), money])),
     certified: z
       .literal('on', 'You must certify the claim before submitting.')
@@ -74,6 +75,6 @@ export const claimSubmissionSchema = z
   })
   .transform((value) => ({ ...value, lineItems: [] }));
 
-export function parseClaimSubmissionForm(formData: FormData): SubmitClaimInput {
-  return claimSubmissionSchema.parse(Object.fromEntries(formData));
+export function parseSubmitClaimForm(formData: FormData): SubmitClaimInput {
+  return submitClaimSchema.parse(Object.fromEntries(formData));
 }
