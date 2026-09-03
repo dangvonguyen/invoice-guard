@@ -30,7 +30,7 @@ app/
     handlers.py   domain/HTTP exceptions -> response envelope
     middleware.py raw ASGI (request logging, body-size limit)
   core/           config, errors, logging, redis, queue, rate_limit, storage, security/
-  database/       models/, repositories/ (one per aggregate), migrations/, session.py
+  database/       models/, repositories/ (group related), migrations/, session.py
   services/       use-case orchestration (upload, extraction, rules, review, policies, auth)
   queueing/       jobs/ payloads + invoice_processing.py pipeline + reconcile.py
   schemas/        Pydantic request/response models
