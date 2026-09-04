@@ -21,22 +21,22 @@ TrimmedTitle = Annotated[
 TrimmedPurpose = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
 ]
-NonEmptyText = Annotated[str, StringConstraints(min_length=1)]
-Amount = Annotated[Decimal, Field(gt=0, max_digits=14, decimal_places=2)]
+NonEmptyString = Annotated[str, StringConstraints(min_length=1)]
+PositiveAmount = Annotated[Decimal, Field(gt=0, max_digits=14, decimal_places=2)]
 NonNegativeAmount = Annotated[Decimal, Field(ge=0, max_digits=14, decimal_places=2)]
 
 
-class ClaimSubmissionRequest(BaseModel):
-    """The JSON ``data`` part of a multipart claim submission."""
+class ClaimCreateRequest(BaseModel):
+    """Request data for creating a claim."""
 
     expense_title: TrimmedTitle
     business_purpose: TrimmedPurpose
     category: ClaimCategory
     cost_center: str | None = None
-    vendor: NonEmptyText
+    vendor: NonEmptyString
     invoice_number: str | None = None
     invoice_date: date
-    total_amount: Amount
+    total_amount: PositiveAmount
     currency: Annotated[str, StringConstraints(min_length=3, max_length=3)]
     certified: bool
 
@@ -49,14 +49,14 @@ class ClaimSubmissionRequest(BaseModel):
         return upper
 
     @model_validator(mode="after")
-    def _require_certification(self) -> "ClaimSubmissionRequest":
+    def _require_certification(self) -> "ClaimCreateRequest":
         if self.certified is not True:
             raise ValueError("submission must be certified")
         return self
 
 
-class ClaimSubmissionResponse(BaseModel):
-    """Response for a successful claim submission."""
+class ClaimCreateResponse(BaseModel):
+    """Response after successfully creating a claim."""
 
     model_config = {"from_attributes": True}
 

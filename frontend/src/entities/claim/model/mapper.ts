@@ -1,17 +1,17 @@
 import { toCalendarDate } from '@/shared/lib/date';
 
-import type { ClaimSubmissionRequestDto, ClaimSubmissionResponseDto } from '../api/types';
+import type { ClaimCreateRequestDto, ClaimCreateResponseDto } from '../api/types';
 
 import type { SubmitClaimInput, SubmittedClaim } from './types';
 
-export function toSubmittedClaim(dto: ClaimSubmissionResponseDto): SubmittedClaim {
+export function toSubmittedClaim(dto: ClaimCreateResponseDto): SubmittedClaim {
   return {
     id: dto.id,
     status: dto.status,
   };
 }
 
-export function toClaimSubmissionRequestDto(input: SubmitClaimInput): ClaimSubmissionRequestDto {
+export function toClaimSubmissionRequestDto(input: SubmitClaimInput): ClaimCreateRequestDto {
   return {
     expense_title: input.expenseTitle,
     business_purpose: input.businessPurpose,

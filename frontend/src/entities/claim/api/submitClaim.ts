@@ -5,10 +5,10 @@ import { translateApiError } from '@/shared/api/errors';
 import { toClaimSubmissionRequestDto, toSubmittedClaim } from '../model/mapper';
 import type { SubmitClaimInput, SubmittedClaim } from '../model/types';
 
-import type { ClaimSubmissionRequestDto } from './types';
+import type { ClaimCreateRequestDto } from './types';
 
 interface ClaimMultipartBody {
-  data: ClaimSubmissionRequestDto;
+  data: ClaimCreateRequestDto;
   file: File;
 }
 

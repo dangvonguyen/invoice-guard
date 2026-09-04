@@ -9,7 +9,7 @@ from uuid import UUID
 import pytest
 
 from app.database.models.claim import Claim
-from app.schemas.claim import ClaimSubmissionRequest
+from app.schemas.claim import ClaimCreateRequest
 from app.services.claims.submission import (
     ClaimSubmissionRateLimitExceededError,
     ClaimSubmissionService,
@@ -28,10 +28,10 @@ RATE_LIMIT_SCOPE = "claim-submission"
 FIXED_NOW = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
 
 
-def build_request(**overrides: Any) -> ClaimSubmissionRequest:
+def build_request(**overrides: Any) -> ClaimCreateRequest:
     """The canonical valid submission request, with optional field overrides."""
     payload: dict[str, Any] = {**VALID_SUBMISSION_PAYLOAD, **overrides}
-    return ClaimSubmissionRequest.model_validate(payload)
+    return ClaimCreateRequest.model_validate(payload)
 
 
 @dataclass(frozen=True)

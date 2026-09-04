@@ -54,10 +54,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Submit Claim
-         * @description Submit a claim with associated document.
+         * Create Claim
+         * @description Create a claim with its supporting document.
          */
-        post: operations["submit_claim_claims_post"];
+        post: operations["create_claim_claims_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -238,8 +238,8 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** Body_submit_claim_claims_post */
-        Body_submit_claim_claims_post: {
+        /** Body_create_claim_claims_post */
+        Body_create_claim_claims_post: {
             /** Data */
             data: string;
             /** File */
@@ -271,16 +271,10 @@ export interface components {
             content: string;
         };
         /**
-         * ClaimStatus
-         * @description Lifecycle states for a claim.
-         * @enum {string}
+         * ClaimCreateResponse
+         * @description Response after successfully creating a claim.
          */
-        ClaimStatus: "submitted" | "under_review" | "returned_for_info" | "approved" | "rejected" | "withdrawn";
-        /**
-         * ClaimSubmissionResponse
-         * @description Response for a successful claim submission.
-         */
-        ClaimSubmissionResponse: {
+        ClaimCreateResponse: {
             /**
              * Id
              * Format: uuid
@@ -288,6 +282,12 @@ export interface components {
             id: string;
             status: components["schemas"]["ClaimStatus"];
         };
+        /**
+         * ClaimStatus
+         * @description Lifecycle states for a claim.
+         * @enum {string}
+         */
+        ClaimStatus: "submitted" | "under_review" | "returned_for_info" | "approved" | "rejected" | "withdrawn";
         /**
          * CurrentUserResponse
          * @description Response for users getting their own user data.
@@ -521,9 +521,9 @@ export interface components {
             /** Chunk Count */
             chunk_count: number;
         };
-        /** ResponseEnvelope[ClaimSubmissionResponse, NoneType] */
-        ResponseEnvelope_ClaimSubmissionResponse_NoneType_: {
-            data?: components["schemas"]["ClaimSubmissionResponse"] | null;
+        /** ResponseEnvelope[ClaimCreateResponse, NoneType] */
+        ResponseEnvelope_ClaimCreateResponse_NoneType_: {
+            data?: components["schemas"]["ClaimCreateResponse"] | null;
             error?: components["schemas"]["ErrorInfo"] | null;
             /** Meta */
             meta?: null;
@@ -801,7 +801,7 @@ export interface operations {
             };
         };
     };
-    submit_claim_claims_post: {
+    create_claim_claims_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -810,7 +810,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_submit_claim_claims_post"];
+                "multipart/form-data": components["schemas"]["Body_create_claim_claims_post"];
             };
         };
         responses: {
@@ -820,7 +820,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ResponseEnvelope_ClaimSubmissionResponse_NoneType_"];
+                    "application/json": components["schemas"]["ResponseEnvelope_ClaimCreateResponse_NoneType_"];
                 };
             };
             /** @description Missing or invalid bearer token */

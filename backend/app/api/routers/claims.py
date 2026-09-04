@@ -10,34 +10,35 @@ from pydantic import ValidationError
 from app.api.deps import ClaimSubmissionServiceDep, CurrentUser
 from app.api.openapi import UNAUTHORIZED_RESPONSE
 from app.core.config import get_settings
-from app.schemas.claim import ClaimSubmissionRequest, ClaimSubmissionResponse
+from app.schemas.claim import ClaimCreateRequest, ClaimCreateResponse
 from app.schemas.envelope import ResponseEnvelope
 from app.services.claims.submission import ClaimSubmissionRateLimitExceededError
 from app.services.upload.intake import UploadStorageUnavailableError
 from app.services.upload.validation import InvalidUploadError
 
-router = APIRouter(prefix="/claims", tags=["Claims"])
 logger = logging.getLogger(__name__)
 
+router = APIRouter(
+    prefix="/claims",
+    tags=["Claims"],
+    responses=UNAUTHORIZED_RESPONSE,
+)
 
-@router.post("", status_code=status.HTTP_201_CREATED, responses=UNAUTHORIZED_RESPONSE)
-async def submit_claim(
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+async def create_claim(
     current_user: CurrentUser,
-    submission: ClaimSubmissionServiceDep,
+    claim_service: ClaimSubmissionServiceDep,
     data: Annotated[str, Form()],
     file: Annotated[UploadFile, File()],
-) -> ResponseEnvelope[ClaimSubmissionResponse, None]:
-    """Submit a claim with associated document."""
+) -> ResponseEnvelope[ClaimCreateResponse, None]:
+    """Create a claim with its supporting document."""
     content = await file.read(get_settings().UPLOAD_MAX_BYTES + 1)
 
-    try:
-        request = ClaimSubmissionRequest.model_validate_json(data)
-    except ValidationError as exc:
-        _log_rejection(code="VALIDATION_ERROR", status_code=422)
-        raise RequestValidationError(exc.errors()) from exc
+    request = _parse_claim_request(data)
 
     try:
-        claim = await submission.submit(
+        claim = await claim_service.submit(
             owner_id=current_user.id,
             request=request,
             filename=file.filename,
@@ -45,10 +46,7 @@ async def submit_claim(
             content_length=len(content),
             content=content,
         )
-    except ClaimSubmissionRateLimitExceededError as exc:
-        _log_rejection(code=exc.code, status_code=exc.status_code)
-        raise
-    except InvalidUploadError as exc:
+    except (InvalidUploadError, ClaimSubmissionRateLimitExceededError) as exc:
         _log_rejection(code=exc.code, status_code=exc.status_code)
         raise
     except UploadStorageUnavailableError as exc:
@@ -59,13 +57,27 @@ async def submit_claim(
         ) from exc
 
     logger.info(
-        "Claim submission accepted",
+        "Claim created",
         extra={
-            "event": "claim.submission.accepted",
-            "context": {"status_code": status.HTTP_201_CREATED},
+            "event": "claim.creation.accepted",
+            "context": {
+                "status_code": status.HTTP_201_CREATED,
+            },
         },
     )
-    return ResponseEnvelope(data=ClaimSubmissionResponse.model_validate(claim))
+
+    return ResponseEnvelope(data=ClaimCreateResponse.model_validate(claim))
+
+
+def _parse_claim_request(data: str) -> ClaimCreateRequest:
+    try:
+        return ClaimCreateRequest.model_validate_json(data)
+    except ValidationError as exc:
+        _log_rejection(
+            code="VALIDATION_ERROR",
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        )
+        raise RequestValidationError(exc.errors()) from exc
 
 
 def _log_rejection(*, code: str, status_code: int, **context: object) -> None:

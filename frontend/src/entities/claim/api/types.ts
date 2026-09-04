@@ -1,7 +1,7 @@
 import type { components } from '@/shared/api/schema';
 
 export type ClaimStatusDto = components['schemas']['ClaimStatus'];
-export type ClaimSubmissionResponseDto = components['schemas']['ClaimSubmissionResponse'];
+export type ClaimCreateResponseDto = components['schemas']['ClaimCreateResponse'];
 
 export type ClaimCategoryDto =
   | 'software_hosting'
@@ -11,7 +11,7 @@ export type ClaimCategoryDto =
   | 'office_supplies'
   | 'other';
 
-export interface ClaimSubmissionRequestDto {
+export interface ClaimCreateRequestDto {
   expense_title: string;
   business_purpose: string;
   category: ClaimCategoryDto;

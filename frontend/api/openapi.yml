@@ -57,14 +57,14 @@ paths:
     post:
       tags:
         - Claims
-      summary: Submit Claim
-      description: Submit a claim with associated document.
-      operationId: submit_claim_claims_post
+      summary: Create Claim
+      description: Create a claim with its supporting document.
+      operationId: create_claim_claims_post
       requestBody:
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Body_submit_claim_claims_post'
+              $ref: '#/components/schemas/Body_create_claim_claims_post'
         required: true
       responses:
         '201':
@@ -72,7 +72,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResponseEnvelope_ClaimSubmissionResponse_NoneType_'
+                $ref: '#/components/schemas/ResponseEnvelope_ClaimCreateResponse_NoneType_'
         '401':
           description: Missing or invalid bearer token
           content:
@@ -373,7 +373,7 @@ paths:
                 title: Response Ready Health Ready Get
 components:
   schemas:
-    Body_submit_claim_claims_post:
+    Body_create_claim_claims_post:
       properties:
         data:
           type: string
@@ -386,7 +386,7 @@ components:
       required:
         - data
         - file
-      title: Body_submit_claim_claims_post
+      title: Body_create_claim_claims_post
     Body_upload_invoice_invoices_post:
       properties:
         file:
@@ -428,18 +428,7 @@ components:
         - content
       title: CitationView
       description: One policy chunk cited by a generated explanation.
-    ClaimStatus:
-      type: string
-      enum:
-        - submitted
-        - under_review
-        - returned_for_info
-        - approved
-        - rejected
-        - withdrawn
-      title: ClaimStatus
-      description: Lifecycle states for a claim.
-    ClaimSubmissionResponse:
+    ClaimCreateResponse:
       properties:
         id:
           type: string
@@ -451,8 +440,19 @@ components:
       required:
         - id
         - status
-      title: ClaimSubmissionResponse
-      description: Response for a successful claim submission.
+      title: ClaimCreateResponse
+      description: Response after successfully creating a claim.
+    ClaimStatus:
+      type: string
+      enum:
+        - submitted
+        - under_review
+        - returned_for_info
+        - approved
+        - rejected
+        - withdrawn
+      title: ClaimStatus
+      description: Lifecycle states for a claim.
     CurrentUserResponse:
       properties:
         id:
@@ -780,11 +780,11 @@ components:
         - chunk_count
       title: PolicyDocumentUploadResponse
       description: Response for a successful policy document upload.
-    ResponseEnvelope_ClaimSubmissionResponse_NoneType_:
+    ResponseEnvelope_ClaimCreateResponse_NoneType_:
       properties:
         data:
           anyOf:
-            - $ref: '#/components/schemas/ClaimSubmissionResponse'
+            - $ref: '#/components/schemas/ClaimCreateResponse'
             - type: 'null'
         error:
           anyOf:
@@ -800,7 +800,7 @@ components:
       type: object
       required:
         - success
-      title: ResponseEnvelope[ClaimSubmissionResponse, NoneType]
+      title: ResponseEnvelope[ClaimCreateResponse, NoneType]
     ResponseEnvelope_CurrentUserResponse_NoneType_:
       properties:
         data:

@@ -13,7 +13,7 @@ from app.core.rate_limit import RateLimiter
 from app.core.storage import StorageClient, StorageWriteError
 from app.database.models.claim import Claim
 from app.database.repositories.claim import ClaimRepository
-from app.schemas.claim import ClaimSubmissionRequest
+from app.schemas.claim import ClaimCreateRequest
 from app.services.upload.intake import UploadStorageUnavailableError
 from app.services.upload.validation import UploadValidator
 
@@ -52,7 +52,7 @@ class ClaimSubmissionService:
         self,
         *,
         owner_id: UUID,
-        request: ClaimSubmissionRequest,
+        request: ClaimCreateRequest,
         filename: str | None,
         content_type: str | None,
         content_length: int | None,
