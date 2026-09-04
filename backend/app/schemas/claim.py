@@ -1,6 +1,6 @@
-"""Validation and transfer schemas for claim submission."""
+"""Request and response schemas for claims."""
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
@@ -62,3 +62,43 @@ class ClaimCreateResponse(BaseModel):
 
     id: UUID
     status: ClaimStatus
+
+
+class ClaimSummary(BaseModel):
+    """Summary of a claim for list views."""
+
+    model_config = {"from_attributes": True}
+
+    id: UUID
+    status: ClaimStatus
+    expense_title: str
+    vendor: str
+    total_amount: Decimal
+    currency: str
+    created_at: datetime
+
+
+class ClaimAttachmentResponse(BaseModel):
+    """Attachment metadata and download URL."""
+
+    filename: str
+    content_type: str
+    url: str
+
+
+class ClaimResponse(BaseModel):
+    """Detailed read-only representation of a claim."""
+
+    id: UUID
+    status: ClaimStatus
+    expense_title: str
+    business_purpose: str
+    category: ClaimCategory
+    cost_center: str | None
+    vendor: str
+    invoice_number: str | None
+    invoice_date: date
+    total_amount: Decimal
+    currency: str
+    attachment: ClaimAttachmentResponse
+    created_at: datetime

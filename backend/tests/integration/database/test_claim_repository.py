@@ -76,3 +76,62 @@ async def should_default_status_to_submitted_when_unset(
     created = await repository.create(build_claim(owner.id))
 
     assert created.status == ClaimStatus.SUBMITTED
+
+
+async def should_only_return_a_claim_to_its_owner(
+    repository: ClaimRepository, owner: User, test_db: AsyncSession
+) -> None:
+    """Refuse to resolve a claim for a non-owning caller."""
+    other = await create_user(test_db, email="not-the-owner@example.com")
+    created = await repository.create(build_claim(owner.id))
+
+    assert await repository.get_for_owner(created.id, owner.id) is not None
+    assert await repository.get_for_owner(created.id, other.id) is None
+
+
+async def should_list_only_the_owners_claims_newest_first(
+    repository: ClaimRepository, owner: User, test_db: AsyncSession
+) -> None:
+    """Scope the list to the owner and order it newest first."""
+    other = await create_user(test_db, email="someone-else@example.com")
+    await repository.create(build_claim(other.id, attachment_key="other-key"))
+    older = await repository.create(
+        build_claim(
+            owner.id,
+            attachment_key="older-key",
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+    )
+    newer = await repository.create(
+        build_claim(
+            owner.id,
+            attachment_key="newer-key",
+            created_at=datetime(2026, 2, 1, tzinfo=UTC),
+        )
+    )
+
+    claims, total = await repository.list_for_owner(owner.id, offset=0, limit=10)
+
+    assert total == 2
+    assert [claim.id for claim in claims] == [newer.id, older.id]
+
+
+async def should_narrow_the_list_to_claims_needing_employee_action(
+    repository: ClaimRepository, owner: User
+) -> None:
+    """Only surface claims returned for info under the needs-action filter."""
+    await repository.create(build_claim(owner.id, attachment_key="submitted-key"))
+    returned = await repository.create(
+        build_claim(
+            owner.id,
+            attachment_key="returned-key",
+            status=ClaimStatus.RETURNED_FOR_INFO,
+        )
+    )
+
+    claims, total = await repository.list_for_owner(
+        owner.id, offset=0, limit=10, needs_action=True
+    )
+
+    assert total == 1
+    assert [claim.id for claim in claims] == [returned.id]

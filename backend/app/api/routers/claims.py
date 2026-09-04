@@ -1,18 +1,41 @@
-"""Routes for claim submission."""
+"""Routes for claim submission and an owner's read-only view of their claims."""
 
 import logging
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 
-from app.api.deps import ClaimSubmissionServiceDep, CurrentUser
+from app.api.deps import (
+    ClaimRepositoryDep,
+    ClaimSubmissionServiceDep,
+    CurrentUser,
+    StorageClientDep,
+)
 from app.api.openapi import UNAUTHORIZED_RESPONSE
 from app.core.config import get_settings
-from app.schemas.claim import ClaimCreateRequest, ClaimCreateResponse
-from app.schemas.envelope import ResponseEnvelope
+from app.core.errors import NotFoundError
+from app.core.storage import StorageWriteError
+from app.schemas.claim import (
+    ClaimCreateRequest,
+    ClaimCreateResponse,
+    ClaimResponse,
+    ClaimSummary,
+)
+from app.schemas.envelope import PaginationMeta, ResponseEnvelope
 from app.services.claims.submission import ClaimSubmissionRateLimitExceededError
+from app.services.claims.views import to_claim_response
 from app.services.upload.intake import UploadStorageUnavailableError
 from app.services.upload.validation import InvalidUploadError
 
@@ -67,6 +90,64 @@ async def create_claim(
     )
 
     return ResponseEnvelope(data=ClaimCreateResponse.model_validate(claim))
+
+
+@router.get("")
+async def list_claims(
+    current_user: CurrentUser,
+    claim_repo: ClaimRepositoryDep,
+    needs_action: bool = False,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> ResponseEnvelope[list[ClaimSummary], PaginationMeta]:
+    """List the caller's claims, newest first."""
+    claims, total = await claim_repo.list_for_owner(
+        current_user.id, offset, limit, needs_action=needs_action
+    )
+
+    return ResponseEnvelope(
+        data=[ClaimSummary.model_validate(claim) for claim in claims],
+        meta=PaginationMeta(total=total, offset=offset, limit=limit),
+    )
+
+
+@router.get("/{claim_id}")
+async def get_claim(
+    claim_id: UUID,
+    current_user: CurrentUser,
+    claim_repo: ClaimRepositoryDep,
+) -> ResponseEnvelope[ClaimResponse, None]:
+    """Return one claim owned by the caller."""
+    claim = await claim_repo.get_for_owner(claim_id, current_user.id)
+
+    if claim is None:
+        raise NotFoundError(f"claim {claim_id} not found")
+
+    return ResponseEnvelope(data=to_claim_response(claim))
+
+
+@router.get("/{claim_id}/attachment")
+async def get_claim_attachment(
+    claim_id: UUID,
+    current_user: CurrentUser,
+    claim_repo: ClaimRepositoryDep,
+    storage: StorageClientDep,
+) -> Response:
+    """Return the attachment for a claim owned by the caller."""
+    claim = await claim_repo.get_for_owner(claim_id, current_user.id)
+
+    if claim is None:
+        raise NotFoundError(f"claim {claim_id} not found")
+
+    try:
+        content = await storage.read(key=claim.attachment_key)
+    except StorageWriteError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Storage is temporarily unavailable.",
+        ) from exc
+
+    return Response(content=content, media_type=claim.attachment_content_type)
 
 
 def _parse_claim_request(data: str) -> ClaimCreateRequest:
