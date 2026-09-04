@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { SubmitClaimInput } from '@/entities/claim';
 
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
-export const ACCEPTED_ATTACHMENT_TYPES = ['application/pdf'] as const;
+export const ACCEPTED_ATTACHMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png'] as const;
 
 export const CLAIM_CATEGORIES = [
   'software_hosting',
@@ -44,7 +44,7 @@ const attachment = z
   .refine((file) => file.size <= MAX_ATTACHMENT_BYTES, 'Attachment must be 10MB or smaller.')
   .refine(
     (file) => (ACCEPTED_ATTACHMENT_TYPES as readonly string[]).includes(file.type),
-    'Attachment must be a PDF.',
+    'Attachment must be a PDF, JPEG, or PNG.',
   );
 
 export const submitClaimSchema = z.object({

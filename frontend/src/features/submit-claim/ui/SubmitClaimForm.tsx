@@ -47,7 +47,7 @@ export function SubmitClaimForm() {
                 name="file"
                 type="file"
                 className="bg-muted"
-                accept={ACCEPTED_ATTACHMENT_TYPES[0]}
+                accept={ACCEPTED_ATTACHMENT_TYPES.join(',')}
                 required
               />
             </Field>

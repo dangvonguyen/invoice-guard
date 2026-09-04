@@ -24,6 +24,8 @@ pytestmark = [
 ]
 
 PDF_CONTENT = b"%PDF-1.4\nfigma invoice\n"
+JPEG_CONTENT = b"\xff\xd8\xff\xe0fake-jpeg-body"
+PNG_CONTENT = b"\x89PNG\r\n\x1a\nfake-png-body"
 MAX_BYTES = 10 * 1024 * 1024
 RATE_LIMIT = 20
 
@@ -100,6 +102,7 @@ async def should_land_a_certified_manual_submission_in_submitted(
     assert stored.invoice_number == "FIG-2026-00417"
     assert stored.invoice_date == date(2026, 2, 14)
     assert stored.total_amount == Decimal("144.00")
+    assert stored.original_total_amount == Decimal("144.00")
     assert stored.currency == "USD"
 
     # Attachment
@@ -167,16 +170,54 @@ async def should_reject_an_unknown_category(
     assert await count_claims(test_db) == 0
 
 
-async def should_reject_a_non_pdf_attachment(
+async def should_accept_a_jpeg_photo_of_a_paper_receipt(
     client: AsyncClient, test_db: AsyncSession, employee_headers: dict[str, str]
 ) -> None:
-    """Reject an unsupported attachment type without persisting a claim."""
+    """Accept a JPEG attachment on equal footing with a PDF."""
     response = await submit_claim(
         client,
         headers=employee_headers,
         filename="receipt.jpg",
-        content=b"\xff\xd8\xff\xe0fake-jpeg",
+        content=JPEG_CONTENT,
         content_type="image/jpeg",
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    claim_id = UUID(response.json()["data"]["id"])
+    stored = await test_db.get(Claim, claim_id)
+    assert stored is not None
+    assert stored.attachment_content_type == "image/jpeg"
+
+
+async def should_accept_a_png_photo_of_a_paper_receipt(
+    client: AsyncClient, test_db: AsyncSession, employee_headers: dict[str, str]
+) -> None:
+    """Accept a PNG attachment on equal footing with a PDF."""
+    response = await submit_claim(
+        client,
+        headers=employee_headers,
+        filename="receipt.png",
+        content=PNG_CONTENT,
+        content_type="image/png",
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    claim_id = UUID(response.json()["data"]["id"])
+    stored = await test_db.get(Claim, claim_id)
+    assert stored is not None
+    assert stored.attachment_content_type == "image/png"
+
+
+async def should_reject_an_unsupported_attachment_type(
+    client: AsyncClient, test_db: AsyncSession, employee_headers: dict[str, str]
+) -> None:
+    """Reject an attachment type outside PDF/JPEG/PNG without persisting a claim."""
+    response = await submit_claim(
+        client,
+        headers=employee_headers,
+        filename="receipt.gif",
+        content=b"GIF89afake-gif-body",
+        content_type="image/gif",
     )
 
     assert response.status_code == status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
@@ -192,6 +233,24 @@ async def should_reject_an_oversized_attachment(
         headers=employee_headers,
         filename="huge-scan.pdf",
         content=padded_pdf(MAX_BYTES + 1),
+    )
+
+    assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE
+    assert await count_claims(test_db) == 0
+
+
+async def should_reject_an_oversized_image_attachment(
+    client: AsyncClient, test_db: AsyncSession, employee_headers: dict[str, str]
+) -> None:
+    """Apply the same size cap to image attachments as to PDFs."""
+    header = b"\xff\xd8\xff\xe0"
+    oversized = (header + b"0" * (MAX_BYTES + 1 - len(header)))[: MAX_BYTES + 1]
+    response = await submit_claim(
+        client,
+        headers=employee_headers,
+        filename="huge-scan.jpg",
+        content=oversized,
+        content_type="image/jpeg",
     )
 
     assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE

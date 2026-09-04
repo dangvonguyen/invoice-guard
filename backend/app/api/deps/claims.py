@@ -8,7 +8,7 @@ from app.core.config import get_settings
 from app.core.rate_limit import RateLimiter, RedisRateLimiter
 from app.database.repositories.claim import ClaimRepository
 from app.services.claims.submission import ClaimSubmissionService
-from app.services.upload.validation import UploadValidator
+from app.services.upload.validation import DOCUMENT_ALLOWED_MEDIA_TYPES, UploadValidator
 
 from .invoices import StorageClientDep
 from .sessions import RedisDep, SessionManualDep
@@ -25,8 +25,11 @@ ClaimRepositoryDep = Annotated[ClaimRepository, Depends(get_claim_repository)]
 
 
 def get_claim_upload_validator() -> UploadValidator:
-    """Reuse the configured upload contract for claim attachments."""
-    return UploadValidator(max_bytes=get_settings().UPLOAD_MAX_BYTES)
+    """Accept PDF or a common image format, at the configured size cap."""
+    return UploadValidator(
+        max_bytes=get_settings().UPLOAD_MAX_BYTES,
+        allowed_media_types=DOCUMENT_ALLOWED_MEDIA_TYPES,
+    )
 
 
 ClaimUploadValidatorDep = Annotated[
