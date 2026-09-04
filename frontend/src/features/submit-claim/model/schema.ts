@@ -47,33 +47,25 @@ const attachment = z
     'Attachment must be a PDF.',
   );
 
-export const submitClaimSchema = z
-  .object({
-    expenseTitle: z.string().trim().min(1, 'Expense title is required.').max(120),
-    businessPurpose: z.string().trim().min(1, 'Business purpose is required.').max(2000),
-    category: z.enum(CLAIM_CATEGORIES, 'Choose an expense category.'),
-    costCenter: optionalText,
-    vendor: z.string().trim().min(1, 'Vendor is required.'),
-    invoiceNumber: optionalText,
-    invoiceDate: calendarDate,
-    totalAmount: money.refine((value) => Number(value) > 0, 'Total amount must be greater than 0.'),
-    currency: z
-      .string()
-      .trim()
-      .regex(/^[A-Za-z]{3}$/, 'Currency must be a 3-letter code.')
-      .transform((value) => value.toUpperCase()),
-    taxAmount: z
-      .string()
-      .trim()
-      .optional()
-      .transform((value) => (value === undefined || value === '' ? null : value))
-      .pipe(z.union([z.null(), money])),
-    certified: z
-      .literal('on', 'You must certify the claim before submitting.')
-      .transform(() => true as const),
-    file: attachment,
-  })
-  .transform((value) => ({ ...value, lineItems: [] }));
+export const submitClaimSchema = z.object({
+  expenseTitle: z.string().trim().min(1, 'Expense title is required.').max(120),
+  businessPurpose: z.string().trim().min(1, 'Business purpose is required.').max(2000),
+  category: z.enum(CLAIM_CATEGORIES, 'Choose an expense category.'),
+  costCenter: optionalText,
+  vendor: z.string().trim().min(1, 'Vendor is required.'),
+  invoiceNumber: optionalText,
+  invoiceDate: calendarDate,
+  totalAmount: money.refine((value) => Number(value) > 0, 'Total amount must be greater than 0.'),
+  currency: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z]{3}$/, 'Currency must be a 3-letter code.')
+    .transform((value) => value.toUpperCase()),
+  certified: z
+    .literal('on', 'You must certify the claim before submitting.')
+    .transform(() => true as const),
+  file: attachment,
+});
 
 export function parseSubmitClaimForm(formData: FormData): SubmitClaimInput {
   return submitClaimSchema.parse(Object.fromEntries(formData));

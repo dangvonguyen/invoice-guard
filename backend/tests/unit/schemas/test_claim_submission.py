@@ -1,6 +1,5 @@
 """Specify the claim-submission request contract."""
 
-from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -63,28 +62,3 @@ def should_reject_an_unknown_category() -> None:
     """Only accept categories from the fixed list."""
     with pytest.raises(ValidationError):
         ClaimSubmissionRequest.model_validate(valid_payload(category="rocket_fuel"))
-
-
-def should_reject_a_line_item_with_a_non_positive_amount() -> None:
-    """Require each line item to carry a positive amount."""
-    payload = valid_payload(line_items=[{"description": "Seat", "amount": "0.00"}])
-    with pytest.raises(ValidationError):
-        ClaimSubmissionRequest.model_validate(payload)
-
-
-def should_expose_parsed_line_items() -> None:
-    """Carry through well-formed line items as structured values."""
-    payload = valid_payload(
-        line_items=[
-            {"description": "Design seat", "amount": "120.00", "quantity": "1"},
-            {"description": "Dev seat", "amount": "24.00"},
-        ]
-    )
-
-    request = ClaimSubmissionRequest.model_validate(payload)
-
-    assert [li.description for li in request.line_items] == [
-        "Design seat",
-        "Dev seat",
-    ]
-    assert request.line_items[0].amount == Decimal("120.00")

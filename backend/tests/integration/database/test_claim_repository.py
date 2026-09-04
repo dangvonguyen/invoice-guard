@@ -6,16 +6,9 @@ from uuid import UUID
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models.claim import (
-    Claim,
-    ClaimCategory,
-    ClaimLineItem,
-    ClaimStatus,
-    LineItemSource,
-)
+from app.database.models.claim import Claim, ClaimCategory, ClaimStatus
 from app.database.models.user import User
 from app.database.repositories.claim import ClaimRepository
 from tests.support.helpers import create_user
@@ -43,7 +36,7 @@ def repository(test_db: AsyncSession) -> ClaimRepository:
 
 
 def build_claim(owner_id: UUID, **overrides: object) -> Claim:
-    """A fully-populated transient claim with two line items."""
+    """A fully-populated transient claim."""
     fields: dict[str, object] = {
         "owner_id": owner_id,
         "expense_title": "Annual Figma subscription",
@@ -61,29 +54,11 @@ def build_claim(owner_id: UUID, **overrides: object) -> Claim:
         "attachment_bytes": 2048,
     }
     fields.update(overrides)
-    return Claim(
-        line_items=[
-            ClaimLineItem(
-                position=1,
-                description="Design seat",
-                amount=Decimal("120.00"),
-                source=LineItemSource.EMPLOYEE,
-            ),
-            ClaimLineItem(
-                position=2,
-                description="Dev seat",
-                amount=Decimal("24.00"),
-                source=LineItemSource.EMPLOYEE,
-            ),
-        ],
-        **fields,
-    )
+    return Claim(**fields)
 
 
-async def should_round_trip_a_claim_with_its_line_items(
-    repository: ClaimRepository, owner: User
-) -> None:
-    """Persist a claim and reload it with its line items in position order."""
+async def should_round_trip_a_claim(repository: ClaimRepository, owner: User) -> None:
+    """Persist a claim and reload it."""
     created = await repository.create(build_claim(owner.id))
 
     loaded = await repository.get_by_id(created.id)
@@ -92,10 +67,6 @@ async def should_round_trip_a_claim_with_its_line_items(
     assert loaded.status == ClaimStatus.SUBMITTED
     assert loaded.vendor == "Figma Inc."
     assert loaded.original_total_amount == Decimal("144.00")
-    assert [(li.position, li.description) for li in loaded.line_items] == [
-        (1, "Design seat"),
-        (2, "Dev seat"),
-    ]
 
 
 async def should_default_status_to_submitted_when_unset(
@@ -105,20 +76,3 @@ async def should_default_status_to_submitted_when_unset(
     created = await repository.create(build_claim(owner.id))
 
     assert created.status == ClaimStatus.SUBMITTED
-
-
-async def should_cascade_delete_line_items_with_the_claim(
-    test_db: AsyncSession, repository: ClaimRepository, owner: User
-) -> None:
-    """Removing a claim removes its line items through the database cascade."""
-    created = await repository.create(build_claim(owner.id))
-
-    await test_db.delete(await test_db.get(Claim, created.id))
-    await test_db.commit()
-
-    remaining = await test_db.scalar(
-        select(func.count())
-        .select_from(ClaimLineItem)
-        .where(ClaimLineItem.claim_id == created.id)
-    )
-    assert remaining == 0

@@ -11,13 +11,6 @@ export type ClaimCategoryDto =
   | 'office_supplies'
   | 'other';
 
-export interface ClaimLineItemDto {
-  description: string;
-  amount: string;
-  quantity: string | null;
-  unit_price: string | null;
-}
-
 export interface ClaimSubmissionRequestDto {
   expense_title: string;
   business_purpose: string;
@@ -28,7 +21,5 @@ export interface ClaimSubmissionRequestDto {
   invoice_date: string;
   total_amount: string;
   currency: string;
-  tax_amount: string | null;
-  line_items: ClaimLineItemDto[];
   certified: boolean;
 }

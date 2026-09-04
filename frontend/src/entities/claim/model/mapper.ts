@@ -22,13 +22,6 @@ export function toClaimSubmissionRequestDto(input: SubmitClaimInput): ClaimSubmi
     invoice_date: toCalendarDate(input.invoiceDate),
     total_amount: input.totalAmount,
     currency: input.currency,
-    tax_amount: input.taxAmount,
-    line_items: input.lineItems.map((item) => ({
-      description: item.description,
-      amount: item.amount,
-      quantity: item.quantity,
-      unit_price: item.unitPrice,
-    })),
     certified: input.certified,
   };
 }

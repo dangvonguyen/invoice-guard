@@ -10,11 +10,10 @@ from fastapi import status
 from httpx import AsyncClient, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_storage_client
 from app.core.storage import LocalStorageClient, StorageWriteError
-from app.database.models.claim import Claim, ClaimStatus, LineItemSource
+from app.database.models.claim import Claim, ClaimStatus
 from app.database.models.user import User
 from app.main import app
 from tests.support.constants import VALID_SUBMISSION_PAYLOAD
@@ -101,7 +100,6 @@ async def should_land_a_certified_manual_submission_in_submitted(
     assert stored.invoice_number == "FIG-2026-00417"
     assert stored.invoice_date == date(2026, 2, 14)
     assert stored.total_amount == Decimal("144.00")
-    assert stored.tax_amount == Decimal("0.00")
     assert stored.currency == "USD"
 
     # Attachment
@@ -109,39 +107,6 @@ async def should_land_a_certified_manual_submission_in_submitted(
     assert stored.attachment_content_type == "application/pdf"
     assert stored.attachment_bytes == len(PDF_CONTENT)
     assert await storage_backend.read(key=stored.attachment_key) == PDF_CONTENT
-
-
-async def should_persist_line_items_in_submission_order(
-    client: AsyncClient,
-    test_db: AsyncSession,
-    employee_headers: dict[str, str],
-) -> None:
-    """Store each submitted line item numbered from 1 and marked employee-sourced."""
-    response = await submit_claim(
-        client,
-        headers=employee_headers,
-        data_overrides={
-            "line_items": [
-                {"description": "Design seat", "amount": "120.00", "quantity": "1"},
-                {"description": "Dev seat", "amount": "24.00"},
-            ]
-        },
-    )
-
-    assert response.status_code == status.HTTP_201_CREATED
-    claim_id = UUID(response.json()["data"]["id"])
-    stored = await test_db.scalar(
-        select(Claim)
-        .where(Claim.id == claim_id)
-        .options(selectinload(Claim.line_items))
-    )
-    assert stored is not None
-    assert [
-        (li.position, li.description, li.amount, li.source) for li in stored.line_items
-    ] == [
-        (1, "Design seat", Decimal("120.00"), LineItemSource.EMPLOYEE),
-        (2, "Dev seat", Decimal("24.00"), LineItemSource.EMPLOYEE),
-    ]
 
 
 async def should_reject_an_unauthenticated_submission(

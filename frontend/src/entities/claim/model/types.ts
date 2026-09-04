@@ -14,13 +14,6 @@ export type ClaimCategory =
   | 'office_supplies'
   | 'other';
 
-export interface ClaimLineItemInput {
-  description: string;
-  amount: string;
-  quantity: string | null;
-  unitPrice: string | null;
-}
-
 export interface SubmitClaimInput {
   expenseTitle: string;
   businessPurpose: string;
@@ -31,8 +24,6 @@ export interface SubmitClaimInput {
   invoiceDate: Date;
   totalAmount: string;
   currency: string;
-  taxAmount: string | null;
-  lineItems: ClaimLineItemInput[];
   certified: true;
   file: File;
 }

@@ -52,10 +52,5 @@ VALID_SUBMISSION_PAYLOAD: dict[str, object] = {
     "invoice_date": "2026-02-14",
     "total_amount": "144.00",
     "currency": "usd",
-    "tax_amount": "0.00",
-    "line_items": [
-        {"description": "Design seat", "amount": "120.00", "quantity": "1"},
-        {"description": "Dev seat", "amount": "24.00"},
-    ],
     "certified": True,
 }

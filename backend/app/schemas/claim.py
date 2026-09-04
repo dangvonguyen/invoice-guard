@@ -26,17 +26,6 @@ Amount = Annotated[Decimal, Field(gt=0, max_digits=14, decimal_places=2)]
 NonNegativeAmount = Annotated[Decimal, Field(ge=0, max_digits=14, decimal_places=2)]
 
 
-class ClaimLineItemInput(BaseModel):
-    """One employee-entered line item on a submitted claim."""
-
-    description: NonEmptyText
-    amount: Amount
-    quantity: (
-        Annotated[Decimal, Field(gt=0, max_digits=14, decimal_places=4)] | None
-    ) = None
-    unit_price: NonNegativeAmount | None = None
-
-
 class ClaimSubmissionRequest(BaseModel):
     """The JSON ``data`` part of a multipart claim submission."""
 
@@ -49,8 +38,6 @@ class ClaimSubmissionRequest(BaseModel):
     invoice_date: date
     total_amount: Amount
     currency: Annotated[str, StringConstraints(min_length=3, max_length=3)]
-    tax_amount: NonNegativeAmount | None = None
-    line_items: list[ClaimLineItemInput] = []
     certified: bool
 
     @field_validator("currency")

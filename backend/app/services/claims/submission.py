@@ -11,7 +11,7 @@ from uuid import UUID
 from app.core.errors import DomainError
 from app.core.rate_limit import RateLimiter
 from app.core.storage import StorageClient, StorageWriteError
-from app.database.models.claim import Claim, ClaimLineItem, LineItemSource
+from app.database.models.claim import Claim
 from app.database.repositories.claim import ClaimRepository
 from app.schemas.claim import ClaimSubmissionRequest
 from app.services.upload.intake import UploadStorageUnavailableError
@@ -92,23 +92,11 @@ class ClaimSubmissionService:
             invoice_date=request.invoice_date,
             total_amount=request.total_amount,
             currency=request.currency,
-            tax_amount=request.tax_amount,
             original_total_amount=request.total_amount,
             certified_at=self._clock(),
             attachment_key=key,
             attachment_filename=filename or "",
             attachment_content_type=content_type or "",
             attachment_bytes=content_length or len(content),
-            line_items=[
-                ClaimLineItem(
-                    position=position,
-                    description=item.description,
-                    amount=item.amount,
-                    quantity=item.quantity,
-                    unit_price=item.unit_price,
-                    source=LineItemSource.EMPLOYEE,
-                )
-                for position, item in enumerate(request.line_items, start=1)
-            ],
         )
         return await self._claim_repo.create(claim)

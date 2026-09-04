@@ -20,7 +20,6 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
-    UniqueConstraint,
     Uuid,
     func,
 )
@@ -50,13 +49,6 @@ class ClaimCategory(StrEnum):
     MEALS_ENTERTAINMENT = "meals_entertainment"
     OFFICE_SUPPLIES = "office_supplies"
     OTHER = "other"
-
-
-class LineItemSource(StrEnum):
-    """Who supplied a given claim line item."""
-
-    REVIEWER = "reviewer"
-    EMPLOYEE = "employee"
 
 
 def _enum_column(enum_type: type[StrEnum], name: str) -> Enum:
@@ -102,7 +94,6 @@ class Claim(Base):
     invoice_date: Mapped[date] = mapped_column(Date)
     currency: Mapped[str] = mapped_column(String(3))
     total_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
-    tax_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
 
     # Immutable snapshot of the total at first submit
     original_total_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
@@ -134,44 +125,11 @@ class Claim(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    owner: Mapped[User] = relationship(lazy="raise")
-    line_items: Mapped[list["ClaimLineItem"]] = relationship(
+    owner: Mapped[User] = relationship(
         lazy="raise",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-        order_by="ClaimLineItem.position",
+        foreign_keys=[owner_id],
     )
-
-
-class ClaimLineItem(Base):
-    """One itemized line on a claim, in submission order."""
-
-    __tablename__ = "claim_line_items"
-    __table_args__ = (
-        Index("ix_claim_line_items_claim_id", "claim_id"),
-        # Positions are 1..n within a claim and never collide.
-        UniqueConstraint(
-            "claim_id", "position", name="uq_claim_line_items_claim_id_position"
-        ),
-    )
-
-    id: Mapped[UUID] = mapped_column(
-        Uuid, primary_key=True, server_default=func.gen_random_uuid()
-    )
-    claim_id: Mapped[UUID] = mapped_column(
-        Uuid, ForeignKey("claims.id", ondelete="CASCADE")
-    )
-    position: Mapped[int] = mapped_column(Integer)
-    description: Mapped[str] = mapped_column(Text)
-    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
-    quantity: Mapped[Decimal | None] = mapped_column(Numeric(14, 4), nullable=True)
-    unit_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
-    source: Mapped[LineItemSource] = mapped_column(
-        _enum_column(LineItemSource, "line_item_source")
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    assigned_reviewer: Mapped[User | None] = relationship(
+        lazy="raise",
+        foreign_keys=[assigned_reviewer_id],
     )
