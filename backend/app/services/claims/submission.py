@@ -11,12 +11,7 @@ from uuid import UUID
 from app.core.errors import DomainError
 from app.core.rate_limit import RateLimiter
 from app.core.storage import StorageClient, StorageWriteError
-from app.database.models.claim import (
-    Claim,
-    ClaimEntryMethod,
-    ClaimLineItem,
-    LineItemSource,
-)
+from app.database.models.claim import Claim, ClaimLineItem, LineItemSource
 from app.database.repositories.claim import ClaimRepository
 from app.schemas.claim import ClaimSubmissionRequest
 from app.services.upload.intake import UploadStorageUnavailableError
@@ -99,7 +94,6 @@ class ClaimSubmissionService:
             currency=request.currency,
             tax_amount=request.tax_amount,
             original_total_amount=request.total_amount,
-            entry_method=ClaimEntryMethod.MANUAL,
             certified_at=self._clock(),
             attachment_key=key,
             attachment_filename=filename or "",

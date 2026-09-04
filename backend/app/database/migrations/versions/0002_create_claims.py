@@ -65,16 +65,14 @@ def upgrade() -> None:
         sa.Column(
             "original_total_amount", sa.Numeric(precision=14, scale=2), nullable=False
         ),
-        sa.Column(
-            "entry_method",
-            sa.Enum("extracted", "manual", "mixed", name="claim_entry_method"),
-            nullable=False,
-        ),
         sa.Column("certified_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("attachment_key", sa.String(length=255), nullable=False),
         sa.Column("attachment_filename", sa.String(length=255), nullable=False),
         sa.Column("attachment_content_type", sa.String(length=100), nullable=False),
         sa.Column("attachment_bytes", sa.Integer(), nullable=False),
+        sa.Column("assigned_reviewer_id", sa.Uuid(), nullable=True),
+        sa.Column("assigned_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("last_activity_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -88,10 +86,21 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.ForeignKeyConstraint(
+            ["assigned_reviewer_id"],
+            ["users.id"],
+            name=op.f("fk_claims_assigned_reviewer_id_users"),
+        ),
+        sa.ForeignKeyConstraint(
             ["owner_id"], ["users.id"], name=op.f("fk_claims_owner_id_users")
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_claims")),
         sa.UniqueConstraint("attachment_key", name=op.f("uq_claims_attachment_key")),
+    )
+    op.create_index(
+        "ix_claims_assigned_reviewer_id_status",
+        "claims",
+        ["assigned_reviewer_id", "status"],
+        unique=False,
     )
     op.create_index(
         "ix_claims_owner_id_created_at",
@@ -115,7 +124,7 @@ def upgrade() -> None:
         sa.Column("unit_price", sa.Numeric(precision=14, scale=2), nullable=True),
         sa.Column(
             "source",
-            sa.Enum("extracted", "reviewer", "employee", name="line_item_source"),
+            sa.Enum("reviewer", "employee", name="line_item_source"),
             nullable=False,
         ),
         sa.Column(
@@ -152,4 +161,5 @@ def downgrade() -> None:
     op.drop_table("claim_line_items")
     op.drop_index("ix_claims_status_created_at", table_name="claims")
     op.drop_index("ix_claims_owner_id_created_at", table_name="claims")
+    op.drop_index("ix_claims_assigned_reviewer_id_status", table_name="claims")
     op.drop_table("claims")

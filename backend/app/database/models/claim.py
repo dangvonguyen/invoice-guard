@@ -52,18 +52,9 @@ class ClaimCategory(StrEnum):
     OTHER = "other"
 
 
-class ClaimEntryMethod(StrEnum):
-    """How the invoice facts on a claim were produced."""
-
-    EXTRACTED = "extracted"
-    MANUAL = "manual"
-    MIXED = "mixed"
-
-
 class LineItemSource(StrEnum):
     """Who supplied a given claim line item."""
 
-    EXTRACTED = "extracted"
     REVIEWER = "reviewer"
     EMPLOYEE = "employee"
 
@@ -81,8 +72,11 @@ class Claim(Base):
 
     __tablename__ = "claims"
     __table_args__ = (
-        Index("ix_claims_owner_id_created_at", "owner_id", "created_at"),
         Index("ix_claims_status_created_at", "status", "created_at"),
+        Index("ix_claims_owner_id_created_at", "owner_id", "created_at"),
+        Index(
+            "ix_claims_assigned_reviewer_id_status", "assigned_reviewer_id", "status"
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -102,7 +96,7 @@ class Claim(Base):
     )
     cost_center: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Invoice data
+    # Invoice facts
     vendor: Mapped[str] = mapped_column(Text)
     invoice_number: Mapped[str | None] = mapped_column(Text, nullable=True)
     invoice_date: Mapped[date] = mapped_column(Date)
@@ -110,11 +104,10 @@ class Claim(Base):
     total_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
     tax_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
 
-    # Snapshot of the total at first submit; never rewritten
+    # Immutable snapshot of the total at first submit
     original_total_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
-    entry_method: Mapped[ClaimEntryMethod] = mapped_column(
-        _enum_column(ClaimEntryMethod, "claim_entry_method")
-    )
+
+    # Certification
     certified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     # Attachment
@@ -122,6 +115,17 @@ class Claim(Base):
     attachment_filename: Mapped[str] = mapped_column(String(255))
     attachment_content_type: Mapped[str] = mapped_column(String(100))
     attachment_bytes: Mapped[int] = mapped_column(Integer)
+
+    # Queue assignment
+    assigned_reviewer_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id"), nullable=True
+    )
+    assigned_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_activity_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

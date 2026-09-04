@@ -14,12 +14,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_storage_client
 from app.core.storage import LocalStorageClient, StorageWriteError
-from app.database.models.claim import (
-    Claim,
-    ClaimEntryMethod,
-    ClaimStatus,
-    LineItemSource,
-)
+from app.database.models.claim import Claim, ClaimStatus, LineItemSource
 from app.database.models.user import User
 from app.main import app
 from tests.support.constants import VALID_SUBMISSION_PAYLOAD
@@ -79,7 +74,7 @@ async def should_land_a_certified_manual_submission_in_submitted(
     employee_headers: dict[str, str],
     storage_backend: LocalStorageClient,
 ) -> None:
-    """Accept a one-call manual submission and persist it as a submitted claim."""
+    """Accept a one-call submission and persist it as a submitted claim."""
     response = await submit_claim(client, headers=employee_headers)
 
     assert response.status_code == status.HTTP_201_CREATED
@@ -95,7 +90,6 @@ async def should_land_a_certified_manual_submission_in_submitted(
     # Submission state
     assert stored.owner_id == employee.id
     assert stored.status == ClaimStatus.SUBMITTED
-    assert stored.entry_method == ClaimEntryMethod.MANUAL
     assert stored.certified_at is not None
 
     # Claim data

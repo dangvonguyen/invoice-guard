@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models.claim import (
     Claim,
     ClaimCategory,
-    ClaimEntryMethod,
     ClaimLineItem,
     ClaimStatus,
     LineItemSource,
@@ -55,7 +54,6 @@ def build_claim(owner_id: UUID, **overrides: object) -> Claim:
         "total_amount": Decimal("144.00"),
         "currency": "USD",
         "original_total_amount": Decimal("144.00"),
-        "entry_method": ClaimEntryMethod.MANUAL,
         "certified_at": datetime(2026, 3, 1, tzinfo=UTC),
         "attachment_key": "claim-attachment-key",
         "attachment_filename": "figma-invoice.pdf",
