@@ -113,13 +113,13 @@ class UploadValidator:
             UnsupportedMediaTypeError:
                 The media type, extension, or file signature is unsupported.
         """
-        normalized_content_type = self._normalize_content_type(content_type)
+        validated_filename = self._validate_filename(filename)
 
-        self._validate_filename(filename)
+        normalized_content_type = self._normalize_content_type(content_type)
 
         allowed_extensions = self._get_allowed_extensions(normalized_content_type)
 
-        self._validate_extension(filename, allowed_extensions)
+        self._validate_extension(validated_filename, allowed_extensions)
         self._validate_size(content_length, len(content))
         self._validate_content(normalized_content_type, content)
 
@@ -127,7 +127,7 @@ class UploadValidator:
         """Normalize a declared MIME type."""
         return (content_type or "").strip().lower()
 
-    def _validate_filename(self, filename: str | None) -> None:
+    def _validate_filename(self, filename: str | None) -> str:
         if not filename:
             raise InvalidFilenameError("filename is required")
 
@@ -141,6 +141,8 @@ class UploadValidator:
 
         if filename in {".", ".."}:
             raise InvalidFilenameError("filename is invalid")
+
+        return filename
 
     def _get_allowed_extensions(self, content_type: str) -> tuple[str, ...]:
         extensions = self._allowed_media_types.get(content_type)
