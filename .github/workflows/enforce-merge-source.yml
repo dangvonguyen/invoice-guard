@@ -1,0 +1,16 @@
+name: Enforce merge source
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check-source-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify source branch
+        run: |
+          if [[ "${{ github.head_ref }}" != "develop" && ! "${{ github.head_ref }}" =~ ^release/ ]]; then
+            echo "PRs into main must come from 'develop' or 'release/*'. Got: '${{ github.head_ref }}'"
+            exit 1
+          fi
