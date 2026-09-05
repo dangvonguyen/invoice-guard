@@ -118,3 +118,5 @@ def downgrade() -> None:
     op.drop_index("ix_claims_owner_id_created_at", table_name="claims")
     op.drop_index("ix_claims_assigned_reviewer_id_status", table_name="claims")
     op.drop_table("claims")
+    op.execute("DROP TYPE claim_category")
+    op.execute("DROP TYPE claim_status")
