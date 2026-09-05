@@ -1,14 +1,12 @@
 """Helper operations across tests."""
 
-from datetime import UTC, date, datetime
-from decimal import Decimal
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
 from fpdf import FPDF
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models.claim import Claim, ClaimCategory, ClaimStatus
 from app.database.models.invoice import ExtractionConfidence, Invoice, InvoiceStatus
 from app.database.models.rule_result import InvoiceRuleResult, RuleOutcome
 from app.database.models.user import User, UserRole
@@ -78,56 +76,6 @@ async def create_invoice(
     test_db.add(invoice)
     await test_db.flush()
     return invoice
-
-
-async def create_claim(
-    test_db: AsyncSession,
-    *,
-    owner_id: UUID,
-    status: ClaimStatus = ClaimStatus.SUBMITTED,
-    expense_title: str = "Annual Figma subscription",
-    business_purpose: str = "Design tooling for the product team.",
-    category: ClaimCategory = ClaimCategory.SOFTWARE_HOSTING,
-    cost_center: str | None = "PRODUCT-DESIGN",
-    vendor: str = "Figma Inc.",
-    invoice_number: str | None = "FIG-2026-00417",
-    invoice_date: date = date(2026, 2, 14),
-    total_amount: Decimal = Decimal("144.00"),
-    currency: str = "USD",
-    attachment_key: str = "claim-attachment-key",
-    attachment_filename: str = "figma-invoice.pdf",
-    attachment_content_type: str = "application/pdf",
-    attachment_bytes: int = 2048,
-    created_at: datetime | None = None,
-) -> Claim:
-    """Insert a claim row directly, bypassing submission."""
-    extra: dict[str, Any] = {}
-    if created_at:
-        extra["created_at"] = created_at
-
-    claim = Claim(
-        owner_id=owner_id,
-        status=status,
-        expense_title=expense_title,
-        business_purpose=business_purpose,
-        category=category,
-        cost_center=cost_center,
-        vendor=vendor,
-        invoice_number=invoice_number,
-        invoice_date=invoice_date,
-        total_amount=total_amount,
-        currency=currency,
-        original_total_amount=total_amount,
-        certified_at=datetime.now(UTC),
-        attachment_key=attachment_key,
-        attachment_filename=attachment_filename,
-        attachment_content_type=attachment_content_type,
-        attachment_bytes=attachment_bytes,
-        **extra,
-    )
-    test_db.add(claim)
-    await test_db.flush()
-    return claim
 
 
 async def add_rule_result(
