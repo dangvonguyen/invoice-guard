@@ -2,6 +2,7 @@
 
 import logging
 from typing import Annotated
+from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import (
@@ -147,7 +148,14 @@ async def get_claim_attachment(
             detail="Storage is temporarily unavailable.",
         ) from exc
 
-    return Response(content=content, media_type=claim.attachment_content_type)
+    filename = quote(claim.attachment_filename, safe="")
+    return Response(
+        content=content,
+        media_type=claim.attachment_content_type,
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{filename}",
+        },
+    )
 
 
 def _parse_claim_request(data: str) -> ClaimCreateRequest:
