@@ -2,6 +2,9 @@ import type { components } from '@/shared/api/schema';
 
 export type ClaimStatusDto = components['schemas']['ClaimStatus'];
 export type ClaimCreateResponseDto = components['schemas']['ClaimCreateResponse'];
+export type ClaimSummaryDto = components['schemas']['ClaimSummary'];
+export type ClaimResponseDto = components['schemas']['ClaimResponse'];
+export type ClaimAttachmentDto = components['schemas']['ClaimAttachmentResponse'];
 
 export type ClaimCategoryDto =
   | 'software_hosting'

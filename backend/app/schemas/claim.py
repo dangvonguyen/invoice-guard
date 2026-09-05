@@ -72,6 +72,7 @@ class ClaimSummary(BaseModel):
     id: UUID
     status: ClaimStatus
     expense_title: str
+    category: ClaimCategory
     vendor: str
     total_amount: Decimal
     currency: str

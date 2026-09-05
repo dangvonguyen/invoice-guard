@@ -2,7 +2,7 @@ import { apiClient } from '@/shared/api/client';
 import { unwrapEnvelope } from '@/shared/api/envelope';
 import { translateApiError } from '@/shared/api/errors';
 
-import { toClaimSubmissionRequestDto, toSubmittedClaim } from '../model/mapper';
+import { toClaimCreateRequestDto, toSubmittedClaim } from '../model/mapper';
 import type { SubmitClaimInput, SubmittedClaim } from '../model/types';
 
 import type { ClaimCreateRequestDto } from './types';
@@ -14,7 +14,7 @@ interface ClaimMultipartBody {
 
 export async function submitClaim(input: SubmitClaimInput): Promise<SubmittedClaim> {
   const body: ClaimMultipartBody = {
-    data: toClaimSubmissionRequestDto(input),
+    data: toClaimCreateRequestDto(input),
     file: input.file,
   };
 
