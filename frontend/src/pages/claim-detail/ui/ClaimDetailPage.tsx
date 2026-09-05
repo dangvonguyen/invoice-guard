@@ -1,4 +1,5 @@
-import { Link, useLoaderData, useRevalidator, useRouteError } from 'react-router';
+import { Suspense } from 'react';
+import { Await, Link, useLoaderData, useRevalidator, useRouteError } from 'react-router';
 import { ArrowLeft, FileWarning, Loader2 } from 'lucide-react';
 
 import {
@@ -37,7 +38,8 @@ export function HydrateFallback() {
 }
 
 export function ClaimDetailPage() {
-  const claim = useLoaderData<typeof loader>();
+  const { claim, attachmentUrl } = useLoaderData<typeof loader>();
+  const revalidator = useRevalidator();
 
   return (
     <div className={pageClassName}>
@@ -100,7 +102,14 @@ export function ClaimDetailPage() {
             <CardTitle className={cardTitleClassName}>Document</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col">
-            <ClaimAttachmentViewer claimId={claim.id} attachment={claim.attachment} />
+            <Suspense fallback={<AttachmentLoading />}>
+              <Await
+                resolve={attachmentUrl}
+                errorElement={<AttachmentError onRetry={() => void revalidator.revalidate()} />}
+              >
+                {(url: string) => <ClaimAttachmentViewer url={url} attachment={claim.attachment} />}
+              </Await>
+            </Suspense>
           </CardContent>
         </Card>
       </div>
@@ -173,6 +182,26 @@ function CardRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-start justify-between gap-6 py-2.5 text-sm">
       <dt className="shrink-0 text-muted-foreground">{label}</dt>
       <dd className="min-w-0 text-right font-[350]">{value}</dd>
+    </div>
+  );
+}
+
+function AttachmentLoading() {
+  return (
+    <div role="status" className="flex aspect-4/3 items-center justify-center rounded-xl bg-muted">
+      <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden="true" />
+      <span className="sr-only">Loading receipt…</span>
+    </div>
+  );
+}
+
+function AttachmentError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex aspect-4/3 flex-col items-center justify-center gap-3 rounded-xl bg-muted text-sm text-muted-foreground">
+      <p>Couldn't load the receipt.</p>
+      <Button variant="outline" size="sm" onClick={onRetry}>
+        Retry
+      </Button>
     </div>
   );
 }

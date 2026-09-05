@@ -15,3 +15,8 @@ export async function getClaimAttachmentBlob(claimId: string): Promise<Blob> {
 
   return data;
 }
+
+export async function getClaimAttachmentUrl(claimId: string): Promise<string> {
+  const blob = await getClaimAttachmentBlob(claimId);
+  return URL.createObjectURL(blob);
+}

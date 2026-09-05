@@ -1,5 +1,5 @@
 export { getClaim, NotFoundError } from './api/getClaim';
-export { getClaimAttachmentBlob } from './api/getClaimAttachment';
+export { getClaimAttachmentUrl } from './api/getClaimAttachment';
 export type { ClaimListPage, ListClaimsParams } from './api/listClaims';
 export { listClaims } from './api/listClaims';
 export { submitClaim } from './api/submitClaim';

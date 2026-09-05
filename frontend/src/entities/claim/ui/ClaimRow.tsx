@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 
+import { paths } from '@/shared/config/paths';
 import { Badge } from '@/shared/ui/badge';
 
 import { formatClaimAmount } from '../lib/formatClaimAmount';
@@ -14,7 +15,7 @@ export interface ClaimRowProps {
 export function ClaimRow({ claim }: ClaimRowProps) {
   return (
     <Link
-      to={`/claims/${claim.id}`}
+      to={paths.claim.replace(':id', claim.id)}
       className="flex items-center justify-between gap-6 rounded-xl bg-card p-4 text-sm ring-1 ring-foreground/10 transition-colors hover:bg-muted/50"
     >
       <span className="flex flex-1 flex-col gap-1">
