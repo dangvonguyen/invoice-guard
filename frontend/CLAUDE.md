@@ -19,10 +19,10 @@ pnpm gen:api             # regenerate src/shared/api/schema.d.ts from api/openap
 ```
 src/
   app/        router, AppLayout, global styles
-  pages/      route modules (home, login, invoice-list, invoice-detail, review-queue, not-found)
-  widgets/    composite UI (app-header)
-  features/   user actions (login, logout, invoice-upload, review-decision)
-  entities/   domain nouns (invoice, user, session): api/, model/, lib/, ui/
+  pages/      route modules
+  widgets/    composite UI
+  features/   user actions
+  entities/   domain nouns: api/, model/, lib/, ui/
   shared/     api client, config (env, paths), lib, ui primitives (shadcn)
 ```
 
