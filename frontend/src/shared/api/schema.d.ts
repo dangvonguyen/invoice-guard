@@ -44,6 +44,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/claims": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Claims
+         * @description List the caller's claims, newest first.
+         */
+        get: operations["list_claims_claims_get"];
+        put?: never;
+        /**
+         * Create Claim
+         * @description Create a claim with its supporting document.
+         */
+        post: operations["create_claim_claims_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/claims/{claim_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Claim
+         * @description Return one claim owned by the caller.
+         */
+        get: operations["get_claim_claims__claim_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/claims/{claim_id}/attachment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Claim Attachment
+         * @description Return the attachment for a claim owned by the caller.
+         */
+        get: operations["get_claim_attachment_claims__claim_id__attachment_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invoices": {
         parameters: {
             query?: never;
@@ -218,6 +282,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Body_create_claim_claims_post */
+        Body_create_claim_claims_post: {
+            /** Data */
+            data: string;
+            /** File */
+            file: string;
+        };
         /** Body_upload_invoice_invoices_post */
         Body_upload_invoice_invoices_post: {
             /** File */
@@ -242,6 +313,106 @@ export interface components {
             section_label: string | null;
             /** Content */
             content: string;
+        };
+        /**
+         * ClaimAttachmentResponse
+         * @description Attachment metadata and download URL.
+         */
+        ClaimAttachmentResponse: {
+            /** Filename */
+            filename: string;
+            /** Content Type */
+            content_type: string;
+            /** Url */
+            url: string;
+        };
+        /**
+         * ClaimCategory
+         * @description The fixed set of expense categories an employee may pick from.
+         * @enum {string}
+         */
+        ClaimCategory: "software_hosting" | "travel_transport" | "travel_lodging" | "meals_entertainment" | "office_supplies" | "other";
+        /**
+         * ClaimCreateResponse
+         * @description Response after successfully creating a claim.
+         */
+        ClaimCreateResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["ClaimStatus"];
+        };
+        /**
+         * ClaimResponse
+         * @description Detailed read-only representation of a claim.
+         */
+        ClaimResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["ClaimStatus"];
+            /** Expense Title */
+            expense_title: string;
+            /** Business Purpose */
+            business_purpose: string;
+            category: components["schemas"]["ClaimCategory"];
+            /** Cost Center */
+            cost_center: string | null;
+            /** Vendor */
+            vendor: string;
+            /** Invoice Number */
+            invoice_number: string | null;
+            /**
+             * Invoice Date
+             * Format: date
+             */
+            invoice_date: string;
+            /** Total Amount */
+            total_amount: string;
+            /** Currency */
+            currency: string;
+            attachment: components["schemas"]["ClaimAttachmentResponse"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * ClaimStatus
+         * @description Lifecycle states for a claim.
+         * @enum {string}
+         */
+        ClaimStatus: "submitted" | "under_review" | "returned_for_info" | "approved" | "rejected" | "withdrawn";
+        /**
+         * ClaimSummary
+         * @description Summary of a claim for list views.
+         */
+        ClaimSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["ClaimStatus"];
+            /** Expense Title */
+            expense_title: string;
+            category: components["schemas"]["ClaimCategory"];
+            /** Vendor */
+            vendor: string;
+            /** Total Amount */
+            total_amount: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /**
          * CurrentUserResponse
@@ -476,6 +647,24 @@ export interface components {
             /** Chunk Count */
             chunk_count: number;
         };
+        /** ResponseEnvelope[ClaimCreateResponse, NoneType] */
+        ResponseEnvelope_ClaimCreateResponse_NoneType_: {
+            data?: components["schemas"]["ClaimCreateResponse"] | null;
+            error?: components["schemas"]["ErrorInfo"] | null;
+            /** Meta */
+            meta?: null;
+            /** Success */
+            readonly success: boolean;
+        };
+        /** ResponseEnvelope[ClaimResponse, NoneType] */
+        ResponseEnvelope_ClaimResponse_NoneType_: {
+            data?: components["schemas"]["ClaimResponse"] | null;
+            error?: components["schemas"]["ErrorInfo"] | null;
+            /** Meta */
+            meta?: null;
+            /** Success */
+            readonly success: boolean;
+        };
         /** ResponseEnvelope[CurrentUserResponse, NoneType] */
         ResponseEnvelope_CurrentUserResponse_NoneType_: {
             data?: components["schemas"]["CurrentUserResponse"] | null;
@@ -538,6 +727,15 @@ export interface components {
             error?: components["schemas"]["ErrorInfo"] | null;
             /** Meta */
             meta?: null;
+            /** Success */
+            readonly success: boolean;
+        };
+        /** ResponseEnvelope[list[ClaimSummary], PaginationMeta] */
+        ResponseEnvelope_list_ClaimSummary__PaginationMeta_: {
+            /** Data */
+            data?: components["schemas"]["ClaimSummary"][] | null;
+            error?: components["schemas"]["ErrorInfo"] | null;
+            meta?: components["schemas"]["PaginationMeta"] | null;
             /** Success */
             readonly success: boolean;
         };
@@ -743,6 +941,170 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResponseEnvelope_NoneType_NoneType_"];
+                };
+            };
+        };
+    };
+    list_claims_claims_get: {
+        parameters: {
+            query?: {
+                needs_action?: boolean;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_list_ClaimSummary__PaginationMeta_"];
+                };
+            };
+            /** @description Missing or invalid bearer token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_NoneType_NoneType_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_claim_claims_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_create_claim_claims_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_ClaimCreateResponse_NoneType_"];
+                };
+            };
+            /** @description Missing or invalid bearer token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_NoneType_NoneType_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_claim_claims__claim_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                claim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_ClaimResponse_NoneType_"];
+                };
+            };
+            /** @description Missing or invalid bearer token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_NoneType_NoneType_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_claim_attachment_claims__claim_id__attachment_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                claim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Missing or invalid bearer token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseEnvelope_NoneType_NoneType_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
