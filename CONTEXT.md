@@ -4,9 +4,9 @@ Expense-invoice intake and review: employees submit invoices, a deterministic ru
 
 ## Language
 
-**Claim**:
-One employee's reimbursement request for a single vendor document, such as a bill, receipt, or itemized statement. A Claim covers one vendor and one document, including its business context and invoice facts.
-_Avoid_: Expense report — a rolled-up employee submission that aggregates documents from multiple vendors. This system handles reimbursement at the single-vendor-document level.
+**Invoice**:
+One document from a single vendor for a single transaction — a bill, receipt, or itemized statement — that an employee submits for reimbursement or payment. Its line items, tax, and total all belong to that one vendor.
+_Avoid_: Expense claim, expense report (a different, unsupported concept — an employee's rolled-up submission aggregating receipts from many vendors into one reimbursement payout; this system extracts and reviews at the single-vendor-document level, not the aggregated-report level)
 
 **Golden Set**:
 A fixed collection of cases paired with hand-verified expected results, used to measure how accurately the system performs one task against ground truth. Each measured task has its own: the Extraction Golden Set and the Explanation Golden Set.

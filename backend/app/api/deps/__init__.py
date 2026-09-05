@@ -15,12 +15,6 @@ from .auth import (
     get_user_repository,
     raise_unauthorized,
 )
-from .claims import (
-    ClaimRepositoryDep,
-    ClaimSubmissionServiceDep,
-    get_claim_repository,
-    get_claim_submission_service,
-)
 from .decision import (
     DecisionRepositoryDep,
     DecisionServiceDep,
@@ -71,8 +65,6 @@ __all__ = [
     "AuthServiceDep",
     "BearerCredentialsDep",
     "ChunkerDep",
-    "ClaimRepositoryDep",
-    "ClaimSubmissionServiceDep",
     "CurrentFinanceReviewer",
     "CurrentUser",
     "DecisionRepositoryDep",
@@ -100,8 +92,6 @@ __all__ = [
     "get_access_token_codec",
     "get_auth_service",
     "get_chunker",
-    "get_claim_repository",
-    "get_claim_submission_service",
     "get_current_finance_reviewer",
     "get_current_user",
     "get_decision_repository",

@@ -2,21 +2,12 @@
 
 from fastapi import APIRouter
 
-from app.api.routers import (
-    auth,
-    claims,
-    health,
-    invoices,
-    policies,
-    review_queue,
-    users,
-)
+from app.api.routers import auth, health, invoices, policies, review_queue, users
 
 api_router = APIRouter()
 
 api_router.include_router(auth.router)
 api_router.include_router(users.router)
-api_router.include_router(claims.router)
 api_router.include_router(invoices.router)
 api_router.include_router(review_queue.router)
 api_router.include_router(policies.router)

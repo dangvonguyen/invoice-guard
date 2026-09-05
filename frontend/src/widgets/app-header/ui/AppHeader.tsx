@@ -24,16 +24,6 @@ export function AppHeader({ user }: Props) {
 
         {user !== null && (
           <div className="flex items-center gap-8">
-            {user.role === 'employee' && (
-              <nav className="flex items-center gap-6 text-sm">
-                <Link to={paths.invoices} className="text-foreground/80 hover:text-foreground">
-                  Invoices
-                </Link>
-                <Link to={paths.claims} className="text-foreground/80 hover:text-foreground">
-                  My Claims
-                </Link>
-              </nav>
-            )}
             <span className="text-sm text-muted-foreground">
               {user.name} · {formatUserRole(user.role)}
             </span>
